@@ -38,7 +38,9 @@ def _days_360(start: date, end: date, *, european: bool) -> int:
     return 360 * (end.year - start.year) + 30 * (end.month - start.month) + (d2 - d1)
 
 
-def year_fraction(start: date, end: date, convention: DayCountConvention | str = DayCountConvention.ACT_365F) -> Decimal:
+def year_fraction(
+    start: date, end: date, convention: DayCountConvention | str = DayCountConvention.ACT_365F
+) -> Decimal:
     """Year fraction between two dates under the given convention."""
     convention = DayCountConvention(convention) if not isinstance(convention, DayCountConvention) else convention
     if end < start:

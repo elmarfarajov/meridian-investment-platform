@@ -54,7 +54,9 @@ class FxRate:
 class FxTable:
     """A set of rates for one valuation date, with inversion and cross rates."""
 
-    def __init__(self, rates: Iterable[FxRate] = (), *, pivot: str | Currency = "USD", as_of: date | None = None) -> None:
+    def __init__(
+        self, rates: Iterable[FxRate] = (), *, pivot: str | Currency = "USD", as_of: date | None = None
+    ) -> None:
         self._rates: dict[tuple[str, str], FxRate] = {}
         self.pivot = get_currency(pivot)
         self.as_of = as_of

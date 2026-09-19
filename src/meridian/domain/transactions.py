@@ -86,9 +86,11 @@ class Transaction:
             raise ValidationError(f"{self.transaction_id}: a {self.transaction_type.value} needs an instrument")
         if self.settlement_date and self.settlement_date < self.trade_date:
             raise ValidationError(f"{self.transaction_id}: settlement precedes the trade date")
-        if self.transaction_type.affects_position and self.quantity == 0 and self.transaction_type not in {
-            TransactionType.SPIN_OFF
-        }:
+        if (
+            self.transaction_type.affects_position
+            and self.quantity == 0
+            and self.transaction_type not in {TransactionType.SPIN_OFF}
+        ):
             raise ValidationError(f"{self.transaction_id}: a {self.transaction_type.value} needs a quantity")
 
     # ------------------------------------------------------------------ amounts
@@ -164,7 +166,7 @@ def build_trade(
         settlement_date=settlement_date,
         quantity=to_decimal(quantity, field="quantity"),
         price=to_decimal(price, field="price"),
-        currency=currency,
+        currency=get_currency(currency),
         fees=to_decimal(fees, field="fees"),
         taxes=to_decimal(taxes, field="taxes"),
     )

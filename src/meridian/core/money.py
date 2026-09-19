@@ -16,7 +16,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_FLOOR, ROUND_HALF_EVEN, Decimal
-from typing import Union
 
 from .currency import Currency, get_currency
 from .decimals import Numeric, to_decimal
@@ -69,7 +68,7 @@ class Money:
 
     __rmul__ = __mul__
 
-    def __truediv__(self, divisor: Union[Numeric, "Money"]) -> Union["Money", Decimal]:
+    def __truediv__(self, divisor: Numeric | Money) -> Money | Decimal:
         """Dividing by a number scales the amount; dividing by money gives a ratio."""
         if isinstance(divisor, Money):
             self._check(divisor, "divide")

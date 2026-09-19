@@ -94,9 +94,7 @@ class Position:
         object.__setattr__(self, "currency", get_currency(self.currency))
         for lot in self.lots:
             if lot.instrument_id != self.instrument_id:
-                raise ValidationError(
-                    f"Lot {lot.lot_id} belongs to {lot.instrument_id}, not {self.instrument_id}"
-                )
+                raise ValidationError(f"Lot {lot.lot_id} belongs to {lot.instrument_id}, not {self.instrument_id}")
             if lot.currency != self.currency:
                 raise ValidationError(f"Lot {lot.lot_id} is in {lot.currency.code}, not {self.currency.code}")
 

@@ -15,11 +15,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation, localcontext
-from typing import Union
+from typing import TypeAlias
 
 from .exceptions import ValidationError
 
-Numeric = Union[int, float, str, Decimal]
+#: Anything the platform accepts as a number on the way in. It is converted to
+#: ``Decimal`` at the boundary and never stored in any other form.
+Numeric: TypeAlias = int | float | str | Decimal
 
 MONEY_PRECISION = Decimal("0.01")
 QUANTITY_PRECISION = Decimal("0.00000001")

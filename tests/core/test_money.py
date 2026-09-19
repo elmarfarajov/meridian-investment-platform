@@ -23,7 +23,7 @@ def test_currencies_never_mix_silently():
         Money(100, "USD") + Money(100, "EUR")
     assert error.value.operation == "add"
     with pytest.raises(CurrencyMismatchError):
-        Money(100, "USD") > Money(100, "EUR")
+        _ = Money(100, "USD") > Money(100, "EUR")
 
 
 def test_arithmetic():

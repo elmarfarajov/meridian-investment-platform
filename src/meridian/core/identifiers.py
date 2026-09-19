@@ -125,7 +125,7 @@ def validate_figi(value: str) -> bool:
     return figi_check_digit(candidate[:11]) == int(candidate[11])
 
 
-def _identifier(name: str, validator: "object", value: str) -> str:
+def _identifier(name: str, validator: object, value: str) -> str:
     candidate = value.strip().upper()
     if not validator(candidate):  # type: ignore[operator]
         raise ValidationError(f"{candidate!r} is not a valid {name}")

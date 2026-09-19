@@ -14,7 +14,7 @@ from decimal import Decimal
 
 from ..core.currency import Currency, get_currency
 from ..core.daycount import DayCountConvention
-from ..core.decimals import Numeric, to_decimal
+from ..core.decimals import to_decimal
 from ..core.enums import AssetClass, Frequency, InstrumentType, SecurityStatus
 from ..core.exceptions import ValidationError
 from ..core.identifiers import CUSIP, FIGI, ISIN, SEDOL, Ticker

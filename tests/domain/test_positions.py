@@ -85,9 +85,7 @@ def test_hifo_realises_the_smallest_gain(position: Position):
 
 
 def test_specific_lot_identification(position: Position):
-    sold, remaining = position.select_lots(
-        75, LotSelectionMethod.SPECIFIC_LOT, specific_lot_ids=["L3"]
-    )
+    sold, remaining = position.select_lots(75, LotSelectionMethod.SPECIFIC_LOT, specific_lot_ids=["L3"])
     assert [item.lot_id for item in sold] == ["L3"]
     assert {item.lot_id for item in remaining} == {"L1", "L2"}
     with pytest.raises(ValidationError):
