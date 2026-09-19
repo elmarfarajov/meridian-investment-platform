@@ -74,5 +74,8 @@ jobs:
       - run: pip install -e ".[dev,postgres]"
       - name: Alembic migrations
         run: alembic upgrade head
+      - name: Schema drift check
+        # Fails if the models and the migrations have drifted apart
+        run: alembic check
       - name: Integration tests
         run: pytest -q -m integration
