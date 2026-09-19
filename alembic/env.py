@@ -19,7 +19,9 @@ from meridian.persistence.base import Base
 
 config = context.config
 
-if config.config_file_name is not None:
+# The CLI configures logging itself and passes configure_logger=False, so that
+# `meridian db init` does not print Alembic's internal plumbing at the operator.
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url.replace("%", "%%"))

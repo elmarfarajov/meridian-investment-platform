@@ -57,6 +57,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+# importlib import mode lets test modules in different packages share a basename
+# (tests/core/test_calendars.py and tests/viz/test_calendars.py, for instance)
+addopts = "--import-mode=importlib"
 markers = [
     "slow: longer-running tests",
     "integration: tests that need a database",
@@ -87,6 +90,14 @@ disallow_incomplete_defs = true
 no_implicit_optional = true
 warn_return_any = true
 plugins = []
+
+# NumPy 2.4 ships stubs written in 3.12 syntax, which mypy refuses to parse while
+# it is checking against 3.10. The platform supports 3.10, so the floor stays and
+# the stubs are skipped instead.
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
 
 [[tool.mypy.overrides]]
 module = ["matplotlib.*", "pandas.*", "structlog.*"]
