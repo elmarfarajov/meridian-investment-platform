@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meridian"
+version = "0.1.0"
+description = "Institutional investment management platform: portfolio accounting, performance attribution, factor risk, compliance and tax-aware rebalancing."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Elmar Farajov" }]
+keywords = [
+    "investment management",
+    "portfolio accounting",
+    "performance attribution",
+    "factor risk",
+    "compliance",
+    "rebalancing",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Intended Audience :: Financial and Insurance Industry",
+]
+dependencies = [
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "matplotlib>=3.8",
+    "structlog>=24.1",
+    "typer>=0.12",
+    "rich>=13.7",
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.1"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff==0.16.8",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+meridian = "meridian.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+    "slow: longer-running tests",
+    "integration: tests that need a database",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["SIM117"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["meridian"]
+mypy_path = "src"
+strict_equality = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+no_implicit_optional = true
+warn_return_any = true
+plugins = []
+
+[[tool.mypy.overrides]]
+module = ["matplotlib.*", "pandas.*", "structlog.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["meridian"]
+omit = ["*/__main__.py"]
