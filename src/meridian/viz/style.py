@@ -105,15 +105,29 @@ def new_figure(width: float = 11.0, height: float = 6.0, **kwargs: Any) -> Figur
 
 
 def title_block(fig: Figure, title: str, subtitle: str | None = None) -> None:
-    """A left-aligned title with an optional explanatory line, as used in client packs."""
-    fig.suptitle(title, x=0.012, y=0.985, ha="left", fontsize=15, fontweight="bold", color=PALETTE["ink"])
+    """A left-aligned title with an optional explanatory line, as used in client packs.
+
+    The offsets are computed in inches rather than in figure fractions, so the
+    block looks the same on a tall multi-panel page and on a single wide chart.
+    """
+    height = fig.get_figheight()
+    fig.suptitle(
+        title,
+        x=0.012,
+        y=1 - 0.22 / height,
+        ha="left",
+        va="top",
+        fontsize=15,
+        fontweight="bold",
+        color=PALETTE["ink"],
+    )
     if subtitle:
-        fig.text(0.012, 0.947, subtitle, ha="left", fontsize=9.5, color=PALETTE["muted"])
+        fig.text(0.012, 1 - 0.52 / height, subtitle, ha="left", va="top", fontsize=9.5, color=PALETTE["muted"])
 
 
 def caption(fig: Figure, text: str) -> None:
     """A source or methodology note along the bottom edge."""
-    fig.text(0.012, 0.012, text, ha="left", fontsize=7.5, color=PALETTE["muted"])
+    fig.text(0.012, 0.16 / fig.get_figheight(), text, ha="left", va="bottom", fontsize=7.5, color=PALETTE["muted"])
 
 
 def style_axes(
