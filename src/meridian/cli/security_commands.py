@@ -6,27 +6,17 @@ from typing import Annotated
 
 import typer
 
-from ..core.identifiers import (
-    CUSIP,
-    ISIN,
-    cusip_check_digit,
-    isin_check_digit,
-    sedol_check_digit,
-    validate_cusip,
-    validate_figi,
-    validate_isin,
-    validate_sedol,
-)
+from ..core.identifiers import CUSIP, ISIN, expected_check_digit, identify
 from ._common import console, render_rows, table
 
-app = typer.Typer(help="Security identifiers: validation and conversion.", no_args_is_help=True)
+app = typer.Typer(help="Security and entity identifiers: validation and conversion.", no_args_is_help=True)
 
-_VALIDATORS = (
-    ("ISIN", validate_isin, 12),
-    ("CUSIP", validate_cusip, 9),
-    ("SEDOL", validate_sedol, 7),
-    ("FIGI", validate_figi, 12),
-)
+_SHAPES = {
+    20: "LEI",
+    12: "ISIN or FIGI",
+    9: "CUSIP",
+    7: "SEDOL",
+}
 
 
 @app.command("validate")
@@ -37,46 +27,42 @@ def validate(
     rows: list[tuple[str, str, str, str]] = []
     for raw in values:
         candidate = raw.strip().upper()
-        matches = [name for name, validator, length in _VALIDATORS if len(candidate) == length and validator(candidate)]
-        if matches:
-            scheme = ", ".join(matches)
-            detail = ""
-            if "ISIN" in matches:
-                detail = f"country {candidate[:2]}, check digit {candidate[-1]}"
-            elif "CUSIP" in matches:
-                detail = f"ISIN would be {CUSIP(candidate).to_isin()}"
-            rows.append((raw, scheme, "[good]valid[/good]", detail))
+        schemes = identify(candidate)
+        if schemes:
+            rows.append((raw, ", ".join(schemes), "[good]valid[/good]", _detail(candidate, schemes)))
         else:
-            rows.append((raw, _guess_scheme(candidate), "[bad]invalid[/bad]", _expected(candidate)))
+            shape = _SHAPES.get(len(candidate), f"unknown ({len(candidate)} characters)")
+            expected = expected_check_digit(candidate)
+            rows.append(
+                (
+                    raw,
+                    shape,
+                    "[bad]invalid[/bad]",
+                    f"expected check digit {expected}" if expected else "malformed",
+                )
+            )
     console.print(
         render_rows(
             table(
                 "Identifier validation",
                 ["Input", "Scheme", "Result", "Detail"],
                 caption="Check digits: ISIN uses Luhn after letter expansion, CUSIP a weighted mod 10, "
-                "SEDOL the 1,3,1,7,3,9 weights, FIGI a doubled-position digit sum.",
+                "SEDOL the 1,3,1,7,3,9 weights, FIGI a doubled-position digit sum, LEI ISO 7064 MOD 97-10.",
             ),
             rows,
         )
     )
 
 
-def _guess_scheme(candidate: str) -> str:
-    by_length = {12: "ISIN or FIGI", 9: "CUSIP", 7: "SEDOL"}
-    return by_length.get(len(candidate), f"unknown ({len(candidate)} characters)")
-
-
-def _expected(candidate: str) -> str:
-    """For a near-miss, show the check digit the body actually implies."""
-    try:
-        if len(candidate) == 12 and candidate[:2].isalpha():
-            return f"expected check digit {isin_check_digit(candidate[:11])}"
-        if len(candidate) == 9:
-            return f"expected check digit {cusip_check_digit(candidate[:8])}"
-        if len(candidate) == 7:
-            return f"expected check digit {sedol_check_digit(candidate[:6])}"
-    except Exception:  # a malformed body simply has no expected digit
-        return ""
+def _detail(candidate: str, schemes: tuple[str, ...]) -> str:
+    if "ISIN" in schemes:
+        return f"country {candidate[:2]}, check digit {candidate[-1]}"
+    if "CUSIP" in schemes:
+        return f"ISIN would be {CUSIP(candidate).to_isin()}"
+    if "LEI" in schemes:
+        return f"issued by LOU {candidate[:4]}, entity part {candidate[4:18]}"
+    if "FIGI" in schemes:
+        return "Bloomberg global identifier"
     return ""
 
 
