@@ -8,9 +8,15 @@ from typing import Annotated
 
 import typer
 
-from ..core.calendars import BusinessDayConvention, available_calendars, get_calendar
+from ..core.calendars import (
+    BusinessDayConvention,
+    JointCalendar,
+    available_calendars,
+    calendar_aliases,
+    get_calendar,
+)
 from ..core.exceptions import CalendarError
-from ..viz.calendars import divergent_days, plot_trading_calendar
+from ..viz.calendars import divergent_days, plot_divergence_matrix, plot_settlement_ladder, plot_trading_calendar
 from ..viz.style import save_figure
 from ._common import console, fail, render_rows, success, table
 
@@ -22,17 +28,29 @@ WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 @app.command("list")
 def list_calendars() -> None:
     """List the calendars the platform knows about."""
+    aliases: dict[str, list[str]] = {}
+    for alias, target in calendar_aliases().items():
+        aliases.setdefault(target, []).append(alias)
     rows = []
     for name in available_calendars():
         calendar = get_calendar(name)
-        rows.append((name, calendar.name, calendar.timezone, len(calendar.holidays(date.today().year))))
+        rows.append(
+            (
+                name,
+                calendar.description,
+                calendar.timezone,
+                ", ".join(sorted(aliases.get(name, []))) or "-",
+                len(calendar.holidays(date.today().year)),
+            )
+        )
     console.print(
         render_rows(
             table(
                 "Available calendars",
-                ["Alias", "Calendar", "Timezone", "Holidays this year"],
-                caption="Holidays are derived from statutory rules, not from a file that can go stale.",
-                numeric=[3],
+                ["Code", "Market", "Timezone", "Aliases", "Holidays this year"],
+                caption="Holidays are derived from statutory rules, not from a file that can go stale. "
+                "Join calendars with a plus, e.g. XNYS+XTKS.",
+                numeric=[4],
             ),
             rows,
         )
@@ -49,11 +67,23 @@ def holidays(
         calendar = get_calendar(name)
     except (CalendarError, KeyError):
         fail(f"unknown calendar {name!r}; try one of {', '.join(available_calendars())}")
-    days = sorted(calendar.holidays(year))
-    rows = [(day.isoformat(), WEEKDAYS[day.weekday()]) for day in days]
+    holidays_found = calendar.named_holidays_between(date(year, 1, 1), date(year, 12, 31))
+    rows = [
+        (
+            holiday.day.isoformat(),
+            WEEKDAYS[holiday.day.weekday()],
+            holiday.name,
+            "weekend" if holiday.day.weekday() >= 5 else "",
+        )
+        for holiday in holidays_found
+    ]
     console.print(
         render_rows(
-            table(f"{calendar.name} holidays, {year}", ["Date", "Weekday"], caption=f"{len(days)} closures"),
+            table(
+                f"{calendar.description} holidays, {year}",
+                ["Date", "Weekday", "Holiday", "Note"],
+                caption=f"{len(holidays_found)} closures, computed from the statutory rules",
+            ),
             rows,
         )
     )
@@ -105,3 +135,74 @@ def chart(
     console.print(
         f"[muted]{len(divergences)} weekday(s) in {year} when one of these markets trades and another is shut[/muted]"
     )
+
+
+@app.command("matrix")
+def matrix(
+    year: Annotated[int, typer.Option("--year", "-y")] = date.today().year,
+    calendars: Annotated[str, typer.Option("--calendars", "-c")] = "XNYS,XLON,TARGET,XETR,XSWX,XTKS",
+    out: Annotated[Path | None, typer.Option("--out", "-o", help="Write the matrix chart here")] = None,
+) -> None:
+    """Count, for every pair of markets, the weekdays on which only one of them trades."""
+    names = [item.strip() for item in calendars.split(",") if item.strip()]
+    try:
+        resolved = [get_calendar(name) for name in names]
+    except CalendarError as error:
+        fail(str(error))
+    rows = []
+    for index, left in enumerate(resolved):
+        for right in resolved[index + 1 :]:
+            days = divergent_days([left, right], year)
+            worst = days[0].isoformat() if days else "-"
+            rows.append((f"{left.name} / {right.name}", len(days), worst))
+    rows.sort(key=lambda row: row[1], reverse=True)
+    console.print(
+        render_rows(
+            table(
+                f"Calendar divergence, {year}",
+                ["Pair", "Mismatched weekdays", "First"],
+                caption="Every one of these days is a potential settlement break on a cross-border trade.",
+                numeric=[1],
+            ),
+            rows,
+        )
+    )
+    if out:
+        success(f"wrote {save_figure(plot_divergence_matrix(year, names), out)}")
+
+
+@app.command("ladder")
+def ladder(
+    trade_date: Annotated[datetime, typer.Argument(help="Trade date, YYYY-MM-DD", formats=["%Y-%m-%d"])],
+    calendars: Annotated[str, typer.Option("--calendars", "-c")] = "XNYS,XLON,TARGET,XTKS",
+    out: Annotated[Path | None, typer.Option("--out", "-o", help="Write the ladder chart here")] = None,
+) -> None:
+    """Show where T+0 to T+3 land in each market, and in the joint settlement calendar."""
+    names = [item.strip() for item in calendars.split(",") if item.strip()]
+    try:
+        resolved = [get_calendar(name) for name in names]
+    except CalendarError as error:
+        fail(str(error))
+    traded = trade_date.date()
+    joint = JointCalendar(names)
+    rows = []
+    for calendar in [*resolved, joint]:
+        landings = [calendar.add_business_days(traded, cycle) for cycle in (1, 2, 3)]
+        rows.append(
+            (
+                calendar.name,
+                *[f"{day.isoformat()} ({WEEKDAYS[day.weekday()][:3]})" for day in landings],
+            )
+        )
+    console.print(
+        render_rows(
+            table(
+                f"Settlement from {traded.isoformat()}",
+                ["Calendar", "T+1", "T+2", "T+3"],
+                caption="The last row is the joint calendar a cross-border trade has to clear.",
+            ),
+            rows,
+        )
+    )
+    if out:
+        success(f"wrote {save_figure(plot_settlement_ladder(traded, names), out)}")
