@@ -8,6 +8,10 @@ The package is layered so that each concern can be tested on its own:
 ``meridian.domain``
     The business model: instruments, portfolios, accounts, positions and
     transactions, expressed as immutable dataclasses with validation.
+``meridian.analytics``
+    The quantitative layer: root finding, yield curves and bond mathematics.
+    It works in ``float`` on purpose; values that become cash convert back to
+    ``Decimal`` at the boundary.
 ``meridian.persistence``
     SQLAlchemy mappings, migrations and repositories. Nothing above this layer
     knows which database is in use.
@@ -16,4 +20,4 @@ The package is layered so that each concern can be tested on its own:
     visual result rather than only numbers.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

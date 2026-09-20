@@ -10,6 +10,13 @@ is rejected at the boundary rather than stored.
 * **CUSIP** (North America): 9 characters, weighted modulus 10 with letter expansion.
 * **SEDOL** (UK): 7 characters, weighted sum with weights 1, 3, 1, 7, 3, 9, 1.
 * **FIGI**: 12 characters beginning ``BBG``, modulus 10 double-add-double.
+* **LEI** (ISO 17442): 20 characters identifying the *legal entity* rather than the
+  security, validated by ISO 7064 MOD 97-10 - the same scheme as an IBAN.
+
+The LEI is the one that matters for risk rather than for booking. An issuer limit,
+a counterparty exposure and a look-through to a fund's parent are all questions
+about entities, and a ticker cannot answer them: three instruments with three
+ISINs can be one credit risk.
 """
 
 from __future__ import annotations
@@ -23,6 +30,7 @@ _ISIN_PATTERN = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 _CUSIP_PATTERN = re.compile(r"^[0-9A-Z]{8}[0-9]$")
 _SEDOL_PATTERN = re.compile(r"^[0-9B-DF-HJ-NP-TV-Z]{6}[0-9]$")
 _FIGI_PATTERN = re.compile(r"^BBG[0-9B-DF-HJ-NP-TV-Z]{8}[0-9]$")
+_LEI_PATTERN = re.compile(r"^[0-9A-Z]{18}[0-9]{2}$")
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9.\-/]{0,15}$")
 _SEDOL_WEIGHTS = (1, 3, 1, 7, 3, 9, 1)
 
@@ -125,6 +133,20 @@ def validate_figi(value: str) -> bool:
     return figi_check_digit(candidate[:11]) == int(candidate[11])
 
 
+def lei_check_digits(body: str) -> int:
+    """The two ISO 7064 MOD 97-10 check digits for the first 18 characters of an LEI."""
+    expanded = _expand_alphanumerics(f"{body.upper()}00")
+    return 98 - int(expanded) % 97
+
+
+def validate_lei(value: str) -> bool:
+    """An LEI is valid when the whole 20 characters, expanded, are 1 modulo 97."""
+    candidate = value.strip().upper()
+    if not _LEI_PATTERN.match(candidate):
+        return False
+    return int(_expand_alphanumerics(candidate)) % 97 == 1
+
+
 def _identifier(name: str, validator: object, value: str) -> str:
     candidate = value.strip().upper()
     if not validator(candidate):  # type: ignore[operator]
@@ -191,6 +213,28 @@ class FIGI:
 
 
 @dataclass(frozen=True, slots=True)
+class LEI:
+    """A Legal Entity Identifier: who the obligor is, not what the instrument is."""
+
+    value: str
+
+    def __init__(self, value: str) -> None:
+        object.__setattr__(self, "value", _identifier("LEI", validate_lei, value))
+
+    @property
+    def local_operating_unit(self) -> str:
+        """The first four characters identify the issuing LOU."""
+        return self.value[:4]
+
+    @property
+    def entity_part(self) -> str:
+        return self.value[4:18]
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True, slots=True)
 class Ticker:
     """An exchange ticker, which is only unique together with its listing venue."""
 
@@ -206,3 +250,47 @@ class Ticker:
 
     def __str__(self) -> str:
         return f"{self.symbol}.{self.exchange}" if self.exchange else self.symbol
+
+
+_SCHEMES: tuple[tuple[str, object, int], ...] = (
+    ("ISIN", validate_isin, 12),
+    ("CUSIP", validate_cusip, 9),
+    ("SEDOL", validate_sedol, 7),
+    ("FIGI", validate_figi, 12),
+    ("LEI", validate_lei, 20),
+)
+
+
+def identify(value: str) -> tuple[str, ...]:
+    """Which schemes a string is a valid identifier for.
+
+    A twelve-character string can be both an ISIN and a FIGI by shape, so the
+    answer is a tuple rather than a single name. In practice the check digits
+    disambiguate, but a system that assumes so is one bad feed away from a wrong
+    instrument on a trade.
+    """
+    candidate = value.strip().upper()
+    return tuple(
+        name
+        for name, validator, length in _SCHEMES
+        if len(candidate) == length and validator(candidate)  # type: ignore[operator]
+    )
+
+
+def expected_check_digit(value: str) -> str:
+    """What the check digit of a near-miss should have been, which is how a typo is explained."""
+    candidate = value.strip().upper()
+    try:
+        if len(candidate) == 20:
+            return f"{lei_check_digits(candidate[:18]):02d}"
+        if len(candidate) == 12 and candidate.startswith("BBG"):
+            return str(figi_check_digit(candidate[:11]))
+        if len(candidate) == 12:
+            return str(isin_check_digit(candidate[:11]))
+        if len(candidate) == 9:
+            return str(cusip_check_digit(candidate[:8]))
+        if len(candidate) == 7:
+            return str(sedol_check_digit(candidate[:6]))
+    except (ValidationError, ValueError):  # a malformed body has no expected digit
+        return ""
+    return ""
