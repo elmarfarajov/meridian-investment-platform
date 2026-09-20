@@ -38,6 +38,25 @@ class CalendarError(MeridianError):
     """A trading calendar was asked for a date it cannot answer."""
 
 
+class ConvergenceError(MeridianError):
+    """A numerical solver failed to converge.
+
+    Raised rather than returning the last iterate, because a yield or an IRR that
+    silently did not converge is worse than no answer at all.
+    """
+
+    def __init__(self, what: str, iterations: int, last: float | None = None) -> None:
+        detail = f" (last estimate {last:.10g})" if last is not None else ""
+        super().__init__(f"{what} did not converge in {iterations} iterations{detail}")
+        self.what = what
+        self.iterations = iterations
+        self.last = last
+
+
+class CurveError(MeridianError):
+    """A yield curve was built from inconsistent inputs, or asked for an impossible point."""
+
+
 class RepositoryError(MeridianError):
     """Persistence refused an operation (missing entity, violated uniqueness)."""
 
