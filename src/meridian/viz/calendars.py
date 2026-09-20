@@ -16,9 +16,9 @@ from datetime import date, timedelta
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
 
-from ..core.calendars import TradingCalendar, get_calendar
+from ..core.calendars import JointCalendar, TradingCalendar, get_calendar
 from .style import PALETTE, annotate, caption, new_figure, series_colours, style_axes, title_block
 
 MONTH_LABELS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -191,3 +191,163 @@ def plot_trading_calendar(
         "including Easter by the Meeus/Jones/Butcher algorithm and UK substitute days.",
     )
     return figure
+
+
+def divergence_matrix(calendar_names: Sequence[str], year: int) -> np.ndarray:
+    """Count, for every pair of markets, the weekdays on which exactly one of them trades."""
+    calendars = [get_calendar(name) for name in calendar_names]
+    size = len(calendars)
+    matrix = np.zeros((size, size), dtype=int)
+    for row in range(size):
+        for column in range(size):
+            if row == column:
+                continue
+            matrix[row, column] = len(divergent_days([calendars[row], calendars[column]], year))
+    return matrix
+
+
+def plot_divergence_matrix(
+    year: int,
+    calendar_names: Sequence[str] = ("XNYS", "XLON", "TARGET", "XETR", "XSWX", "XTKS"),
+) -> Figure:
+    """Where cross-border settlement risk lives, as a matrix of mismatched days."""
+    matrix = divergence_matrix(calendar_names, year)
+    size = len(calendar_names)
+
+    figure = new_figure(9.6, 7.2)
+    axis = figure.add_subplot()
+    figure.subplots_adjust(top=0.80, bottom=0.10, left=0.13, right=0.99)
+
+    image = axis.imshow(matrix, cmap="BuPu", vmin=0, vmax=max(1, matrix.max()))
+    axis.set_xticks(range(size), labels=list(calendar_names), rotation=30, ha="right")
+    axis.set_yticks(range(size), labels=list(calendar_names))
+    axis.set_xticks(np.arange(-0.5, size, 1), minor=True)
+    axis.set_yticks(np.arange(-0.5, size, 1), minor=True)
+    axis.grid(which="minor", color=PALETTE["surface"], linewidth=1.4)
+    axis.grid(which="major", visible=False)
+    axis.tick_params(which="minor", length=0)
+    for spine in axis.spines.values():
+        spine.set_visible(False)
+
+    threshold = matrix.max() * 0.55 if matrix.max() else 1
+    for row in range(size):
+        for column in range(size):
+            if row == column:
+                axis.text(column, row, "-", ha="center", va="center", color=PALETTE["muted"], fontsize=9)
+                continue
+            value = matrix[row, column]
+            axis.text(
+                column,
+                row,
+                str(value),
+                ha="center",
+                va="center",
+                fontsize=9.5,
+                fontweight="bold",
+                color="white" if value > threshold else PALETTE["ink"],
+            )
+
+    bar = figure.colorbar(image, ax=axis, fraction=0.035, pad=0.02)
+    bar.set_label("Mismatched weekdays", fontsize=8, color=PALETTE["muted"])
+    bar.outline.set_visible(False)
+
+    worst = int(matrix.max())
+    pair = np.unravel_index(int(matrix.argmax()), matrix.shape)
+    title_block(
+        figure,
+        f"Where the markets disagree, {year}",
+        f"Weekdays on which one market trades and the other is shut. The worst pair is "
+        f"{calendar_names[pair[0]]} and {calendar_names[pair[1]]}, at {worst} days.",
+    )
+    caption(
+        figure,
+        "Any trade whose two legs settle in different markets has to clear both calendars; these are the days "
+        "that produce failed settlements, missed coupons and stale marks.",
+    )
+    return figure
+
+
+def plot_settlement_ladder(
+    trade_date: date,
+    calendar_names: Sequence[str] = ("XNYS", "XLON", "TARGET", "XTKS"),
+    *,
+    cycles: Sequence[int] = (0, 1, 2, 3),
+    horizon: int = 12,
+) -> Figure:
+    """Where T+0 to T+3 actually lands in each market, and in the joint settlement calendar."""
+    calendars = [get_calendar(name) for name in calendar_names]
+    joint = JointCalendar(list(calendar_names))
+    rows = [*calendars, joint]
+    labels = [*calendar_names, f"All ({joint.name})"]
+
+    figure = new_figure(12.0, 1.05 * len(rows) + 3.2)
+    axis = figure.add_subplot()
+    figure.subplots_adjust(
+        top=1 - 1.25 / figure.get_figheight(), bottom=0.85 / figure.get_figheight(), left=0.13, right=0.985
+    )
+
+    days = [trade_date + timedelta(days=offset) for offset in range(horizon + 1)]
+    colours = series_colours(len(rows))
+
+    for row_index, (calendar, colour) in enumerate(zip(rows, colours, strict=True)):
+        y = len(rows) - row_index - 1
+        for column, day in enumerate(days):
+            if calendar.is_weekend(day):
+                face, edge = PALETTE["band"], PALETTE["band"]
+            elif calendar.is_holiday(day):
+                face, edge = colour, colour
+            else:
+                face, edge = PALETTE["surface"], PALETTE["grid"]
+            axis.add_patch(plt_rectangle(column - 0.45, y - 0.34, 0.9, 0.68, facecolor=face, edgecolor=edge))
+        for cycle in cycles:
+            landing = calendar.add_business_days(trade_date, cycle) if cycle else calendar.adjust(trade_date)
+            column = (landing - trade_date).days
+            if 0 <= column <= horizon:
+                axis.text(
+                    column,
+                    y,
+                    f"T+{cycle}",
+                    ha="center",
+                    va="center",
+                    fontsize=8.5,
+                    fontweight="bold",
+                    color=colour if calendar.is_business_day(landing) else PALETTE["muted"],
+                )
+
+    axis.set_xlim(-0.6, horizon + 0.6)
+    axis.set_ylim(-0.7, len(rows) - 0.3)
+    axis.set_yticks(range(len(rows) - 1, -1, -1), labels=list(labels))
+    axis.set_xticks(
+        range(horizon + 1),
+        labels=[f"{day.strftime('%a')}\n{day.strftime('%d %b')}" for day in days],
+        fontsize=7.5,
+    )
+    axis.grid(visible=False)
+    for spine in axis.spines.values():
+        spine.set_visible(False)
+
+    joint_t2 = joint.add_business_days(trade_date, 2)
+    slowest = max((calendar.add_business_days(trade_date, 2) for calendar in calendars), default=joint_t2)
+    annotate(
+        axis,
+        f"T+2 in every market at once is {joint_t2.strftime('%a %d %b')}"
+        + (f", {(joint_t2 - slowest).days} day(s) later than the slowest single market" if joint_t2 > slowest else ""),
+        xy=(0.01, 1.03),
+        xycoords="axes fraction",
+        highlight=True,
+        fontsize=8.5,
+    )
+
+    title_block(
+        figure,
+        f"Settlement ladder from {trade_date.strftime('%A %d %B %Y')}",
+        "Shaded cells are weekends, solid cells are that market's holidays. The bottom row is the joint "
+        "calendar every leg of a cross-border trade has to clear.",
+    )
+    caption(figure, "T+0 adjusts onto the next business day; T+n counts n business days forward.")
+    return figure
+
+
+def plt_rectangle(x: float, y: float, width: float, height: float, **kwargs: object) -> Rectangle:
+    """A small helper so the ladder reads as a grid of cells rather than a wall of patch code."""
+    return Rectangle((x, y), width, height, linewidth=0.8, **kwargs)  # type: ignore[arg-type]
