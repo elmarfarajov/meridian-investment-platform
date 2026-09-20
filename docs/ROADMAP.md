@@ -30,7 +30,32 @@ argue with; a picture without a test is hard to trust.
 - A Typer + Rich CLI, a structured-logging setup, the house chart style, and the trading
   calendar chart.
 
-**Chart:** exchange trading calendars, and the weekdays on which the markets disagree.
+### Day 1, continued ✅
+
+The financial mathematics everything above the ledger depends on.
+
+- Eight trading calendars with named holidays, including Tokyo's equinoxes and chained
+  substitute days, and `JointCalendar` for cross-border settlement.
+- Nine day-count conventions, including the three that cannot be evaluated from two
+  dates alone.
+- Payment schedules: backward rolls, the sticky end-of-month rule, four stub
+  conventions, payment lags, adjusted or unadjusted accrual.
+- Compounding conventions with exact conversion, and three interpolation methods
+  including Fritsch-Carlson monotone cubic.
+- Yield curves bootstrapped from par yields, with zero, par and forward views, parallel
+  shifts and key-rate bumps.
+- Bond analytics: clean and dirty price, accrued interest, yield to maturity, duration,
+  convexity, DV01, z-spread, key rate durations.
+- Safeguarded Newton root finding that raises rather than returning a wrong number.
+- LEI validation and identifier scheme detection.
+
+**Charts:** seventeen in total, including the yield curve three ways, the interpolation
+comparison, the price-yield curve against its own approximations, key rate durations,
+the settlement ladder, the calendar divergence matrix, and an entity-relationship
+diagram generated from the live database metadata.
+
+**Notes:** [fixed income mathematics](notes/fixed-income-mathematics.md),
+[calendar conventions](notes/calendar-conventions.md).
 
 ## Day 2 - Market data
 
