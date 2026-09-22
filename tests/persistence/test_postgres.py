@@ -94,3 +94,62 @@ def test_transaction_ordering_matches_sqlite(pg_unit_of_work: UnitOfWork, transa
 
 def test_the_migrated_database_is_the_one_under_test(postgres_database: Database):
     assert postgres_database.dialect == "postgresql"
+
+
+def test_bitemporal_observations_on_postgres(pg_unit_of_work: UnitOfWork):
+    """timestamptz comparisons are what SQLite cannot prove: a correction must not leak into the past."""
+    from datetime import datetime, timezone
+
+    from meridian.marketdata.quotes import Quote
+
+    def quote(close: str) -> Quote:
+        return Quote(instrument_id="AAPL", day=date(2026, 3, 4), close=Decimal(close), currency="USD", source="v")
+
+    first = datetime(2026, 3, 4, 22, 0, tzinfo=timezone.utc)
+    corrected = datetime(2026, 3, 5, 9, 0, tzinfo=timezone.utc)
+    pg_unit_of_work.observations.record(quote("150.00"), first)
+    pg_unit_of_work.observations.record(quote("102.00"), corrected)
+    pg_unit_of_work.flush()
+    then = pg_unit_of_work.observations.as_known_at("AAPL", datetime(2026, 3, 4, 23, 0, tzinfo=timezone.utc))
+    assert then[date(2026, 3, 4)] == Decimal("150.00")
+    assert pg_unit_of_work.observations.as_known_at("AAPL")[date(2026, 3, 4)] == Decimal("102.00")
+
+
+def test_corporate_actions_and_quality_runs_on_postgres(pg_unit_of_work: UnitOfWork):
+    from meridian.domain.corporate_actions import dividend, split
+    from meridian.quality.engine import QualityReport
+    from meridian.quality.findings import Dimension, Finding, Severity
+
+    pg_unit_of_work.corporate_actions.add_all(
+        [split("S1", "AAPL", date(2026, 6, 10), 4), dividend("D1", "AAPL", date(2026, 5, 11), "0.2475", "USD")]
+    )
+    pg_unit_of_work.flush()
+    assert pg_unit_of_work.corporate_actions.get("D1").amount == Decimal("0.2475")  # type: ignore[attr-defined]
+    report = QualityReport(
+        run_id="pg-run",
+        as_of=date(2026, 3, 31),
+        findings=[
+            Finding(
+                rule="stale_mark",
+                key="AAPL",
+                day=date(2026, 3, 4),
+                severity=Severity.ERROR,
+                dimension=Dimension.TIMELINESS,
+                message="stale",
+                observed=5.0,
+            )
+        ],
+        scores=[],
+    )
+    pg_unit_of_work.quality.save(report)
+    pg_unit_of_work.flush()
+    assert [item.rule for item in pg_unit_of_work.quality.findings("pg-run")] == ["stale_mark"]
+
+
+def test_identifier_xref_on_postgres(pg_unit_of_work: UnitOfWork):
+    from meridian.refdata import demo_cross_reference
+
+    pg_unit_of_work.xref.save(demo_cross_reference())
+    pg_unit_of_work.flush()
+    assert pg_unit_of_work.xref.resolve("ticker", "FB", date(2021, 1, 4)) == "US-META"
+    assert pg_unit_of_work.xref.resolve("ticker", "FB", date(2023, 1, 4)) is None

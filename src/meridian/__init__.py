@@ -8,6 +8,16 @@ The package is layered so that each concern can be tested on its own:
 ``meridian.domain``
     The business model: instruments, portfolios, accounts, positions and
     transactions, expressed as immutable dataclasses with validation.
+``meridian.marketdata``
+    Dated series, point-in-time storage, market data sources, corporate action
+    adjustment, the golden copy and FX history.
+``meridian.quality``
+    The data quality rules, the engine that runs them and the scoring.
+``meridian.refdata``
+    The security master: identifier cross-reference and golden records.
+``meridian.services``
+    Application services that orchestrate the layers below, such as the
+    end-of-day pricing run.
 ``meridian.analytics``
     The quantitative layer: root finding, yield curves and bond mathematics.
     It works in ``float`` on purpose; values that become cash convert back to
@@ -20,4 +30,4 @@ The package is layered so that each concern can be tested on its own:
     visual result rather than only numbers.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

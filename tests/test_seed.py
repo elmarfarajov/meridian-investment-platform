@@ -65,3 +65,17 @@ def test_stamp_duty_is_charged_on_the_uk_purchase():
     assert stamped.taxes == Decimal("514.40")
     assert stamped.taxes == (stamped.gross * Decimal("0.005")).amount
     assert stamped.total_costs.amount == Decimal("544.40")
+
+
+def test_the_synthetic_instrument_says_so():
+    """The split demonstration is not a real company, and the reference data must not pretend it is."""
+    (instrument,) = [item for item in demo_book().instruments if item.instrument_id == "DEMO-SPLIT"]
+    assert "synthetic" in instrument.name
+    assert instrument.metadata["synthetic"] == "true"
+
+
+def test_every_synthetic_market_instrument_is_in_the_book():
+    from meridian.marketdata.providers import demo_market
+
+    book_ids = {item.instrument_id for item in demo_book().instruments}
+    assert set(demo_market().instruments) <= book_ids

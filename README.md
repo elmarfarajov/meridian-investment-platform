@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-373-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-642-2E7D5B)](tests)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
 
 Asset managers do not run on spreadsheets. They run on systems like BlackRock's Aladdin,
@@ -40,14 +40,64 @@ meridian calendar ladder 2026-12-23 --calendars XNYS,XLON,TARGET,XTKS
 
 meridian security validate US0378331005 HWUPKR0MPOU8FGXBT394
 # ISIN and LEI, each against its own check-digit algorithm.
+
+meridian market price --persist
+# The end-of-day pricing run: three sources collected, 16,758 observations
+# recorded with the time they arrived, 211 quality findings, 5,613 golden
+# prices published, 143 price challenges raised.
+
+meridian market history US-AAPL --known-at 2026-09-10
+# The series as it stood that evening - not as it has since been restated.
+
+meridian market xref FB --on 2021-06-01
+# FB (ticker) on 2021-06-01 -> US-META. Ask for 2023 and it resolves to nothing.
 ```
 
 ---
 
 ## The charts
 
-Every module ships a visual, not only numbers. All seventeen are in the
+Every module ships a visual, not only numbers. All thirty are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
+
+**A data quality rule that has only ever seen clean data has not been tested.** Meridian
+plants faults whose location is known in a synthetic market that has fat tails,
+volatility clustering and real exchange calendars, then counts what the rules find:
+**100% recall and 97% precision** over 126 planted faults, with every false alarm a
+genuine fat-tailed market move.
+
+![Detection scorecard](docs/images/detection-scorecard.png)
+
+**The textbook outlier test fails in exactly the situation it is needed for.** One bad
+tick inflates the standard deviation the next ones are judged against, so they hide
+behind it. The median and the MAD have a 50% breakdown point and do not move.
+
+![Why the median, not the mean](docs/images/robust-vs-classical.png)
+
+**A price has two dates: the day it describes and the day we learned it.** Corrections
+are new records, never edits, so the series as it stood on any past evening can be
+rebuilt - and the gap between that and today's restated history is the look-ahead a
+backtest would otherwise enjoy.
+
+![What we knew, and when](docs/images/point-in-time.png)
+
+**No vendor is right every day.** The golden copy takes the highest-ranked source within
+25 bp of the consensus, sets aside sources that resent yesterday's close, and records a
+challenge wherever they disagree. Against the synthetic truth it is 50 times closer than
+the best single vendor on its worst day.
+
+![Three vendors, one price](docs/images/vendor-consensus.png)
+
+**A split is not a crash.** Adjustment is a view derived from the raw history and the
+event list, never an overwrite - and it recovers the generator's own economic value to
+within a basis point.
+
+![A split is not a crash](docs/images/split-adjustment.png)
+
+**An identifier is not a name.** Tickers change and are reused; ISINs change when a
+company redomiciles. Every mapping carries a validity interval and every lookup a date.
+
+![An identifier is not a name](docs/images/identifier-timeline.png)
 
 **Two markets that are open on different days are the reason a cross-border trade fails
 to settle.** Meridian generates its calendars from statutory rules - Easter by the
@@ -98,7 +148,11 @@ meridian
 │                 positions, transactions
 ├── analytics     the quantitative layer: solvers, yield curves, bond mathematics
 ├── persistence   SQLAlchemy 2.0 schema, explicit mappers, repositories, unit of work
-├── viz           the house chart style and seventeen figures
+├── marketdata    series, point-in-time storage, sources, adjustment, golden copy
+├── quality       the data quality rules, the engine and the scoring
+├── refdata       the security master: identifier cross-reference, golden records
+├── services      application processes: the end-of-day pricing run
+├── viz           the house chart style and thirty figures
 ├── cli           a thin Typer layer over tested functions
 ├── gallery       one definition of every chart, used by the docs and the tests
 └── seed          a hand-made demonstration book to run everything against
@@ -123,7 +177,10 @@ reasons without loosening a domain invariant. Analytics code never imports SQLAl
 | Numerics | Safeguarded Newton with a bisection fallback; non-convergence raises rather than returning a plausible wrong number. |
 | Database | SQLite locally so a clone runs with no setup; the same suite runs against PostgreSQL 16 in CI. Fixed-scale `NUMERIC` columns, never floats. |
 | Migrations | Alembic, with `alembic check` in CI failing the build if the models and the migrations drift apart. |
-| Tests | 373 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
+| Market data | Bitemporal: value date and knowledge time on every observation, corrections appended rather than applied ([ADR 0009](docs/adr/0009-bitemporal-market-data.md)). One published price per day from ranked consensus across sources ([ADR 0010](docs/adr/0010-golden-copy-by-ranked-consensus.md)). |
+| Data quality | Thirteen rules across the five DAMA dimensions, robust statistics on event-adjusted returns, and detection measured against planted faults - 100% recall, 97% precision ([ADR 0013](docs/adr/0013-quality-rules-are-measured-against-planted-faults.md)). |
+| Corporate actions | Eight types, applied to history as a derived view ([ADR 0011](docs/adr/0011-corporate-action-adjustment-is-a-view.md)) and to tax lots with basis conserved and holding periods tacked. |
+| Tests | 642 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
 | Types | `mypy` with `disallow_untyped_defs` across the package; `ruff` for lint and format. |
 
 ---
@@ -140,6 +197,8 @@ meridian info                 # the effective configuration
 meridian db init              # run the migrations (SQLite by default)
 meridian db seed              # load the demonstration book
 meridian charts gallery       # rebuild every figure in docs/images
+meridian market quality       # score the demonstration feed and list the exceptions
+meridian market price --persist   # run the end-of-day pricing process into the database
 ```
 
 Point it at PostgreSQL by setting one environment variable, with no code change:
@@ -162,8 +221,12 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | --- | --- |
 | [Fixed income mathematics](docs/notes/fixed-income-mathematics.md) | Discounting, bootstrapping, clean and dirty price, duration, convexity, key rate durations, and the numerical method behind them |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
-| [Chart gallery](docs/GALLERY.md) | All seventeen figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Eight records: what was decided, what the alternatives were, and what it costs |
+| [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
+| [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
+| [Point-in-time data](docs/notes/point-in-time-data.md) | Value date against knowledge time, restatements, and look-ahead bias measured |
+| [The security master](docs/notes/security-master.md) | Identifiers that move, vendors that disagree, and how a golden record is built |
+| [Chart gallery](docs/GALLERY.md) | All thirty figures, with what each one argues |
+| [Architecture decisions](docs/adr) | Thirteen records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -175,7 +238,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | Day | Module | Status |
 | --- | --- | --- |
 | 1 | Foundation: money, identifiers, calendars, schedules, curves, bond analytics, domain model, persistence, migrations, CLI | ✅ Done |
-| 2 | Market data: prices, corporate actions, FX, data-quality rules | Planned |
+| 2 | Market data: point-in-time prices, corporate actions, FX, quality rules, golden copy, security master | ✅ Done |
 | 3 | Portfolio accounting: tax lots, cost basis, wash sales, daily valuation | Planned |
 | 4 | Performance: time- and money-weighted returns, Brinson-Fachler attribution, Cariño linking | Planned |
 | 5 | Risk: factor model, EWMA and shrinkage covariance, VaR, bias-statistic validation | Planned |

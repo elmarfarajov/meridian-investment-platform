@@ -7,10 +7,10 @@ from one of them, and the write volume for reference data is low.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import AMOUNT, QUANTITY, RATE, Base, TimestampMixin
@@ -148,7 +148,7 @@ class TaxLotRow(TimestampMixin, Base):
 
 
 class PriceRow(TimestampMixin, Base):
-    """End-of-day marks; the market data module fills this from Day 2."""
+    """The published golden copy: one mark per instrument, day and price type."""
 
     __tablename__ = "prices"
 
@@ -168,3 +168,93 @@ class FxRateRow(TimestampMixin, Base):
     rate_date: Mapped[date] = mapped_column(Date, primary_key=True)
     rate: Mapped[Decimal] = mapped_column(RATE)
     source: Mapped[str | None] = mapped_column(String(32))
+
+
+class PriceObservationRow(TimestampMixin, Base):
+    """Every value any source ever sent, never updated: the bitemporal record (ADR 0009).
+
+    ``recorded_at`` is when the platform learned the value. A vendor correction is
+    a new row with a later ``recorded_at``, so any past state of knowledge can be
+    rebuilt exactly. The ``prices`` table holds the published golden copy; this one
+    holds the evidence it was built from.
+    """
+
+    __tablename__ = "price_observations"
+
+    instrument_id: Mapped[str] = mapped_column(ForeignKey("instruments.instrument_id"), primary_key=True)
+    price_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    price_type: Mapped[str] = mapped_column(String(24), primary_key=True)
+    source: Mapped[str] = mapped_column(String(32), primary_key=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    price: Mapped[Decimal] = mapped_column(AMOUNT)
+    currency: Mapped[str] = mapped_column(String(3))
+    bid: Mapped[Decimal | None] = mapped_column(AMOUNT)
+    ask: Mapped[Decimal | None] = mapped_column(AMOUNT)
+    volume: Mapped[Decimal | None] = mapped_column(QUANTITY)
+    run_id: Mapped[str | None] = mapped_column(String(32), index=True)
+
+    __table_args__ = (Index("ix_price_observations_instrument_date", "instrument_id", "price_date"),)
+
+
+class CorporateActionRow(TimestampMixin, Base):
+    """Corporate actions. Common dates are columns; type-specific terms are a JSON document."""
+
+    __tablename__ = "corporate_actions"
+
+    action_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    instrument_id: Mapped[str] = mapped_column(ForeignKey("instruments.instrument_id"), index=True)
+    action_type: Mapped[str] = mapped_column(String(24), index=True)
+    ex_date: Mapped[date] = mapped_column(Date, index=True)
+    record_date: Mapped[date | None] = mapped_column(Date)
+    pay_date: Mapped[date | None] = mapped_column(Date)
+    announced: Mapped[date | None] = mapped_column(Date)
+    related_instrument_id: Mapped[str | None] = mapped_column(String(64))
+    terms_json: Mapped[str] = mapped_column(String(1024))
+    notes: Mapped[str | None] = mapped_column(String(512))
+
+
+class IdentifierXrefRow(TimestampMixin, Base):
+    """Identifier-to-instrument mappings with validity intervals (ADR 0012).
+
+    ``instrument_id`` is deliberately not a foreign key: the cross-reference has
+    to remember identifiers of securities that have since left the book.
+    """
+
+    __tablename__ = "identifier_xref"
+
+    scheme: Mapped[str] = mapped_column(String(16), primary_key=True)
+    value: Mapped[str] = mapped_column(String(32), primary_key=True)
+    valid_from: Mapped[date] = mapped_column(Date, primary_key=True)
+    valid_to: Mapped[date] = mapped_column(Date)
+    instrument_id: Mapped[str] = mapped_column(String(64), index=True)
+    source: Mapped[str | None] = mapped_column(String(32))
+
+
+class QualityRunRow(TimestampMixin, Base):
+    """One execution of the quality engine, with its headline numbers."""
+
+    __tablename__ = "quality_runs"
+
+    run_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    as_of: Mapped[date] = mapped_column(Date, index=True)
+    series_count: Mapped[int] = mapped_column(Integer)
+    finding_count: Mapped[int] = mapped_column(Integer)
+    blocking_count: Mapped[int] = mapped_column(Integer)
+    overall_score: Mapped[float] = mapped_column(Float)
+
+
+class QualityFindingRow(TimestampMixin, Base):
+    __tablename__ = "quality_findings"
+
+    run_id: Mapped[str] = mapped_column(ForeignKey("quality_runs.run_id"), primary_key=True)
+    finding_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    rule: Mapped[str] = mapped_column(String(48), index=True)
+    series_key: Mapped[str] = mapped_column(String(64), index=True)
+    source: Mapped[str | None] = mapped_column(String(32))
+    day: Mapped[date] = mapped_column(Date, index=True)
+    end_day: Mapped[date | None] = mapped_column(Date)
+    severity: Mapped[str] = mapped_column(String(12), index=True)
+    dimension: Mapped[str] = mapped_column(String(16))
+    message: Mapped[str] = mapped_column(String(512))
+    observed: Mapped[float | None] = mapped_column(Float)
+    score: Mapped[float | None] = mapped_column(Float)
