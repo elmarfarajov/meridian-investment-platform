@@ -152,6 +152,28 @@ class QualityReport:
         return rows
 
 
+def attach_market_proxy(contexts: Sequence[SeriesContext], *, minimum: int = 3) -> None:
+    """Give each context the leave-one-out cross-sectional median of the others' adjusted returns.
+
+    With fewer than ``minimum + 1`` series there is no meaningful cross-section
+    and the contexts are left without a proxy.
+    """
+    if len(contexts) <= minimum:
+        return
+    by_day: dict[date, list[tuple[int, float]]] = defaultdict(list)
+    for index, context in enumerate(contexts):
+        for day, value in context.adjusted_returns:
+            by_day[day].append((index, value))
+    for index, context in enumerate(contexts):
+        proxy: dict[date, float] = {}
+        for day, entries in by_day.items():
+            others = [value for owner, value in entries if owner != index]
+            if len(others) >= minimum:
+                proxy[day] = statistics.median(others)
+        context.market = proxy
+        context.__dict__.pop("residual_returns", None)  # drop a cached value computed without the proxy
+
+
 def fx_series_rules() -> list[Rule]:
     """The subset of series rules that make sense for an FX rate: no bid, no ask, no corporate actions."""
     return [MissingDays(), StaleMark(min_repeats=2), RobustOutlier(threshold=10.0), SpikeReversal(threshold=6.0)]
@@ -210,7 +232,7 @@ class QualityEngine:
                     )
                 )
         if self.use_market_proxy:
-            self._attach_market_proxy(contexts)
+            attach_market_proxy(contexts)
 
         findings: list[Finding] = []
         scores: list[SeriesScore] = []
@@ -247,23 +269,6 @@ class QualityEngine:
         )
 
     # ------------------------------------------------------------------ internals
-    @staticmethod
-    def _attach_market_proxy(contexts: Sequence[SeriesContext]) -> None:
-        """Leave-one-out cross-sectional median of adjusted returns, per day."""
-        if len(contexts) < 4:
-            return
-        by_day: dict[date, list[tuple[int, float]]] = defaultdict(list)
-        for index, context in enumerate(contexts):
-            for day, value in context.adjusted_returns:
-                by_day[day].append((index, value))
-        for index, context in enumerate(contexts):
-            proxy: dict[date, float] = {}
-            for day, entries in by_day.items():
-                others = [value for owner, value in entries if owner != index]
-                if len(others) >= 3:
-                    proxy[day] = statistics.median(others)
-            context.market = proxy
-
     @staticmethod
     def _score(context: SeriesContext, findings: Sequence[Finding]) -> SeriesScore:
         expected_days = context.expected_days

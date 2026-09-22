@@ -6,7 +6,10 @@ from .demo_market import (
     SHOWCASE_FAULTS,
     DemoMarket,
     build_demo_market,
+    demo_detection_scores,
+    demo_quality_report,
     demo_reference_data,
+    demo_revision_store,
     demo_vendor_dataset,
     run_demo_pricing,
 )
@@ -20,7 +23,10 @@ __all__ = [
     "EndOfDayPricing",
     "PricingRunResult",
     "build_demo_market",
+    "demo_detection_scores",
+    "demo_quality_report",
     "demo_reference_data",
+    "demo_revision_store",
     "demo_vendor_dataset",
     "run_demo_pricing",
 ]

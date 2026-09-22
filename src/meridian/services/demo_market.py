@@ -11,9 +11,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
 
 from ..domain.corporate_actions import CorporateAction
+from ..marketdata.bitemporal import BitemporalStore, end_of_day
 from ..marketdata.golden import GoldenMethod, PricingPolicy
 from ..marketdata.providers import (
     DEFAULT_VENDORS,
@@ -29,6 +31,9 @@ from ..marketdata.providers import (
 )
 from ..marketdata.quotes import FxQuote, MarketDataset
 from ..persistence.repositories import UnitOfWork
+from ..quality.engine import QualityEngine, QualityReport
+from ..quality.evaluation import DetectionScore, KindScore, RuleScore, evaluate
+from ..quality.findings import Finding
 from ..refdata.xref import CrossReference, demo_cross_reference, xref_from_instruments
 from ..seed import demo_instruments
 from .pricing import EndOfDayPricing, PricingRunResult
@@ -106,6 +111,7 @@ def run_demo_pricing(
     *,
     unit_of_work: UnitOfWork | None = None,
     method: GoldenMethod = GoldenMethod.PRIORITY,
+    backfill: bool = False,
 ) -> PricingRunResult:
     vendors = demo_vendor_dataset(market)
     providers = [
@@ -126,6 +132,7 @@ def run_demo_pricing(
         actions=market.actions,
         pairs=market.clean.pairs,
         unit_of_work=unit_of_work,
+        backfill=backfill,
     )
 
 
@@ -137,3 +144,67 @@ def demo_reference_data() -> CrossReference:
         if entry.instrument_id not in already_described:
             reference.add(entry)
     return reference
+
+
+def demo_quality_report(market: DemoMarket) -> QualityReport:
+    """The quality run over the damaged single feed: the view the dashboard and the fault charts show."""
+    return QualityEngine().run(market.damaged, calendars=market.calendars, actions=market.actions, run_id="demo")
+
+
+def demo_detection_scores(seeds: Sequence[int] = (7, 11, 19), *, per_instrument: int = 4) -> DetectionScore:
+    """Recall and precision pooled over several independently seeded markets with random fault plans."""
+    kinds: dict[FaultKind, list[int]] = {}
+    rules: dict[str, list[int]] = {}
+    missed: list[InjectedFault] = []
+    false_alarms: list[Finding] = []
+    for seed in seeds:
+        market = build_demo_market(seed=seed, faults=())
+        plan = FaultInjector.random_plan(
+            market.clean, per_instrument=per_instrument, fx_pairs=[f"{a}{b}" for a, b in DEMO_CROSSES], seed=seed
+        )
+        damaged, faults = plan.apply(market.clean, market.calendars)
+        report = QualityEngine().run(damaged, calendars=market.calendars, actions=market.actions)
+        score = evaluate(report.findings, faults)
+        for item in score.kinds:
+            totals = kinds.setdefault(item.kind, [0, 0])
+            totals[0] += item.planted
+            totals[1] += item.detected
+        for rule in score.rules:
+            totals = rules.setdefault(rule.rule, [0, 0])
+            totals[0] += rule.flagged
+            totals[1] += rule.true_positives
+        missed.extend(score.missed)
+        false_alarms.extend(score.false_alarms)
+    return DetectionScore(
+        kinds=[KindScore(kind, planted, detected) for kind, (planted, detected) in kinds.items()],
+        rules=[RuleScore(rule, flagged, hits) for rule, (flagged, hits) in sorted(rules.items())],
+        missed=missed,
+        false_alarms=false_alarms,
+    )
+
+
+def demo_revision_store(market: DemoMarket, *, instrument_id: str = "US-AAPL", days: int = 90) -> BitemporalStore:
+    """A vendor feed with the corrections real feeds carry: wrong first prints fixed a few days later.
+
+    Every value is first published at 22:00 UTC on its own date. Eight first
+    prints are wrong and corrected one to three days later; three dates are
+    published two days late. The pattern is fixed, not random, so the chart
+    and its caption always agree.
+    """
+    series = market.clean.close_series(instrument_id)
+    window = list(series)[-days:]
+    errors = {6: 0.042, 15: -0.018, 23: 0.027, 38: -0.055, 47: 0.013, 58: -0.031, 71: 0.022, 83: -0.016}
+    delays = {6: 1, 15: 2, 23: 1, 38: 3, 47: 1, 58: 2, 71: 1, 83: 3}
+    late = {30: 2, 52: 2, 64: 2}
+    store = BitemporalStore()
+    key = f"{instrument_id}:close"
+    for index, point in enumerate(window):
+        first_known = end_of_day(point.day + timedelta(days=late.get(index, 0)), 22, 0)
+        if index in errors:
+            wrong = (point.value * Decimal(repr(1 + errors[index]))).quantize(point.value)
+            store.record(key, point.day, wrong, first_known, source="vendor", note="first print")
+            corrected = end_of_day(point.day + timedelta(days=delays[index]), 9, 30)
+            store.record(key, point.day, point.value, corrected, source="vendor", note="correction")
+        else:
+            store.record(key, point.day, point.value, first_known, source="vendor")
+    return store

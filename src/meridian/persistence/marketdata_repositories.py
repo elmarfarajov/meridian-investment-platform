@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from ..core.exceptions import EntityNotFoundError
 from ..domain.corporate_actions import CorporateAction
-from ..marketdata.bitemporal import as_utc
+from ..marketdata.bitemporal import as_utc, end_of_day
 from ..marketdata.quotes import Quote
 from ..marketdata.series import TimeSeries
 from ..quality.engine import QualityReport
@@ -42,6 +42,19 @@ class PriceObservationRepository:
         """Record a batch at one knowledge time; exact resends are skipped. Returns the rows written."""
         moment = as_utc(recorded_at)
         rows = [mappers.observation_values(quote, moment, run_id) for quote in quotes]
+        self.session.flush()
+        return insert_missing(self.session, PriceObservationRow, rows)
+
+    def record_backfill(self, quotes: Iterable[Quote], *, hour: int = 22, run_id: str | None = None) -> int:
+        """Record history as if each value had been received on the evening of its own date.
+
+        A historical load written at one knowledge time would say that nothing
+        was known before the load ran - true of the database, useless for asking
+        what a live system would have seen. Backfilling stamps each observation
+        with its value date's evening instead, which is the honest assumption for
+        end-of-day data and the one the load documents by its run id.
+        """
+        rows = [mappers.observation_values(quote, end_of_day(quote.day, hour, 0), run_id) for quote in quotes]
         self.session.flush()
         return insert_missing(self.session, PriceObservationRow, rows)
 

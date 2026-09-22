@@ -7,7 +7,7 @@ import pytest
 
 from meridian.gallery import build_gallery, gallery_items, gallery_markdown, reference_bond, reference_curve
 
-GROUPS = {"calendars", "rates", "cashflows", "money", "platform"}
+GROUPS = {"calendars", "rates", "cashflows", "money", "quality", "market data", "reference data", "platform"}
 
 
 def test_every_item_is_uniquely_named_and_grouped():

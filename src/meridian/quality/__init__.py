@@ -1,7 +1,15 @@
 """Data quality: rules, the engine that runs them, scoring, and measurement against planted faults."""
 
 from .context import SeriesContext
-from .engine import QualityEngine, QualityReport, SeriesScore, fx_series_rules, run_quality, series_report
+from .engine import (
+    QualityEngine,
+    QualityReport,
+    SeriesScore,
+    attach_market_proxy,
+    fx_series_rules,
+    run_quality,
+    series_report,
+)
 from .evaluation import EXPECTED_RULES, DetectionScore, KindScore, RuleScore, evaluate
 from .findings import DIMENSION_WEIGHTS, Dimension, Finding, Severity
 from .fx_rules import FxInverseRule, FxTriangleRule, Triangle, find_triangles
@@ -61,6 +69,7 @@ __all__ = [
     "Triangle",
     "UnexplainedJump",
     "WideSpread",
+    "attach_market_proxy",
     "classical_zscores",
     "default_rules",
     "evaluate",

@@ -113,6 +113,7 @@ class EndOfDayPricing:
         pairs: Sequence[str] = (),
         unit_of_work: UnitOfWork | None = None,
         received_at: datetime | None = None,
+        backfill: bool = False,
         run_id: str | None = None,
     ) -> PricingRunResult:
         identifier = run_id or uuid.uuid4().hex[:12]
@@ -128,7 +129,7 @@ class EndOfDayPricing:
             sources=_source_counts(dataset),
         )
         if unit_of_work is not None:
-            self._persist(result, unit_of_work, received_at or datetime.now(timezone.utc))
+            self._persist(result, unit_of_work, received_at or datetime.now(timezone.utc), backfill=backfill)
         log.info(
             "pricing.completed",
             run_id=identifier,
@@ -139,11 +140,16 @@ class EndOfDayPricing:
         )
         return result
 
-    def _persist(self, result: PricingRunResult, unit_of_work: UnitOfWork, received_at: datetime) -> None:
+    def _persist(
+        self, result: PricingRunResult, unit_of_work: UnitOfWork, received_at: datetime, *, backfill: bool = False
+    ) -> None:
         for items in result.dataset.quotes.values():
-            result.observations_recorded += unit_of_work.observations.record_many(
-                items, received_at, run_id=result.run_id
-            )
+            if backfill:
+                result.observations_recorded += unit_of_work.observations.record_backfill(items, run_id=result.run_id)
+            else:
+                result.observations_recorded += unit_of_work.observations.record_many(
+                    items, received_at, run_id=result.run_id
+                )
         result.prices_published = unit_of_work.prices.upsert_many(
             (price.instrument_id, price.day, price.value, price.currency, f"golden:{price.source}"[:32])
             for price in result.golden.prices
