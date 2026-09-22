@@ -14,6 +14,7 @@ CLI and by CI, where there is no display attached.
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
+from datetime import date
 from pathlib import Path
 from typing import Any, Literal
 
@@ -22,6 +23,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 # These imports must follow the backend selection above
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -163,6 +165,16 @@ def annotate(ax: Axes, text: str, xy: tuple[float, float], *, highlight: bool = 
         fontweight="bold" if highlight else "normal",
         **kwargs,
     )
+
+
+def x_of(day: date) -> float:
+    """A date as a matplotlib x coordinate.
+
+    Plotting calls accept dates directly, but the typed signatures of ``axvline``,
+    ``axvspan``, ``annotate`` and ``set_xlim`` only admit floats; converting once
+    here keeps the charts type-checked without scattering ignores.
+    """
+    return float(mdates.date2num(day))
 
 
 def series_colours(count: int) -> list[str]:

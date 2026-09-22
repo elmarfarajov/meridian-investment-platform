@@ -4,6 +4,64 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-22
+
+Day 2: market data. Prices with a memory of what was known and when, quality rules
+that are measured rather than asserted, corporate actions applied to both the history
+and the book, and one published price built from several disagreeing sources.
+
+### Added
+
+- **Bitemporal market data.** Every observation carries its value date and the
+  moment the platform learned it; corrections are new records, never edits, so the
+  series as known at any past moment can be rebuilt and the look-ahead in a restated
+  history can be measured. The same "as known at" query is implemented in memory and
+  in SQL and tested case for case against each other.
+- **A synthetic market** with the stylised facts a quality rule has to survive:
+  Student-t innovations, GARCH(1,1) volatility clustering, market and sector factors,
+  one exchange calendar per instrument, and splits and dividends that move the quoted
+  price. Its economic value is kept as ground truth for the adjustment code.
+- **A fault injector** that damages clean data in the nine ways real feeds fail and
+  records exactly where, so the rules can be scored.
+- **Thirteen quality rules** across the five DAMA dimensions, with robust (median and
+  MAD) statistics on event-adjusted returns net of a leave-one-out market proxy, an
+  engine that scores each series and decides what may be published, and detection
+  measured at 100% recall and 97% precision over 126 planted faults.
+- **Corporate actions**: dividends, splits, stock dividends, spin-offs, rights, cash
+  and stock mergers and symbol changes - with CRSP-style back-adjustment as a derived
+  view, and entitlement rules that conserve cost basis, tack holding periods, pay
+  cash in lieu of fractional shares and tax merger boot under IRC 356/358.
+- **A golden copy** built by ranked consensus with price challenges recorded, and
+  **FX history** with as-of lookup, cross rates and staleness limits.
+- **A security master**: identifiers mapped to instruments over validity intervals
+  and resolved by date, and golden records built field by field with lineage,
+  conflicts and check-digit validation.
+- **The end-of-day pricing run** - collect, record, validate, reconcile, publish -
+  with five new tables, migration 0002, and batch upserts.
+- **`meridian market`**: `rules`, `quality`, `price --persist`, `history --known-at`,
+  `actions`, `adjust` and `xref --on`.
+- **Thirteen charts** (thirty in the gallery), four methodology notes and ADRs 0009
+  to 0013.
+
+### Changed
+
+- `PriceRepository` and `FxRateRepository` gained batch upserts, and observations are
+  written with one insert rather than one merge per row: the demonstration load fell
+  from 24 s to 2.8 s.
+- The market proxy used by the outlier rules is exposed as `attach_market_proxy`.
+- The demonstration book gains one clearly labelled synthetic instrument, so the
+  history contains a 4-for-1 split to adjust for.
+
+### Fixed
+
+- A stale source can no longer outvote the source that moved. Two vendors resending
+  yesterday's close agreed with each other, formed the median and excluded the one
+  vendor with the right price; the worst golden-copy error fell from 254 bp to 13 bp
+  once unchanged values were set aside on days when other sources moved.
+- The synthetic market's GARCH parameters now satisfy the fourth-moment condition.
+  With Student-t(4) innovations it failed, and a two-year sample came out 56% more
+  volatile than specified.
+
 ## [0.2.0] - 2026-09-20
 
 Day 1, continued: the financial mathematics the rest of the platform will be built on,
@@ -70,5 +128,6 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[0.3.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.3.0
 [0.2.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.2.0
 [0.1.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.1.0

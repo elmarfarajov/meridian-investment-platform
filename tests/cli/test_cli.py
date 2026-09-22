@@ -87,7 +87,7 @@ def test_init_seed_and_status_round_trip(database_url: str):
     status = runner.invoke(app, ["db", "status"])
     assert status.exit_code == 0
     assert "transactions" in status.stdout
-    assert "12" in status.stdout  # the twelve seeded instruments
+    assert "13" in status.stdout  # the thirteen seeded instruments
 
 
 def test_seeding_twice_does_not_duplicate(database_url: str):

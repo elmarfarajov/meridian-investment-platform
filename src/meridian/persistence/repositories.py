@@ -24,6 +24,13 @@ from ..domain.portfolios import Account, Benchmark, Client, Household, Portfolio
 from ..domain.positions import TaxLot
 from ..domain.transactions import Transaction
 from . import mappers
+from .bulk import bulk_upsert
+from .marketdata_repositories import (
+    CorporateActionRepository,
+    PriceObservationRepository,
+    QualityRepository,
+    XrefRepository,
+)
 from .models import (
     AccountRow,
     BenchmarkRow,
@@ -263,7 +270,7 @@ class TaxLotRepository(Repository[TaxLot]):
 
 
 class PriceRepository(Repository[PriceRow]):
-    """End-of-day marks. The market data module builds on this from Day 2."""
+    """The published golden copy of end-of-day marks."""
 
     def upsert(
         self,
@@ -285,6 +292,25 @@ class PriceRepository(Repository[PriceRow]):
                 source=source,
             )
         )
+
+    def upsert_many(
+        self, marks: Iterable[tuple[str, date, Decimal, str, str | None]], *, price_type: str = "close"
+    ) -> int:
+        """Batch upsert of (instrument_id, date, price, currency, source) marks; returns the rows written."""
+        rows = [
+            {
+                "instrument_id": instrument_id,
+                "price_date": price_date,
+                "price_type": price_type,
+                "price": price,
+                "currency": currency.upper(),
+                "source": source,
+            }
+            for instrument_id, price_date, price, currency, source in marks
+        ]
+        self.session.flush()
+        inserted, updated = bulk_upsert(self.session, PriceRow, rows)
+        return inserted + updated
 
     def series(
         self, instrument_id: str, *, start: date | None = None, end: date | None = None, price_type: str = "close"
@@ -327,6 +353,30 @@ class FxRateRepository(Repository[FxRateRow]):
             )
         )
 
+    def upsert_many(self, rates: Iterable[tuple[str, str, date, Decimal, str | None]]) -> int:
+        """Batch upsert of (base, quote, date, rate, source) rows; returns the rows written."""
+        rows = [
+            {
+                "base_currency": base.upper(),
+                "quote_currency": quote.upper(),
+                "rate_date": rate_date,
+                "rate": rate,
+                "source": source,
+            }
+            for base, quote, rate_date, rate, source in rates
+        ]
+        self.session.flush()
+        inserted, updated = bulk_upsert(self.session, FxRateRow, rows)
+        return inserted + updated
+
+    def series(self, base: str, quote: str) -> Sequence[tuple[date, Decimal]]:
+        rows = self.session.execute(
+            select(FxRateRow.rate_date, FxRateRow.rate)
+            .where(FxRateRow.base_currency == base.upper(), FxRateRow.quote_currency == quote.upper())
+            .order_by(FxRateRow.rate_date)
+        )
+        return [(row.rate_date, row.rate) for row in rows]
+
     def on(self, rate_date: date) -> Sequence[tuple[str, str, Decimal]]:
         rows = self.session.execute(
             select(FxRateRow.base_currency, FxRateRow.quote_currency, FxRateRow.rate).where(
@@ -351,6 +401,10 @@ class UnitOfWork:
         self.tax_lots = TaxLotRepository(session)
         self.prices = PriceRepository(session)
         self.fx_rates = FxRateRepository(session)
+        self.observations = PriceObservationRepository(session)
+        self.corporate_actions = CorporateActionRepository(session)
+        self.xref = XrefRepository(session)
+        self.quality = QualityRepository(session)
 
     def flush(self) -> None:
         self.session.flush()
