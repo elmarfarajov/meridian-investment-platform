@@ -150,3 +150,37 @@ def test_cross_matrix_is_consistent(history: FxHistory):
         for j in range(3):
             assert matrix[i][j] * matrix[j][i] == pytest.approx(1.0)
     assert len(history.returns("EURUSD")) == 1
+
+
+def test_two_stale_sources_cannot_outvote_the_one_that_moved():
+    """Stale consensus: both resent yesterday's close, and together they would be the median."""
+    previous = {"exchange": Decimal("142.50"), "vendor": Decimal("142.40"), "evaluated": Decimal("142.60")}
+    today = [q("exchange", "142.50"), q("vendor", "146.18"), q("evaluated", "142.60")]
+    naive = choose_price("X", DAY, today, POLICY)
+    assert isinstance(naive, GoldenPrice) and naive.value == Decimal("142.50")  # the failure being guarded against
+    guarded = choose_price("X", DAY, today, POLICY, previous=previous)
+    assert isinstance(guarded, GoldenPrice)
+    assert guarded.value == Decimal("146.18")
+    assert guarded.source == "vendor"
+    assert ("exchange", "unchanged from its last close while other sources moved") in guarded.excluded
+
+
+def test_an_unchanged_price_is_kept_when_nothing_moved():
+    previous = {"exchange": Decimal("100.00"), "vendor": Decimal("100.01")}
+    price = choose_price("X", DAY, [q("exchange", "100.00"), q("vendor", "100.01")], POLICY, previous=previous)
+    assert isinstance(price, GoldenPrice) and price.source == "exchange"
+
+
+def test_the_golden_copy_threads_each_sources_previous_close():
+    dataset = MarketDataset.from_records(
+        [
+            q("exchange", "100.00", date(2026, 5, 4)),
+            q("vendor", "100.01", date(2026, 5, 4)),
+            q("evaluated", "100.02", date(2026, 5, 4)),
+            q("exchange", "100.00", date(2026, 5, 5)),  # stale
+            q("vendor", "103.00", date(2026, 5, 5)),
+            q("evaluated", "100.02", date(2026, 5, 5)),  # stale
+        ]
+    )
+    copy = build_golden_copy(dataset, POLICY)
+    assert copy.series("X")[date(2026, 5, 5)] == Decimal("103.00")
