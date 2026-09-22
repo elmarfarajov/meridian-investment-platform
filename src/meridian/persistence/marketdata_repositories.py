@@ -25,6 +25,7 @@ from ..quality.engine import QualityReport
 from ..quality.findings import Finding
 from ..refdata.xref import CrossReference, IdentifierScheme, XrefEntry
 from . import marketdata_mappers as mappers
+from .bulk import insert_missing
 from .models import CorporateActionRow, IdentifierXrefRow, PriceObservationRow, QualityFindingRow, QualityRunRow
 
 
@@ -38,12 +39,11 @@ class PriceObservationRepository:
         self.session.merge(mappers.quote_to_observation_row(quote, as_utc(recorded_at), run_id))
 
     def record_many(self, quotes: Iterable[Quote], recorded_at: datetime, *, run_id: str | None = None) -> int:
-        count = 0
+        """Record a batch at one knowledge time; exact resends are skipped. Returns the rows written."""
         moment = as_utc(recorded_at)
-        for quote in quotes:
-            self.session.merge(mappers.quote_to_observation_row(quote, moment, run_id))
-            count += 1
-        return count
+        rows = [mappers.observation_values(quote, moment, run_id) for quote in quotes]
+        self.session.flush()
+        return insert_missing(self.session, PriceObservationRow, rows)
 
     def as_known_at(
         self,
