@@ -12,7 +12,9 @@ from meridian.marketdata.quotes import FxQuote, MarketDataset, Quote
 
 
 def quote(day: int, close: str, source: str = "a", **extra) -> Quote:
-    return Quote(instrument_id="X", day=date(2026, 5, day), close=Decimal(close), currency="usd", source=source, **extra)
+    return Quote(
+        instrument_id="X", day=date(2026, 5, day), close=Decimal(close), currency="usd", source=source, **extra
+    )
 
 
 def test_a_bad_price_is_recorded_not_rejected():
