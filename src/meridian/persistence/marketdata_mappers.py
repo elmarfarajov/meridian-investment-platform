@@ -122,6 +122,17 @@ def quote_to_observation_row(quote: Quote, recorded_at: datetime, run_id: str | 
     )
 
 
+def observation_values(quote: Quote, recorded_at: datetime, run_id: str | None = None) -> dict[str, Any]:
+    """The same row as :func:`quote_to_observation_row`, as a dict for bulk insertion."""
+    row = quote_to_observation_row(quote, recorded_at, run_id)
+    audit = {"created_at", "updated_at"}
+    return {
+        column.name: getattr(row, column.name)
+        for column in PriceObservationRow.__table__.columns
+        if column.name not in audit
+    }
+
+
 def xref_to_row(entry: XrefEntry) -> IdentifierXrefRow:
     return IdentifierXrefRow(
         scheme=entry.scheme.value,

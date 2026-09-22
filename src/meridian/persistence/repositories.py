@@ -24,6 +24,7 @@ from ..domain.portfolios import Account, Benchmark, Client, Household, Portfolio
 from ..domain.positions import TaxLot
 from ..domain.transactions import Transaction
 from . import mappers
+from .bulk import bulk_upsert
 from .marketdata_repositories import (
     CorporateActionRepository,
     PriceObservationRepository,
@@ -292,6 +293,25 @@ class PriceRepository(Repository[PriceRow]):
             )
         )
 
+    def upsert_many(
+        self, marks: Iterable[tuple[str, date, Decimal, str, str | None]], *, price_type: str = "close"
+    ) -> int:
+        """Batch upsert of (instrument_id, date, price, currency, source) marks; returns the rows written."""
+        rows = [
+            {
+                "instrument_id": instrument_id,
+                "price_date": price_date,
+                "price_type": price_type,
+                "price": price,
+                "currency": currency.upper(),
+                "source": source,
+            }
+            for instrument_id, price_date, price, currency, source in marks
+        ]
+        self.session.flush()
+        inserted, updated = bulk_upsert(self.session, PriceRow, rows)
+        return inserted + updated
+
     def series(
         self, instrument_id: str, *, start: date | None = None, end: date | None = None, price_type: str = "close"
     ) -> Sequence[tuple[date, Decimal]]:
@@ -332,6 +352,22 @@ class FxRateRepository(Repository[FxRateRow]):
                 source=source,
             )
         )
+
+    def upsert_many(self, rates: Iterable[tuple[str, str, date, Decimal, str | None]]) -> int:
+        """Batch upsert of (base, quote, date, rate, source) rows; returns the rows written."""
+        rows = [
+            {
+                "base_currency": base.upper(),
+                "quote_currency": quote.upper(),
+                "rate_date": rate_date,
+                "rate": rate,
+                "source": source,
+            }
+            for base, quote, rate_date, rate, source in rates
+        ]
+        self.session.flush()
+        inserted, updated = bulk_upsert(self.session, FxRateRow, rows)
+        return inserted + updated
 
     def series(self, base: str, quote: str) -> Sequence[tuple[date, Decimal]]:
         rows = self.session.execute(
