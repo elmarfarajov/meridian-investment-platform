@@ -17,13 +17,19 @@ the firm has to make explicitly:
 ``MEDIAN``
     Take the median of the in-tolerance values. More robust to any one source,
     but the published number may be a value no vendor sent.
+
+One failure mode needs handling before either policy runs: *stale consensus*.
+Two vendors that both resent yesterday's close agree with each other perfectly
+and outvote the one vendor that has today's price. So a source whose value is
+unchanged from its own previous close is set aside whenever another source did
+move - an unchanged price is only evidence when nothing else changed either.
 """
 
 from __future__ import annotations
 
 import statistics
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -121,14 +127,26 @@ def choose_price(
     policy: PricingPolicy,
     *,
     blocked_sources: Iterable[str] = (),
+    previous: Mapping[str, Decimal] | None = None,
 ) -> GoldenPrice | tuple[str, date, str]:
-    """Choose one value for one instrument and day, or say why none could be published."""
+    """Choose one value for one instrument and day, or say why none could be published.
+
+    ``previous`` maps each source to its own last close before ``day``; it is
+    what lets a stale resend be recognised.
+    """
     blocked = set(blocked_sources)
     excluded: list[tuple[str, str]] = [
         (quote.source, "withheld by a quality check") for quote in quotes if quote.source in blocked
     ]
     usable = [quote for quote in quotes if quote.source not in blocked and quote.close > 0]
     excluded += [(quote.source, "non-positive") for quote in quotes if quote.source not in blocked and quote.close <= 0]
+    if previous:
+        unchanged = [quote for quote in usable if previous.get(quote.source) == quote.close]
+        if unchanged and len(unchanged) < len(usable):
+            usable = [quote for quote in usable if quote not in unchanged]
+            excluded += [
+                (quote.source, "unchanged from its last close while other sources moved") for quote in unchanged
+            ]
     if len(usable) < policy.min_sources:
         return (instrument_id, day, f"{len(usable)} usable source(s), policy needs {policy.min_sources}")
 
@@ -190,10 +208,18 @@ def build_golden_copy(
         by_day: dict[date, list[Quote]] = defaultdict(list)
         for quote in dataset.for_instrument(instrument_id):
             by_day[quote.day].append(quote)
+        last_close: dict[str, Decimal] = {}
         for day in sorted(by_day):
             outcome = choose_price(
-                instrument_id, day, by_day[day], policy, blocked_sources=withheld.get((instrument_id, day), ())
+                instrument_id,
+                day,
+                by_day[day],
+                policy,
+                blocked_sources=withheld.get((instrument_id, day), ()),
+                previous=dict(last_close),
             )
+            for quote in by_day[day]:
+                last_close[quote.source] = quote.close
             if isinstance(outcome, GoldenPrice):
                 copy.prices.append(outcome)
             else:
