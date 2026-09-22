@@ -10,7 +10,23 @@ from .calendars import (
     trading_days_by_month,
 )
 from .cashflows import plot_accrual_path, plot_cash_flows, plot_flow_composition, plot_schedule
+from .marketdata import (
+    demo_lots,
+    plot_fx_triangle,
+    plot_lot_adjustments,
+    plot_point_in_time,
+    plot_return_distribution,
+    plot_split_adjustment,
+    plot_vendor_consensus,
+)
 from .money import plot_allocation, plot_daycount_comparison, plot_rounding_drift
+from .quality import (
+    plot_anomaly_detection,
+    plot_coverage_calendar,
+    plot_detection_scorecard,
+    plot_quality_dashboard,
+    plot_robust_vs_classical,
+)
 from .rates import (
     plot_compounding,
     plot_curve_scenarios,
@@ -19,6 +35,7 @@ from .rates import (
     plot_price_yield,
     plot_yield_curve,
 )
+from .refdata import plot_golden_record, plot_identifier_timeline
 from .schema import plot_schema
 from .style import (
     PALETTE,
@@ -32,6 +49,7 @@ from .style import (
     series_colours,
     style_axes,
     title_block,
+    x_of,
 )
 
 __all__ = [
@@ -40,6 +58,7 @@ __all__ = [
     "annotate",
     "apply_house_style",
     "caption",
+    "demo_lots",
     "divergence_matrix",
     "divergent_days",
     "legend_below",
@@ -47,24 +66,38 @@ __all__ = [
     "new_figure",
     "plot_accrual_path",
     "plot_allocation",
+    "plot_anomaly_detection",
     "plot_cash_flows",
     "plot_compounding",
+    "plot_coverage_calendar",
     "plot_curve_scenarios",
     "plot_daycount_comparison",
+    "plot_detection_scorecard",
     "plot_divergence_matrix",
     "plot_flow_composition",
+    "plot_fx_triangle",
+    "plot_golden_record",
+    "plot_identifier_timeline",
     "plot_interpolation_comparison",
     "plot_key_rate_durations",
+    "plot_lot_adjustments",
+    "plot_point_in_time",
     "plot_price_yield",
+    "plot_quality_dashboard",
+    "plot_return_distribution",
+    "plot_robust_vs_classical",
     "plot_rounding_drift",
     "plot_schedule",
     "plot_schema",
     "plot_settlement_ladder",
+    "plot_split_adjustment",
     "plot_trading_calendar",
+    "plot_vendor_consensus",
     "plot_yield_curve",
     "save_figure",
     "series_colours",
     "style_axes",
     "title_block",
     "trading_days_by_month",
+    "x_of",
 ]

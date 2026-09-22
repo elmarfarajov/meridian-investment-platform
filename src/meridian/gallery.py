@@ -12,6 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from functools import lru_cache
 from pathlib import Path
 
 from matplotlib.figure import Figure
@@ -21,6 +22,23 @@ from .analytics.curves import YieldCurve, bootstrap_par_curve
 from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
+from .marketdata.fx_history import FxHistory
+from .marketdata.golden import compare_to_reference
+from .quality.engine import QualityReport
+from .refdata import build_security_master, demo_vendor_records
+from .refdata import demo_policy as demo_security_policy
+from .services import (
+    DEMO_END,
+    DemoMarket,
+    PricingRunResult,
+    build_demo_market,
+    demo_detection_scores,
+    demo_quality_report,
+    demo_reference_data,
+    demo_revision_store,
+    demo_vendor_dataset,
+    run_demo_pricing,
+)
 from .viz import (
     plot_accrual_path,
     plot_allocation,
@@ -41,6 +59,23 @@ from .viz import (
     plot_yield_curve,
     save_figure,
 )
+from .viz.marketdata import (
+    demo_lots,
+    plot_fx_triangle,
+    plot_lot_adjustments,
+    plot_point_in_time,
+    plot_return_distribution,
+    plot_split_adjustment,
+    plot_vendor_consensus,
+)
+from .viz.quality import (
+    plot_anomaly_detection,
+    plot_coverage_calendar,
+    plot_detection_scorecard,
+    plot_quality_dashboard,
+    plot_robust_vs_classical,
+)
+from .viz.refdata import plot_golden_record, plot_identifier_timeline
 
 #: A fixed valuation date, so the gallery is byte-comparable between runs.
 VALUATION_DATE = date(2026, 9, 18)
@@ -213,6 +248,157 @@ def gallery_items() -> tuple[GalleryItem, ...]:
             lambda: plot_schema(),
             "platform",
         ),
+        *market_data_items(),
+    )
+
+
+# ---------------------------------------------------------------------------- Day 2: market data
+# The demonstration market takes a second or two to generate and price, and a
+# dozen charts draw from it, so each piece is built once per process.
+
+
+@lru_cache(maxsize=1)
+def _demo_market() -> DemoMarket:
+    return build_demo_market()
+
+
+@lru_cache(maxsize=1)
+def _demo_report() -> QualityReport:
+    return demo_quality_report(_demo_market())
+
+
+@lru_cache(maxsize=1)
+def _demo_pricing() -> PricingRunResult:
+    return run_demo_pricing(_demo_market())
+
+
+def _consensus_chart() -> Figure:
+    market = _demo_market()
+    vendors = demo_vendor_dataset(market)
+    golden = _demo_pricing().golden
+    return plot_vendor_consensus(vendors, golden, compare_to_reference(golden, market.clean, vendors), "CH-ROG")
+
+
+def _golden_record_chart() -> Figure:
+    records = demo_vendor_records()
+    return plot_golden_record(records, build_security_master(records, demo_security_policy()))
+
+
+def market_data_items() -> tuple[GalleryItem, ...]:
+    """The Day 2 charts: quality, market data and reference data."""
+    return (
+        GalleryItem(
+            "quality-dashboard.png",
+            "Market data quality dashboard",
+            "Scores by series and dimension, findings by rule, and where in time the problems sit.",
+            lambda: plot_quality_dashboard(_demo_report()),
+            "quality",
+        ),
+        GalleryItem(
+            "anomaly-detection.png",
+            "Finding the bad prints",
+            "One exchange feed with a stale run, a bad tick and a gap, and the robust score that caught them.",
+            lambda: plot_anomaly_detection(
+                _demo_market().damaged,
+                _demo_market().clean,
+                _demo_report(),
+                "US-MSFT",
+                calendars=_demo_market().calendars,
+                actions=_demo_market().actions,
+            ),
+            "quality",
+        ),
+        GalleryItem(
+            "robust-vs-classical.png",
+            "Why the median, not the mean",
+            "Three bad ticks in one window defeat the classical z-score and not the robust one.",
+            lambda: plot_robust_vs_classical(),
+            "quality",
+        ),
+        GalleryItem(
+            "detection-scorecard.png",
+            "Measured, not asserted",
+            "Recall by fault type and precision by rule, against faults planted in three seeded markets.",
+            lambda: plot_detection_scorecard(demo_detection_scores()),
+            "quality",
+        ),
+        GalleryItem(
+            "coverage-calendar.png",
+            "Expected against received",
+            "Every weekday for every instrument, judged on that instrument's own exchange calendar.",
+            lambda: plot_coverage_calendar(
+                _demo_market().damaged, _demo_report(), _demo_market().calendars, date(2026, 1, 5), date(2026, 4, 30)
+            ),
+            "quality",
+        ),
+        GalleryItem(
+            "split-adjustment.png",
+            "A split is not a crash",
+            "Raw, capital-adjusted and total-return histories against the generator's economic truth.",
+            lambda: plot_split_adjustment(
+                _demo_market().history.raw_series("DEMO-SPLIT"),
+                _demo_market().actions,
+                _demo_market().history.economic_value["DEMO-SPLIT"],
+                instrument_id="DEMO-SPLIT",
+            ),
+            "market data",
+        ),
+        GalleryItem(
+            "corporate-actions-lots.png",
+            "Corporate actions on tax lots",
+            "A split, a spin-off and a dividend applied to a three-lot holding, with basis conserved.",
+            lambda: plot_lot_adjustments(*demo_lots()),
+            "market data",
+        ),
+        GalleryItem(
+            "point-in-time.png",
+            "What we knew, and when",
+            "First prints against restated values: the look-ahead a backtest on restated data enjoys.",
+            lambda: plot_point_in_time(demo_revision_store(_demo_market()), "US-AAPL:close"),
+            "market data",
+        ),
+        GalleryItem(
+            "vendor-consensus.png",
+            "Three vendors, one price",
+            "Each vendor against the golden copy, and every source's error against the truth.",
+            _consensus_chart,
+            "market data",
+        ),
+        GalleryItem(
+            "fx-triangle.png",
+            "The triangle must close",
+            "Cross rates against the rates implied by their USD legs, and the cross matrix on one day.",
+            lambda: plot_fx_triangle(
+                _demo_report().fx_residuals, FxHistory.from_dataset(_demo_market().clean), DEMO_END
+            ),
+            "market data",
+        ),
+        GalleryItem(
+            "return-distribution.png",
+            "The synthetic market behaves like a real one",
+            "Fat tails and volatility clustering: the stylised facts every quality rule has to survive.",
+            lambda: plot_return_distribution(_demo_market().history.log_returns),
+            "market data",
+        ),
+        GalleryItem(
+            "identifier-timeline.png",
+            "An identifier is not a name",
+            "Ticker renames, a reused ticker and an ISIN change, resolved by date.",
+            lambda: plot_identifier_timeline(
+                demo_reference_data(),
+                ["US-META", "DEMO-OLDCO", "DEMO-NEWCO", "US-AAPL"],
+                start=date(2012, 1, 2),
+                end=DEMO_END,
+            ),
+            "reference data",
+        ),
+        GalleryItem(
+            "golden-record.png",
+            "One security, three vendors",
+            "Golden records built field by field, with lineage, conflicts and refused values.",
+            _golden_record_chart,
+            "reference data",
+        ),
     )
 
 
@@ -236,7 +422,7 @@ def build_gallery(
 def gallery_markdown(prefix: str = "docs/images") -> str:
     """The markdown block the README uses, so the gallery and the docs cannot drift."""
     lines: list[str] = []
-    for group in ("calendars", "rates", "cashflows", "money", "platform"):
+    for group in ("calendars", "rates", "cashflows", "money", "quality", "market data", "reference data", "platform"):
         items = [item for item in gallery_items() if item.group == group]
         if not items:
             continue

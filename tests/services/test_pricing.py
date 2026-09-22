@@ -127,3 +127,13 @@ def test_demo_reference_data_describes_every_instrument_in_the_book():
     for instrument in demo_book().instruments:
         assert reference.entries(instrument.instrument_id), instrument.instrument_id
     assert reference.resolve("ticker", "FB", date(2021, 1, 4)) == "US-META"
+
+
+def test_a_backfilled_load_is_known_on_each_evening(unit_of_work: UnitOfWork, instruments):
+    seed_reference_data(unit_of_work, instruments=instruments)
+    history = SyntheticMarket([InstrumentSpec("AAPL")], seed=2).generate(date(2026, 3, 2), date(2026, 3, 13))
+    quotes = history.dataset.for_instrument("AAPL")
+    assert unit_of_work.observations.record_backfill(quotes) == len(quotes)
+    evening = datetime(2026, 3, 5, 23, tzinfo=timezone.utc)
+    known = unit_of_work.observations.as_known_at("AAPL", evening)
+    assert known.last.day == date(2026, 3, 5)
