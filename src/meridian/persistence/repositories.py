@@ -24,6 +24,12 @@ from ..domain.portfolios import Account, Benchmark, Client, Household, Portfolio
 from ..domain.positions import TaxLot
 from ..domain.transactions import Transaction
 from . import mappers
+from .marketdata_repositories import (
+    CorporateActionRepository,
+    PriceObservationRepository,
+    QualityRepository,
+    XrefRepository,
+)
 from .models import (
     AccountRow,
     BenchmarkRow,
@@ -263,7 +269,7 @@ class TaxLotRepository(Repository[TaxLot]):
 
 
 class PriceRepository(Repository[PriceRow]):
-    """End-of-day marks. The market data module builds on this from Day 2."""
+    """The published golden copy of end-of-day marks."""
 
     def upsert(
         self,
@@ -327,6 +333,14 @@ class FxRateRepository(Repository[FxRateRow]):
             )
         )
 
+    def series(self, base: str, quote: str) -> Sequence[tuple[date, Decimal]]:
+        rows = self.session.execute(
+            select(FxRateRow.rate_date, FxRateRow.rate)
+            .where(FxRateRow.base_currency == base.upper(), FxRateRow.quote_currency == quote.upper())
+            .order_by(FxRateRow.rate_date)
+        )
+        return [(row.rate_date, row.rate) for row in rows]
+
     def on(self, rate_date: date) -> Sequence[tuple[str, str, Decimal]]:
         rows = self.session.execute(
             select(FxRateRow.base_currency, FxRateRow.quote_currency, FxRateRow.rate).where(
@@ -351,6 +365,10 @@ class UnitOfWork:
         self.tax_lots = TaxLotRepository(session)
         self.prices = PriceRepository(session)
         self.fx_rates = FxRateRepository(session)
+        self.observations = PriceObservationRepository(session)
+        self.corporate_actions = CorporateActionRepository(session)
+        self.xref = XrefRepository(session)
+        self.quality = QualityRepository(session)
 
     def flush(self) -> None:
         self.session.flush()
