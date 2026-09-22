@@ -14,3 +14,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0006](0006-composable-settlement-calendars.md) | Settlement calendars are composed, not chosen | Accepted |
 | [0007](0007-log-linear-interpolation-on-discount-factors.md) | Curves interpolate log-linearly on discount factors | Accepted |
 | [0008](0008-decimal-in-the-ledger-float-in-the-analytics.md) | Decimal in the ledger, float in the analytics | Accepted |
+| [0009](0009-bitemporal-market-data.md) | Market data is bitemporal and append-only | Accepted |
+| [0010](0010-golden-copy-by-ranked-consensus.md) | The golden copy is the highest-ranked source within tolerance of the consensus | Accepted |
+| [0011](0011-corporate-action-adjustment-is-a-view.md) | Corporate action adjustment is a view, never an overwrite | Accepted |
+| [0012](0012-identifiers-have-validity-intervals.md) | Identifiers are mapped to instruments with validity intervals | Accepted |
+| [0013](0013-quality-rules-are-measured-against-planted-faults.md) | Quality rules are measured against planted faults | Accepted |

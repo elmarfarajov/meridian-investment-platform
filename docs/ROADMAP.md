@@ -57,15 +57,37 @@ diagram generated from the live database metadata.
 **Notes:** [fixed income mathematics](notes/fixed-income-mathematics.md),
 [calendar conventions](notes/calendar-conventions.md).
 
-## Day 2 - Market data
+## Day 2 - Market data ✅
 
 **Issue #2.** Nothing downstream is better than the prices it is fed.
 
-- Price and FX time series with a point-in-time view: what did we know, and when.
-- Corporate actions - splits, dividends, spin-offs - applied to positions and to history.
-- Data-quality rules: stale marks, outliers by robust z-score, missing days against the
-  instrument's own trading calendar, and crossed FX quotes.
-- A quality dashboard chart: coverage, staleness and the flagged points.
+- Price and FX series that are *bitemporal*: every value carries the day it describes
+  and the moment the platform learned it, so any past state of knowledge can be
+  rebuilt and the look-ahead in a restated history can be measured.
+- A seeded synthetic market with the stylised facts that make quality checking hard -
+  Student-t tails, GARCH volatility clustering, market and sector factors, one
+  exchange calendar per instrument - and a fault injector that damages it in the nine
+  ways real feeds fail.
+- Thirteen quality rules across the five DAMA dimensions. The statistical ones score
+  event-adjusted returns net of a leave-one-out market proxy, over trailing
+  median/MAD windows that never look ahead. Measured against planted faults: recall
+  100%, precision 97%.
+- Corporate actions - dividends, splits, stock dividends, spin-offs, rights, cash and
+  stock mergers, symbol changes - applied to the history as a derived view, and to
+  tax lots with the basis conserved and the holding period tacked.
+- A golden copy built by ranked consensus across three sources, with price challenges
+  recorded, stale sources set aside, and every published price naming its source.
+- A security master with identifiers resolved by date and golden records with
+  lineage, and the end-of-day pricing run that ties it all together.
+
+**Charts:** thirteen, including the quality dashboard, the robust-against-classical
+comparison, the detection scorecard, the coverage calendar, point-in-time revisions,
+vendor consensus and the FX triangle.
+
+**Notes:** [market data quality](notes/market-data-quality.md),
+[corporate actions](notes/corporate-actions.md),
+[point-in-time data](notes/point-in-time-data.md),
+[the security master](notes/security-master.md).
 
 ## Day 3 - Portfolio accounting
 
