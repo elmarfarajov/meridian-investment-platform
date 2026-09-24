@@ -26,7 +26,21 @@ LONG_TERM_HOLDING_DAYS = 365
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TaxLot:
-    """One acquisition of a security, tracked separately for tax purposes."""
+    """One acquisition of a security, tracked separately for tax purposes.
+
+    Three fields exist because book cost and tax cost are not the same thing:
+
+    * ``holding_period_start`` is the date the holding period runs from. It is the
+      open date unless the period *tacks* - shares received in a transfer keep
+      the donor's acquisition date, and replacement shares in a wash sale add the
+      holding period of the shares sold.
+    * ``open_fx_rate`` is the rate (units of base currency per unit of the lot's
+      currency) on the day the lot was opened, so the cost in base currency is
+      the historical one and a later gain can be split into price and currency.
+    * ``wash_sale_adjustment`` is a loss disallowed under the wash sale rule and
+      added to this lot's *tax* basis, per unit and in base currency. It never
+      touches ``cost_per_unit``: the economic cost of the shares did not change.
+    """
 
     lot_id: str
     instrument_id: str
@@ -35,29 +49,71 @@ class TaxLot:
     cost_per_unit: Decimal
     currency: Currency
     transaction_id: str | None = None
+    holding_period_start: date | None = None
+    open_fx_rate: Decimal = Decimal(1)
+    wash_sale_adjustment: Decimal = Decimal(0)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "currency", get_currency(self.currency))
         object.__setattr__(self, "quantity", to_decimal(self.quantity, field="quantity"))
         object.__setattr__(self, "cost_per_unit", to_decimal(self.cost_per_unit, field="cost_per_unit"))
+        object.__setattr__(self, "open_fx_rate", to_decimal(self.open_fx_rate, field="open_fx_rate"))
+        object.__setattr__(
+            self, "wash_sale_adjustment", to_decimal(self.wash_sale_adjustment, field="wash_sale_adjustment")
+        )
         if self.quantity <= 0:
             raise ValidationError(f"{self.lot_id}: an open lot must have a positive quantity")
         if self.cost_per_unit < 0:
             raise ValidationError(f"{self.lot_id}: cost per unit must not be negative")
+        if self.open_fx_rate <= 0:
+            raise ValidationError(f"{self.lot_id}: the opening FX rate must be positive")
+        if self.wash_sale_adjustment < 0:
+            raise ValidationError(f"{self.lot_id}: a wash sale can only add to basis")
+        if self.holding_period_start is not None and self.holding_period_start > self.open_date:
+            raise ValidationError(f"{self.lot_id}: the holding period cannot start after the lot was opened")
 
     @property
     def cost_basis(self) -> Money:
         return Money(self.quantity * self.cost_per_unit, self.currency)
 
+    @property
+    def holding_start(self) -> date:
+        """The date the holding period runs from, after any tacking."""
+        return self.holding_period_start or self.open_date
+
+    @property
+    def base_cost_per_unit(self) -> Decimal:
+        """Economic cost in base currency, at the rate on the day the lot was opened."""
+        return self.cost_per_unit * self.open_fx_rate
+
+    @property
+    def base_cost(self) -> Decimal:
+        return self.quantity * self.base_cost_per_unit
+
+    @property
+    def tax_basis(self) -> Decimal:
+        """Base-currency basis for tax: historical cost plus any disallowed wash sale loss."""
+        return self.quantity * (self.base_cost_per_unit + self.wash_sale_adjustment)
+
     def holding_days(self, as_of: date) -> int:
-        return (as_of - self.open_date).days
+        return (as_of - self.holding_start).days
 
     def is_long_term(self, as_of: date) -> bool:
         """US convention: more than one year qualifies for long-term treatment."""
         return self.holding_days(as_of) > LONG_TERM_HOLDING_DAYS
 
     def long_term_from(self) -> date:
-        return self.open_date + timedelta(days=LONG_TERM_HOLDING_DAYS + 1)
+        return self.holding_start + timedelta(days=LONG_TERM_HOLDING_DAYS + 1)
+
+    def rescaled(self, factor: Numeric, cost_per_unit: Numeric) -> TaxLot:
+        """The same lot after a share multiplier: quantity times ``factor``, per-unit tax adjustment divided by it."""
+        multiplier = to_decimal(factor, field="factor")
+        return replace(
+            self,
+            quantity=self.quantity * multiplier,
+            cost_per_unit=to_decimal(cost_per_unit, field="cost_per_unit"),
+            wash_sale_adjustment=self.wash_sale_adjustment / multiplier,
+        )
 
     def market_value(self, price: Numeric) -> Money:
         return Money(self.quantity * to_decimal(price, field="price"), self.currency)
