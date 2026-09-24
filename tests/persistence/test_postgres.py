@@ -169,6 +169,6 @@ def test_the_book_of_record_on_postgres(pg_session: Session):
     assert set(in_sql) == set(in_memory)
     for code, balance in in_memory.items():
         assert abs(in_sql[code] - balance) < Decimal("1e-6"), code
-    lots = unit_of_work.tax_lots.open_lots(PORTFOLIO_ID)
-    assert any(lot.wash_sale_adjustment for lot in lots)
+    assert unit_of_work.tax_lots.open_lots(PORTFOLIO_ID)
+    assert any(item.wash_sale_basis for item in unit_of_work.realised.for_portfolio(PORTFOLIO_ID))
     assert len(unit_of_work.valuations.nav_series(PORTFOLIO_ID)) == len(demo.valuations)

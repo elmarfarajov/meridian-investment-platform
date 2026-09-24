@@ -74,8 +74,10 @@ def test_the_sub_ledger_in_sql_ties_to_the_stored_lots(stored, unit_of_work):
     for instrument_id, balance in by_instrument.items():
         cost = sum((lot.base_cost for lot in lots if lot.instrument_id == instrument_id), Decimal(0))
         assert abs(balance - cost) < Decimal("1e-6"), instrument_id
-    washed = [lot for lot in lots if lot.wash_sale_adjustment]
-    assert washed and all(lot.holding_start < lot.open_date for lot in washed)
+    # the wash sale replacements were sold later: the disallowed loss reached the realised lots, tacked
+    carried = [item for item in unit_of_work.realised.for_portfolio(PORTFOLIO_ID) if item.wash_sale_basis]
+    assert carried and all(item.holding_start < item.open_date for item in carried)
+    assert sum(item.wash_sale_basis for item in carried) > Decimal(80000)
 
 
 def test_valuations_and_breaks_are_queryable(stored, unit_of_work, demo):
