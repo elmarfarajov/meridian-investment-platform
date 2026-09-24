@@ -24,6 +24,12 @@ from ..domain.portfolios import Account, Benchmark, Client, Household, Portfolio
 from ..domain.positions import TaxLot
 from ..domain.transactions import Transaction
 from . import mappers
+from .accounting_repositories import (
+    LedgerRepository,
+    RealisedLotRepository,
+    ReconciliationRepository,
+    ValuationRepository,
+)
 from .bulk import bulk_upsert
 from .marketdata_repositories import (
     CorporateActionRepository,
@@ -268,6 +274,16 @@ class TaxLotRepository(Repository[TaxLot]):
             raise EntityNotFoundError("TaxLot", lot_id)
         row.close_date = close_date
 
+    def replace_open(self, portfolio_id: str, lots: Iterable[TaxLot]) -> int:
+        """Replace a portfolio's open lots with the ones a replay produced."""
+        self.session.execute(delete(TaxLotRow).where(TaxLotRow.portfolio_id == portfolio_id))
+        self.session.flush()
+        count = 0
+        for lot in lots:
+            self.session.add(mappers.tax_lot_to_row(lot, portfolio_id))
+            count += 1
+        return count
+
 
 class PriceRepository(Repository[PriceRow]):
     """The published golden copy of end-of-day marks."""
@@ -405,6 +421,10 @@ class UnitOfWork:
         self.corporate_actions = CorporateActionRepository(session)
         self.xref = XrefRepository(session)
         self.quality = QualityRepository(session)
+        self.ledger = LedgerRepository(session)
+        self.realised = RealisedLotRepository(session)
+        self.valuations = ValuationRepository(session)
+        self.reconciliation = ReconciliationRepository(session)
 
     def flush(self) -> None:
         self.session.flush()
