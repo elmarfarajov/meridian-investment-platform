@@ -201,7 +201,7 @@ class GeneralLedger:
         lines = tuple(
             TrialBalanceLine(ledger_account, totals.get(ledger_account.code, Decimal(0)))
             for ledger_account in CHART_OF_ACCOUNTS
-            if include_zero or totals.get(ledger_account.code, Decimal(0)) != 0
+            if include_zero or abs(totals.get(ledger_account.code, Decimal(0))) > BALANCE_TOLERANCE
         )
         last = self._dates[-1] if self._dates else date.min
         return TrialBalance(as_of or last, lines)
