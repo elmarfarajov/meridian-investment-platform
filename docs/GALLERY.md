@@ -1,4 +1,4 @@
-﻿# Chart gallery
+# Chart gallery
 
 Every figure the platform produces, rebuilt from the current source with one
 command:
@@ -11,7 +11,8 @@ The valuation date is fixed at 2026-09-18 and the reference instruments are defi
 in [`meridian.gallery`](../src/meridian/gallery.py), so these images are
 reproducible and cannot drift from the code that draws them. The market data figures
 are drawn from the seeded demonstration market in `meridian.services`, planted faults
-and all.
+and all. The book of record, tax and reconciliation figures are drawn from the
+demonstration account booked on top of that market.
 
 ---
 ### Calendars
@@ -144,8 +145,79 @@ and all.
 
 ![One security, three vendors](images/golden-record.png)
 
+### Accounting
+
+**Where the value went** - A year of NAV bridged exactly: flows, price, currency, income and costs, with each holding's share.
+
+![Where the value went](images/valuation-waterfall.png)
+
+**Two and a half years of the book** - NAV by holding, shaded by currency, with the cumulative investment result decomposed beneath it.
+
+![Two and a half years of the book](images/nav-history.png)
+
+**Price and currency, separated** - Each holding's unrealised result split at its own purchase rates, and the currencies behind it.
+
+![Price and currency, separated](images/fx-separation.png)
+
+**Cash by settlement date** - Settled against projected cash in four currencies while the account was funded, and what settles next.
+
+![Cash by settlement date](images/cash-ladder.png)
+
+**The day the settlement cycle changed** - Every trade's settlement lag by market, before and after US equities moved to T+1.
+
+![The day the settlement cycle changed](images/settlement-cycles.png)
+
+**Income: earned, paid, taxed** - Dividends and coupons from ex-date to pay date, with withholding split into reclaimable and lost.
+
+![Income: earned, paid, taxed](images/income-calendar.png)
+
+**The book balances** - The trial balance as a chart, and net assets = capital + net income at every month-end.
+
+![The book balances](images/trial-balance.png)
+
+**A correction is a replay** - NAV as reported each evening against NAV as now known, around a trade booked at the wrong price.
+
+![A correction is a replay](images/restatement.png)
+
+### Tax
+
+**Every tax lot the account has held** - Lots from acquisition to disposal, with holding periods, tacking and wash sale adjustments.
+
+![Every tax lot the account has held](images/tax-lot-map.png)
+
+**A wash sale** - A harvested loss bought back inside 30 days: the loss moves into the replacement lots' tax basis.
+
+![A wash sale](images/wash-sale.png)
+
+**Which lots you sell is worth money** - One sale under FIFO, LIFO, highest cost and minimum tax: the gain of each term and the tax on it.
+
+![Which lots you sell is worth money](images/lot-selection.png)
+
+**One book, two tax codes** - The same disposals under US lot rules and UK same-day, 30-day and section 104 matching.
+
+![One book, two tax codes](images/us-vs-uk.png)
+
+**Realised gains by tax year** - Netted the way Schedule D nets them, with losses carried forward and the wash sale deferral shown.
+
+![Realised gains by tax year](images/realised-gains.png)
+
+**The long-term horizon** - Open lots by days held against unrealised gain, and each short-term lot's road to long-term.
+
+![The long-term horizon](images/unrealised-horizon.png)
+
+### Reconciliation
+
+**Reconciliation against the custodian** - Breaks by day and cause, recall against planted breaks, and how long each stayed open.
+
+![Reconciliation against the custodian](images/reconciliation-dashboard.png)
+
+**One morning, line by line** - The book against the custodian's statement, with every difference and the reason given for it.
+
+![One morning, line by line](images/reconciliation-statement.png)
+
 ### Platform
 
 **The data model** - Every table, column and foreign key, drawn from the live SQLAlchemy metadata.
 
 ![The data model](images/data-model.png)
+

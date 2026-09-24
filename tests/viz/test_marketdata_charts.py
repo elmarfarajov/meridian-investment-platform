@@ -86,7 +86,8 @@ def test_coverage_calendar_counts_the_missing_days(market, report):
 def test_gallery_includes_every_day_two_chart():
     names = {item.filename for item in gallery_items()}
     assert {item.filename for item in market_data_items()} <= names
-    assert len(names) == 30
+    assert len(names) == len(gallery_items())  # no two charts share a file
+    assert len(names) >= 30 + len(market_data_items()) - 13  # Day 1 and Day 2 are all still there
 
 
 def test_x_of_is_monotonic():

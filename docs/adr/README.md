@@ -19,3 +19,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0011](0011-corporate-action-adjustment-is-a-view.md) | Corporate action adjustment is a view, never an overwrite | Accepted |
 | [0012](0012-identifiers-have-validity-intervals.md) | Identifiers are mapped to instruments with validity intervals | Accepted |
 | [0013](0013-quality-rules-are-measured-against-planted-faults.md) | Quality rules are measured against planted faults | Accepted |
+| [0014](0014-a-double-entry-ledger-at-cost-is-the-book-of-record.md) | A double-entry ledger at cost is the book of record | Accepted |
+| [0015](0015-the-book-is-a-replay-of-a-versioned-blotter.md) | The book is a replay of a versioned blotter; a correction is a replay | Accepted |
+| [0016](0016-tax-basis-is-kept-apart-from-book-cost.md) | Tax basis is kept apart from book cost, on the lot | Accepted |
+| [0017](0017-the-value-bridge-is-exact.md) | The value bridge is exact | Accepted |
+| [0018](0018-reconciliation-is-on-the-custodians-terms-and-measured.md) | Reconciliation is on the custodian's terms, classified by cause, and measured | Accepted |

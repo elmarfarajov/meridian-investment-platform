@@ -5,9 +5,22 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 import pytest
 
+from meridian.gallery import GROUPS as GALLERY_GROUPS
 from meridian.gallery import build_gallery, gallery_items, gallery_markdown, reference_bond, reference_curve
 
-GROUPS = {"calendars", "rates", "cashflows", "money", "quality", "market data", "reference data", "platform"}
+GROUPS = {
+    "calendars",
+    "rates",
+    "cashflows",
+    "money",
+    "quality",
+    "market data",
+    "reference data",
+    "accounting",
+    "tax",
+    "reconciliation",
+    "platform",
+}
 
 
 def test_every_item_is_uniquely_named_and_grouped():
@@ -56,4 +69,15 @@ def test_the_whole_gallery_builds(tmp_path):
     written = build_gallery(tmp_path, dpi=60)
     assert len(written) == len(gallery_items())
     assert all(path.exists() for path in written)
+    plt.close("all")
+
+
+def test_the_documented_group_order_covers_every_group():
+    assert set(GALLERY_GROUPS) == GROUPS
+    assert {item.group for item in gallery_items()} <= set(GALLERY_GROUPS)
+
+
+def test_building_the_reconciliation_charts(tmp_path):
+    written = build_gallery(tmp_path, only="reconciliation", dpi=60)
+    assert {path.name for path in written} == {"reconciliation-dashboard.png", "reconciliation-statement.png"}
     plt.close("all")

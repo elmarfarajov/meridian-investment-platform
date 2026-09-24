@@ -19,6 +19,7 @@ from matplotlib.figure import Figure
 
 from .analytics.bonds import FixedRateBond
 from .analytics.curves import YieldCurve, bootstrap_par_curve
+from .book_gallery import accounting_items
 from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
@@ -76,6 +77,21 @@ from .viz.quality import (
     plot_robust_vs_classical,
 )
 from .viz.refdata import plot_golden_record, plot_identifier_timeline
+
+#: The order the gallery groups appear in the documentation.
+GROUPS: tuple[str, ...] = (
+    "calendars",
+    "rates",
+    "cashflows",
+    "money",
+    "quality",
+    "market data",
+    "reference data",
+    "accounting",
+    "tax",
+    "reconciliation",
+    "platform",
+)
 
 #: A fixed valuation date, so the gallery is byte-comparable between runs.
 VALUATION_DATE = date(2026, 9, 18)
@@ -249,6 +265,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
             "platform",
         ),
         *market_data_items(),
+        *accounting_items(),
     )
 
 
@@ -422,7 +439,7 @@ def build_gallery(
 def gallery_markdown(prefix: str = "docs/images") -> str:
     """The markdown block the README uses, so the gallery and the docs cannot drift."""
     lines: list[str] = []
-    for group in ("calendars", "rates", "cashflows", "money", "quality", "market data", "reference data", "platform"):
+    for group in GROUPS:
         items = [item for item in gallery_items() if item.group == group]
         if not items:
             continue

@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-642-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-813-2E7D5B)](tests)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
 
 Asset managers do not run on spreadsheets. They run on systems like BlackRock's Aladdin,
@@ -51,14 +51,67 @@ meridian market history US-AAPL --known-at 2026-09-10
 
 meridian market xref FB --on 2021-06-01
 # FB (ticker) on 2021-06-01 -> US-META. Ask for 2023 and it resolves to nothing.
+
+meridian book run --persist
+# Replays two and a half years of a four-currency account into a double-entry
+# ledger - 190 entries, 23 realised lots, 620 valuation days - checks that the
+# trial balance balances and the sub-ledger ties to the lots, and writes it.
+
+meridian book bridge --from 2024-12-31 --to 2025-12-31
+# Why NAV moved in 2025: flows +250.0k, price -419.5k, currency -16.4k,
+# income +51.5k, costs -16.6k. Residual 0.
+
+meridian book wash-sales
+# Bayer sold at a loss and bought back 19 days later: 83,338 dollars
+# disallowed and carried into the replacement lots' tax basis.
+
+meridian book gains --regime uk
+# The same disposals under UK same-day, 30-day and section 104 matching.
+
+meridian book reconcile --as-of 2026-04-08
+# The book against the custodian: every break with the cause that explains it.
 ```
 
 ---
 
 ## The charts
 
-Every module ships a visual, not only numbers. All thirty are in the
+Every module ships a visual, not only numbers. All forty-six are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
+
+**Where did the value go?** Every day's change in net asset value is split into flows,
+price, currency, income and costs, and the split is exact: the residual is printed on the
+chart, and across 620 days its largest value is 1.8e-21 dollars. A 4-for-1 split is not a
+75% loss and a dividend's ex-date drop is income, because price is measured on the
+quantity held after corporate actions.
+
+![Where the value went](docs/images/valuation-waterfall.png)
+
+**A wash sale defers a loss; it does not destroy it.** Bayer was harvested at a loss and
+bought back nineteen days later. The loss moves into the replacement lots' tax basis -
+never their book cost - and each piece's holding period tacks by its own sold shares'
+period. Drawing this chart found the lot engine tacking one replacement twice.
+
+![A wash sale](docs/images/wash-sale.png)
+
+**One book, two tax codes.** The household is a US person resident in the UK. The same
+Bayer disposal reports nothing in the US and a gain of 10,243 pounds in the UK, where the
+30-day rule matches the sale to the cheaper repurchase.
+
+![One book, two tax codes](docs/images/us-vs-uk.png)
+
+**A correction is a replay, not an edit.** The blotter keeps every version of every trade,
+and the book is a pure function of it, so NAV as reported on each evening can be rebuilt
+and set against NAV as now known: fifteen reports were wrong until a mispriced trade was
+corrected at month-end.
+
+![A correction is a replay](docs/images/restatement.png)
+
+**Reconciliation is measured, not asserted.** Breaks planted where the answer is known in
+generated custodian statements are all found with the right cause, and clean statements
+raise nothing.
+
+![Reconciliation against the custodian](docs/images/reconciliation-dashboard.png)
 
 **A data quality rule that has only ever seen clean data has not been tested.** Meridian
 plants faults whose location is known in a synthetic market that has fat tails,
@@ -147,12 +200,16 @@ meridian
 ├── domain        the business model: instruments, portfolios, accounts,
 │                 positions, transactions
 ├── analytics     the quantitative layer: solvers, yield curves, bond mathematics
+├── accounting    the book of record: double-entry ledger, trade blotter, settlement,
+│                 tax lots and wash sales, income, valuation, the value bridge,
+│                 US and UK tax reporting, custodian reconciliation
 ├── persistence   SQLAlchemy 2.0 schema, explicit mappers, repositories, unit of work
 ├── marketdata    series, point-in-time storage, sources, adjustment, golden copy
 ├── quality       the data quality rules, the engine and the scoring
 ├── refdata       the security master: identifier cross-reference, golden records
-├── services      application processes: the end-of-day pricing run
-├── viz           the house chart style and thirty figures
+├── services      application processes: the end-of-day pricing and accounting runs,
+│                 the demonstration market and book
+├── viz           the house chart style and forty-six figures
 ├── cli           a thin Typer layer over tested functions
 ├── gallery       one definition of every chart, used by the docs and the tests
 └── seed          a hand-made demonstration book to run everything against
@@ -180,7 +237,12 @@ reasons without loosening a domain invariant. Analytics code never imports SQLAl
 | Market data | Bitemporal: value date and knowledge time on every observation, corrections appended rather than applied ([ADR 0009](docs/adr/0009-bitemporal-market-data.md)). One published price per day from ranked consensus across sources ([ADR 0010](docs/adr/0010-golden-copy-by-ranked-consensus.md)). |
 | Data quality | Thirteen rules across the five DAMA dimensions, robust statistics on event-adjusted returns, and detection measured against planted faults - 100% recall, 97% precision ([ADR 0013](docs/adr/0013-quality-rules-are-measured-against-planted-faults.md)). |
 | Corporate actions | Eight types, applied to history as a derived view ([ADR 0011](docs/adr/0011-corporate-action-adjustment-is-a-view.md)) and to tax lots with basis conserved and holding periods tacked. |
-| Tests | 642 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
+| Book of record | A double-entry ledger at cost, balanced in base and local currency, with market value a valuation of it rather than an entry ([ADR 0014](docs/adr/0014-a-double-entry-ledger-at-cost-is-the-book-of-record.md)). The trial balance is also computed in SQL and held equal to the ledger. |
+| Corrections | Trades are versioned, never edited; the book is a replay of the blotter as known at a moment, and a restatement is the difference between two replays ([ADR 0015](docs/adr/0015-the-book-is-a-replay-of-a-versioned-blotter.md)). |
+| Tax lots | Holding period start, opening FX rate and wash sale adjustment carried on the lot, apart from book cost ([ADR 0016](docs/adr/0016-tax-basis-is-kept-apart-from-book-cost.md)); US Schedule D netting and Form 8949, UK same-day, 30-day and section 104 matching. |
+| Value bridge | Flows, price, currency, income and costs, with a residual that must be zero - required by a property test over random multi-currency books ([ADR 0017](docs/adr/0017-the-value-bridge-is-exact.md)). |
+| Reconciliation | On the custodian's settled terms, breaks classified by cause, measured against planted breaks ([ADR 0018](docs/adr/0018-reconciliation-is-on-the-custodians-terms-and-measured.md)). |
+| Tests | 813 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
 | Types | `mypy` with `disallow_untyped_defs` across the package; `ruff` for lint and format. |
 
 ---
@@ -199,6 +261,8 @@ meridian db seed              # load the demonstration book
 meridian charts gallery       # rebuild every figure in docs/images
 meridian market quality       # score the demonstration feed and list the exceptions
 meridian market price --persist   # run the end-of-day pricing process into the database
+meridian book run --persist       # replay, check, value and reconcile the demonstration book
+meridian book trial-balance --from-db   # the trial balance, computed in SQL
 ```
 
 Point it at PostgreSQL by setting one environment variable, with no code change:
@@ -225,8 +289,13 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
 | [Point-in-time data](docs/notes/point-in-time-data.md) | Value date against knowledge time, restatements, and look-ahead bias measured |
 | [The security master](docs/notes/security-master.md) | Identifiers that move, vendors that disagree, and how a golden record is built |
-| [Chart gallery](docs/GALLERY.md) | All thirty figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Thirteen records: what was decided, what the alternatives were, and what it costs |
+| [Portfolio accounting](docs/notes/portfolio-accounting.md) | The chart of accounts, posting rules, trade and settlement dates, income, and why the book is derived |
+| [Tax lots and wash sales](docs/notes/tax-lots-and-wash-sales.md) | What a lot carries, the wash sale rule with its look-ahead, Schedule D, and the choice of lots |
+| [UK share matching](docs/notes/uk-share-matching.md) | Same-day, 30-day and section 104 matching, and why the two codes disagree |
+| [Valuation and the value bridge](docs/notes/valuation-and-the-value-bridge.md) | NAV, price against currency, and the exact decomposition of a change in value |
+| [Reconciliation](docs/notes/reconciliation.md) | Comparing on the custodian's terms, classifying breaks by cause, and measuring it |
+| [Chart gallery](docs/GALLERY.md) | All forty-six figures, with what each one argues |
+| [Architecture decisions](docs/adr) | Eighteen records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -239,7 +308,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | --- | --- | --- |
 | 1 | Foundation: money, identifiers, calendars, schedules, curves, bond analytics, domain model, persistence, migrations, CLI | ✅ Done |
 | 2 | Market data: point-in-time prices, corporate actions, FX, quality rules, golden copy, security master | ✅ Done |
-| 3 | Portfolio accounting: tax lots, cost basis, wash sales, daily valuation | Planned |
+| 3 | Portfolio accounting: double-entry ledger, tax lots, wash sales, US and UK tax, daily valuation, value bridge, reconciliation | ✅ Done |
 | 4 | Performance: time- and money-weighted returns, Brinson-Fachler attribution, Cariño linking | Planned |
 | 5 | Risk: factor model, EWMA and shrinkage covariance, VaR, bias-statistic validation | Planned |
 | 6 | Compliance: a rule DSL for mandate limits, pre- and post-trade checks | Planned |

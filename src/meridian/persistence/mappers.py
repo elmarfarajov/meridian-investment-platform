@@ -286,6 +286,9 @@ def tax_lot_to_row(lot: TaxLot, portfolio_id: str) -> TaxLotRow:
         cost_per_unit=lot.cost_per_unit,
         currency=lot.currency.code,
         transaction_id=lot.transaction_id,
+        holding_period_start=lot.holding_period_start,
+        open_fx_rate=lot.open_fx_rate,
+        wash_sale_adjustment=lot.wash_sale_adjustment,
     )
 
 
@@ -298,4 +301,7 @@ def row_to_tax_lot(row: TaxLotRow) -> TaxLot:
         cost_per_unit=row.cost_per_unit,
         currency=get_currency(row.currency),
         transaction_id=row.transaction_id,
+        holding_period_start=row.holding_period_start,
+        open_fx_rate=row.open_fx_rate if row.open_fx_rate is not None else Decimal(1),
+        wash_sale_adjustment=row.wash_sale_adjustment if row.wash_sale_adjustment is not None else Decimal(0),
     )
