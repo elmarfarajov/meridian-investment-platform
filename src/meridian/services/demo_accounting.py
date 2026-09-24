@@ -34,9 +34,11 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_DOWN, ROUND_HALF_EVEN, Decimal
 from functools import cached_property, lru_cache
 
-from ..accounting.blotter import TradeBlotter
+from ..accounting.blotter import TradeBlotter, TradeVersion
+from ..accounting.book import Book
 from ..accounting.bridge import ValueBridge, value_bridge
 from ..accounting.builders import cash_transaction, fx_conversion, purchase, sale, transfer_in
+from ..accounting.chart_of_accounts import Accounts
 from ..accounting.custodian import PlantedBreak, ReconciliationScore, SyntheticCustodian, run_reconciliation
 from ..accounting.engine import AccountingEngine, AccountingPolicy
 from ..accounting.reconciliation import BreakRegister, Reconciler
@@ -421,7 +423,8 @@ def demo_transactions(market: DemoMarket, prices: SeriesPrices, fx: FxHistory) -
 
 
 # ---------------------------------------------------------------------------- the blotter
-AMENDED_PRICE_NOTE = "price corrected the next morning"
+AMENDED_PRICE_NOTE = "price corrected at month-end against the broker confirmation"
+CORRECTION_LAG_BUSINESS_DAYS = 15
 
 
 def demo_blotter(transactions: list[Transaction]) -> TradeBlotter:
@@ -446,10 +449,10 @@ def demo_blotter(transactions: list[Transaction]) -> TradeBlotter:
                 hours=BOOKED_AT_HOUR
             )
             blotter.book(wrong if item.transaction_id == corrected.transaction_id else item, booked_at)
+        found = get_calendar("XNYS").add_business_days(corrected.trade_date, CORRECTION_LAG_BUSINESS_DAYS)
         blotter.amend(
             corrected,
-            datetime.combine(corrected.trade_date + timedelta(days=1), datetime.min.time(), timezone.utc)
-            + timedelta(hours=9),
+            datetime.combine(found, datetime.min.time(), timezone.utc) + timedelta(hours=9),
             reason=AMENDED_PRICE_NOTE,
         )
     late = [
@@ -471,6 +474,27 @@ def demo_blotter(transactions: list[Transaction]) -> TradeBlotter:
 
 
 # ---------------------------------------------------------------------------- the whole thing
+@dataclass(frozen=True)
+class Restatement:
+    """What one correction changed, day by day and account by account."""
+
+    correction: TradeVersion
+    original: Transaction
+    days: list[date]
+    reported: list[Decimal]
+    restated: list[Decimal]
+    changes: dict[str, Decimal]
+
+    @property
+    def difference(self) -> list[Decimal]:
+        """Restated less reported, per day: what each evening's report got wrong."""
+        return [now - then for then, now in zip(self.reported, self.restated, strict=True)]
+
+    @property
+    def days_misreported(self) -> int:
+        return sum(1 for value in self.difference if value)
+
+
 @dataclass
 class DemoAccounting:
     market: DemoMarket
@@ -484,7 +508,7 @@ class DemoAccounting:
     end: date = DEMO_END
 
     @cached_property
-    def book(self):  # type: ignore[no-untyped-def]
+    def book(self) -> Book:
         return self.engine.run(self.blotter.as_known_at(), self.market.actions, until=self.end)
 
     @cached_property
@@ -539,6 +563,59 @@ class DemoAccounting:
     @cached_property
     def planted_breaks(self) -> list[PlantedBreak]:
         return self.custodian.random_plan(self.reconciliation_days(), per_cause=5, seed=11)
+
+    def fx_paths(self, currencies: tuple[str, ...] = ("EUR", "GBP", "CHF")) -> dict[str, list[tuple[date, float]]]:
+        """Each currency's value in dollars on every valuation day."""
+        return {
+            currency: [(day, float(self.fx.rate(currency, "USD", day))) for day in self.valuation_days]
+            for currency in currencies
+        }
+
+    @cached_property
+    def correction(self) -> TradeVersion:
+        (version,) = self.blotter.corrections(datetime(2000, 1, 1, tzinfo=timezone.utc))
+        return version
+
+    @cached_property
+    def restatement(self) -> Restatement:
+        """NAV as it was reported each evening, against NAV as now known, around the corrected trade.
+
+        For each valuation day the book is replayed from the blotter exactly as it
+        stood that evening, so the "reported" series is what a client report or a
+        performance fee would have used. Between the trade and its correction the
+        two differ; before and after they agree. The account-level changes compare
+        the book with the trade as first booked against the book as corrected.
+        """
+        version = self.correction
+        original = self.blotter.history(version.transaction_id)[0].transaction
+        trade_date = version.transaction.trade_date
+        found = version.recorded_at.date()
+        days = [
+            day for day in self.valuation_days if trade_date - timedelta(days=10) <= day <= found + timedelta(days=14)
+        ]
+        reported: list[Decimal] = []
+        for day in days:
+            evening = datetime.combine(day, datetime.min.time(), timezone.utc) + timedelta(hours=23)
+            book = self.engine.run(self.blotter.as_known_at(evening), self.market.actions, until=day)
+            reported.append(Valuator(book, self.instruments, self.prices, self.fx).value(day).nav)
+        restated = [self.valuator.value(day).nav for day in days]
+
+        as_booked = [
+            original if item.transaction_id == version.transaction_id else item for item in self.blotter.as_known_at()
+        ]
+        before_book = self.engine.run(as_booked, self.market.actions, until=self.end)
+        realised_codes = (Accounts.REALISED_SHORT_TERM, Accounts.REALISED_LONG_TERM, Accounts.REALISED_FX_INVESTMENTS)
+
+        def components(book: Book) -> dict[str, Decimal]:
+            return {
+                "Cash": book.ledger.balance(Accounts.CASH),
+                "Investments at cost": book.ledger.balance(Accounts.INVESTMENTS),
+                "Realised gains": -sum((book.ledger.balance(code) for code in realised_codes), Decimal(0)),
+            }
+
+        was, now = components(before_book), components(self.book)
+        changes = {key: now[key] - was[key] for key in now}
+        return Restatement(version, original, days, reported, restated, changes)
 
     @cached_property
     def reconciliation(self) -> tuple[BreakRegister, ReconciliationScore]:
