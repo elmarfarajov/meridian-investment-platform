@@ -89,19 +89,41 @@ vendor consensus and the FX triangle.
 [point-in-time data](notes/point-in-time-data.md),
 [the security master](notes/security-master.md).
 
-## Day 3 - Portfolio accounting
+## Day 3 - Portfolio accounting ✅
 
 **Issue #3.** The book of record: if this is wrong, everything downstream is wrong.
 
-- Trade capture, settlement ledger, cash and accrual accounting.
-- Tax lot maintenance through buys, sells, splits and transfers; realised and unrealised
-  gains split by holding period; the US wash-sale rule.
-- Daily valuation in local and base currency, with FX revaluation separated from price
-  return.
-- Reconciliation: position and cash breaks against a custodian file.
+- A double-entry general ledger at cost, balanced in base and in each local currency,
+  with a chart of accounts a fund accountant would recognise. Market value is a
+  valuation of the ledger, never an entry in it.
+- Trade capture with a versioned blotter: amendments and cancellations are new
+  versions, the book is a replay of the blotter as known at a moment, and a
+  restatement is the difference between two replays. Settlement cycles are dated -
+  US equities moved to T+1 on 28 May 2024 - and settlement fails are tracked.
+- Posting rules for purchases and sales against payables and receivables, currency
+  results on settlement and conversion, dividends from ex-date to pay date with
+  withholding split into reclaimable and lost, bond accrued interest bought and
+  recovered, transfers in kind, and every corporate action in the Day 2 feed.
+- Tax lots carrying their holding period start, opening FX rate and wash sale
+  adjustment apart from book cost; the US wash sale rule with its 30-day look-ahead;
+  Schedule D netting, loss carryforward and Form 8949; lot choice priced under FIFO,
+  LIFO, highest cost and a provably minimal-tax order; UK same-day, 30-day and
+  section 104 matching in sterling.
+- Daily valuation in local and base currency, unrealised gain split per lot into
+  price and currency, and a value bridge - flows, price, currency, income, costs -
+  whose residual is zero on every day.
+- Reconciliation against a custodian on settled terms, with breaks classified by
+  cause and measured against breaks planted where the answer is known.
 
-**Chart:** a valuation waterfall - opening value, flows, price return, FX, income, costs,
-closing value.
+**Charts:** sixteen, including the valuation waterfall, the NAV history by currency
+family, the wash sale, one book under two tax codes, the restatement, the trial
+balance and the reconciliation dashboard.
+
+**Notes:** [portfolio accounting](notes/portfolio-accounting.md),
+[tax lots and wash sales](notes/tax-lots-and-wash-sales.md),
+[UK share matching](notes/uk-share-matching.md),
+[valuation and the value bridge](notes/valuation-and-the-value-bridge.md),
+[reconciliation](notes/reconciliation.md).
 
 ## Day 4 - Performance and attribution
 
