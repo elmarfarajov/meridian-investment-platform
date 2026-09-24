@@ -1028,15 +1028,15 @@ class _Run:
 
     def _share_multiplier(self, action: StockSplit | StockDividend) -> tuple[str, ...]:
         instrument = self.engine.instrument(action.instrument_id)
-        result = apply_action(
-            action, self.lots.lots(action.instrument_id), portfolio_id=self.portfolio_id, whole_shares=False
-        )
-        self.lots.replace_instrument(
-            action.instrument_id, [lot for lot in result.lots_after if lot.instrument_id == action.instrument_id]
-        )
+        entitled, untouched = entitled_lots(self.lots.lots(action.instrument_id), action)
+        factor = action.quantity_factor
+        # the per-share cost is divided without rounding, so the investment sub-ledger
+        # still ties to the general ledger to the last decimal after the split
+        rescaled = [lot.rescaled(factor, lot.cost_per_unit / factor) for lot in entitled]
+        self.lots.replace_instrument(action.instrument_id, [*untouched, *rescaled])
         total = self.lots.quantity(action.instrument_id)
         fraction = total - total.to_integral_value(rounding=ROUND_DOWN)
-        notes = list(result.notes)
+        notes = [f"{action.describe()}: quantity x{factor.normalize()}, cost per share /{factor.normalize()}"]
         if fraction > 0:
             price = self._price(action.instrument_id, action.ex_date)
             gross = self.money(fraction * price * instrument_price_scale(instrument), instrument.currency.code)
