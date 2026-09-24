@@ -21,6 +21,7 @@ ALEMBIC_INI = PROJECT_ROOT / "alembic.ini"
 
 EXPECTED_TABLES = {
     "accounts",
+    "attribution_effects",
     "benchmarks",
     "clients",
     "corporate_actions",
@@ -30,6 +31,7 @@ EXPECTED_TABLES = {
     "instruments",
     "journal_entries",
     "journal_postings",
+    "performance_returns",
     "portfolio_valuations",
     "portfolios",
     "position_valuations",

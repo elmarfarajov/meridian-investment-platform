@@ -15,6 +15,7 @@ from .marketdata_repositories import (
 )
 from .models import (
     AccountRow,
+    AttributionEffectRow,
     BenchmarkRow,
     ClientRow,
     CorporateActionRow,
@@ -24,6 +25,7 @@ from .models import (
     InstrumentRow,
     JournalEntryRow,
     JournalPostingRow,
+    PerformanceReturnRow,
     PortfolioRow,
     PortfolioValuationRow,
     PositionValuationRow,
@@ -36,6 +38,7 @@ from .models import (
     TaxLotRow,
     TransactionRow,
 )
+from .performance_repositories import PerformanceRepository
 from .repositories import (
     AccountRepository,
     BenchmarkRepository,
@@ -55,6 +58,7 @@ from .session import Database, create_all, create_database_engine, create_sessio
 __all__ = [
     "AccountRepository",
     "AccountRow",
+    "AttributionEffectRow",
     "Base",
     "BenchmarkRepository",
     "BenchmarkRow",
@@ -73,6 +77,8 @@ __all__ = [
     "JournalEntryRow",
     "JournalPostingRow",
     "LedgerRepository",
+    "PerformanceRepository",
+    "PerformanceReturnRow",
     "PortfolioRepository",
     "PortfolioRow",
     "PortfolioValuationRow",

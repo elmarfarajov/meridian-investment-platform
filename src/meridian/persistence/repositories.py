@@ -49,6 +49,7 @@ from .models import (
     TaxLotRow,
     TransactionRow,
 )
+from .performance_repositories import PerformanceRepository
 
 T = TypeVar("T")
 
@@ -425,6 +426,7 @@ class UnitOfWork:
         self.realised = RealisedLotRepository(session)
         self.valuations = ValuationRepository(session)
         self.reconciliation = ReconciliationRepository(session)
+        self.performance = PerformanceRepository(session)
 
     def flush(self) -> None:
         self.session.flush()

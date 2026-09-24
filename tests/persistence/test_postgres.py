@@ -172,3 +172,17 @@ def test_the_book_of_record_on_postgres(pg_session: Session):
     assert unit_of_work.tax_lots.open_lots(PORTFOLIO_ID)
     assert any(item.wash_sale_basis for item in unit_of_work.realised.for_portfolio(PORTFOLIO_ID))
     assert len(unit_of_work.valuations.nav_series(PORTFOLIO_ID)) == len(demo.valuations)
+
+
+def test_performance_on_postgres(pg_session: Session):
+    """Daily returns and attribution stored in PostgreSQL link back to the same numbers."""
+    from meridian.services.demo_performance import build_demo_performance
+    from meridian.services.performance_run import run_demo_performance
+
+    perf = build_demo_performance()
+    unit_of_work = UnitOfWork(pg_session)
+    run_demo_performance(perf, unit_of_work)
+    portfolio, benchmark = unit_of_work.performance.linked("PF-GLOBAL-EQ")
+    assert abs(portfolio - perf.portfolio_returns.total()) < 1e-12
+    assert abs(benchmark - perf.benchmark_returns.total()) < 1e-12
+    assert unit_of_work.performance.effects("PF-GLOBAL-EQ", "region")
