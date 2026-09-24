@@ -19,6 +19,7 @@ GROUPS = {
     "accounting",
     "tax",
     "reconciliation",
+    "performance",
     "platform",
 }
 

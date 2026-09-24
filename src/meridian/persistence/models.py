@@ -382,3 +382,38 @@ class ReconciliationBreakRow(TimestampMixin, Base):
     custodian_value: Mapped[Decimal] = mapped_column(AMOUNT)
     value_base: Mapped[Decimal] = mapped_column(AMOUNT)
     explanation: Mapped[str] = mapped_column(String(256))
+
+
+# ---------------------------------------------------------------------------- performance (Day 4)
+class PerformanceReturnRow(TimestampMixin, Base):
+    """One day's time-weighted return for a portfolio and its benchmark, with what it was computed from."""
+
+    __tablename__ = "performance_returns"
+
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), primary_key=True)
+    return_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    capital: Mapped[float] = mapped_column(Float)
+    result: Mapped[float] = mapped_column(Float)
+    portfolio_return: Mapped[float] = mapped_column(Float)
+    benchmark_return: Mapped[float | None] = mapped_column(Float)
+    benchmark_id: Mapped[str | None] = mapped_column(String(64))
+
+
+class AttributionEffectRow(TimestampMixin, Base):
+    """A linked attribution effect for one segment (or one currency, or costs) over one period."""
+
+    __tablename__ = "attribution_effects"
+
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), primary_key=True)
+    period_start: Mapped[date] = mapped_column(Date, primary_key=True)
+    period_end: Mapped[date] = mapped_column(Date, primary_key=True)
+    dimension: Mapped[str] = mapped_column(String(16), primary_key=True)
+    segment: Mapped[str] = mapped_column(String(64), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))  # segment | currency | costs
+    average_portfolio_weight: Mapped[float | None] = mapped_column(Float)
+    average_benchmark_weight: Mapped[float | None] = mapped_column(Float)
+    allocation: Mapped[float] = mapped_column(Float, default=0.0)
+    selection: Mapped[float] = mapped_column(Float, default=0.0)
+    interaction: Mapped[float] = mapped_column(Float, default=0.0)
+    currency: Mapped[float] = mapped_column(Float, default=0.0)
+    costs: Mapped[float] = mapped_column(Float, default=0.0)

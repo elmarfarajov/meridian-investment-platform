@@ -24,3 +24,7 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0016](0016-tax-basis-is-kept-apart-from-book-cost.md) | Tax basis is kept apart from book cost, on the lot | Accepted |
 | [0017](0017-the-value-bridge-is-exact.md) | The value bridge is exact | Accepted |
 | [0018](0018-reconciliation-is-on-the-custodians-terms-and-measured.md) | Reconciliation is on the custodian's terms, classified by cause, and measured | Accepted |
+| [0019](0019-returns-are-chained-daily-from-the-value-bridge.md) | Returns are chained daily from the value bridge, with flows at the start of the day | Accepted |
+| [0020](0020-brinson-fachler-on-local-returns-with-currency-and-costs-apart.md) | Brinson-Fachler on local returns, with currency and costs apart and funds looked through | Accepted |
+| [0021](0021-attribution-is-linked-by-carino.md) | Multi-period attribution is linked by Cariño, and stored per period | Accepted |
+| [0022](0022-a-synthetic-benchmark-from-the-same-market.md) | The benchmark is a synthetic index generated in the same market as the book | Accepted |

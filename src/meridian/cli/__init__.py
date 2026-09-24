@@ -20,6 +20,7 @@ from . import (
     chart_commands,
     db_commands,
     market_commands,
+    perf_commands,
     rates_commands,
     security_commands,
 )
@@ -38,6 +39,7 @@ app.add_typer(rates_commands.app, name="rates")
 app.add_typer(chart_commands.app, name="charts")
 app.add_typer(market_commands.app, name="market")
 app.add_typer(book_commands.app, name="book")
+app.add_typer(perf_commands.app, name="perf")
 
 
 def _version_callback(value: bool) -> None:
