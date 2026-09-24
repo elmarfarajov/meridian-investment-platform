@@ -168,6 +168,7 @@ class Book:
     def __post_init__(self) -> None:
         self.snapshots.sort(key=lambda snapshot: snapshot.day)
         self._days = [snapshot.day for snapshot in self.snapshots]
+        self._trade_index: dict[str, list[TradeActivity]] | None = None
 
     # ------------------------------------------------------------------ state by date
     @property
@@ -208,18 +209,28 @@ class Book:
             trade.quantity
             for movement in self.cash_movements
             if movement.is_pending(day) and movement.kind in {"buy", "sell"}
-            for trade in self._trades_for(movement.transaction_id)
+            for trade in self.trades_for(movement.transaction_id)
             if trade.instrument_id == instrument_id
         )
         return self.snapshot_on(day).quantity(instrument_id) - pending
 
-    def _trades_for(self, transaction_id: str) -> list[TradeActivity]:
-        if not hasattr(self, "_trade_index"):
+    def settled_positions(self, day: date) -> dict[str, Decimal]:
+        """Every settled holding, including one sold in full whose sale has not yet settled."""
+        instruments = set(self.snapshot_on(day).instruments)
+        for movement in self.pending_movements(day):
+            if movement.kind in {"buy", "sell"}:
+                instruments |= {trade.instrument_id for trade in self.trades_for(movement.transaction_id)}
+        positions = {key: self.settled_position(key, day) for key in sorted(instruments)}
+        return {key: value for key, value in positions.items() if value}
+
+    def trades_for(self, transaction_id: str) -> list[TradeActivity]:
+        """The holding changes a transaction caused, by instrument and quantity."""
+        if self._trade_index is None:
             index: dict[str, list[TradeActivity]] = defaultdict(list)
             for activity in self.activity.values():
                 for trade in activity.trades:
                     index[trade.transaction_id].append(trade)
-            self._trade_index = index
+            self._trade_index = dict(index)
         return self._trade_index.get(transaction_id, [])
 
     def pending_movements(self, day: date) -> list[CashMovement]:

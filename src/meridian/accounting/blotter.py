@@ -119,12 +119,23 @@ class TradeBlotter:
         history.append(version)
         return version
 
-    def fail(self, transaction_id: str, *, actual: date | None = None, reason: str = "") -> SettlementFail:
-        """Record that a trade missed its contractual settlement; ``actual`` is when it finally settled."""
+    def fail(
+        self,
+        transaction_id: str,
+        *,
+        actual: date | None = None,
+        contractual: date | None = None,
+        reason: str = "",
+    ) -> SettlementFail:
+        """Record that a trade missed its contractual settlement; ``actual`` is when it finally settled.
+
+        ``contractual`` defaults to the settlement date on the trade; give it when
+        the trade leaves that to the rule table.
+        """
         transaction = self.current(transaction_id)
         if transaction is None:
             raise ValidationError(f"{transaction_id} is not a live trade")
-        contractual = transaction.settles_on
+        contractual = contractual or transaction.settles_on
         if actual is not None and actual <= contractual:
             raise ValidationError(f"{transaction_id}: a fail settles after its contractual date")
         record = SettlementFail(transaction_id, contractual, actual, reason)
