@@ -228,6 +228,55 @@ class SyntheticMarket:
             specs=dict(self.instruments),
         )
 
+    def companion(
+        self, specs: Sequence[InstrumentSpec], start: date, end: date, *, seed: int | None = None
+    ) -> SyntheticHistory:
+        """More instruments in the *same* market: the same market and sector factors, their own residuals.
+
+        Adding instruments to this market would change the random draws of the
+        ones it already has, and with them every figure built on them. A
+        companion instead replays this market's factor draws exactly - the market
+        factor and the sector moves are the first things drawn - and generates
+        the new instruments' residuals, prices and actions from a separate seed.
+        A benchmark universe built this way moves with the demonstration book,
+        as a real index moves with the stocks in it, without disturbing it.
+        """
+        if end <= start:
+            raise ValidationError("a synthetic history needs end after start")
+        overlap = sorted({spec.instrument_id for spec in specs} & set(self.instruments))
+        if overlap:
+            raise ValidationError(f"companion instruments must be new; already in the market: {', '.join(overlap)}")
+        rng = np.random.default_rng(self.seed)
+        grid = weekdays(start, end)
+        steps = len(grid)
+        dt = 1.0 / TRADING_DAYS_PER_YEAR
+        market = self._market_factor(rng, steps)
+        sectors = sorted({spec.sector for spec in self.instruments.values()})
+        sector_moves = {sector: rng.standard_normal(steps) * self.sector_vol * math.sqrt(dt) for sector in sectors}
+
+        own = np.random.default_rng(self.seed + 1_000 if seed is None else seed)
+        for sector in sorted({spec.sector for spec in specs} - set(sector_moves)):
+            sector_moves[sector] = own.standard_normal(steps) * self.sector_vol * math.sqrt(dt)
+        quotes: list[Quote] = []
+        actions: list[CorporateAction] = []
+        economic: dict[str, TimeSeries] = {}
+        log_returns: dict[str, list[float]] = {}
+        for spec in sorted(specs, key=lambda item: item.instrument_id):
+            daily = self._instrument_returns(own, spec, market, sector_moves[spec.sector])
+            generated = self._price_path(own, spec, grid, daily)
+            quotes.extend(generated[0])
+            actions.extend(generated[1])
+            economic[spec.instrument_id] = generated[2]
+            log_returns[spec.instrument_id] = generated[3]
+        return SyntheticHistory(
+            dataset=MarketDataset.from_records(quotes),
+            corporate_actions=tuple(sorted(actions, key=lambda item: (item.ex_date, item.action_id))),
+            economic_value=economic,
+            log_returns=log_returns,
+            market_factor=list(zip(grid, market.tolist(), strict=True)),
+            specs={spec.instrument_id: spec for spec in specs},
+        )
+
     def _student_t(self, rng: np.random.Generator, dof: float, size: int) -> np.ndarray:
         """Student-t draws rescaled to unit variance, so ``dof`` changes the tails and not the volatility."""
         return rng.standard_t(dof, size) * math.sqrt((dof - 2.0) / dof)
