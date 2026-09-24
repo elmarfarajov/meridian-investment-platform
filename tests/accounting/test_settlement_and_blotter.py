@@ -38,7 +38,7 @@ def at(day: int, hour: int = 18) -> datetime:
 # ---------------------------------------------------------------------------- settlement cycles
 def test_us_equities_moved_from_t_plus_two_to_t_plus_one_on_28_may_2024():
     apple = INSTRUMENTS["US-AAPL"]
-    assert US_T1_EFFECTIVE == date(2024, 5, 28)
+    assert date(2024, 5, 28) == US_T1_EFFECTIVE
     assert RULES.cycle(apple, date(2024, 5, 24)) == 2
     assert RULES.cycle(apple, date(2024, 5, 28)) == 1
     # Friday 24 May 2024, T+2 across the Memorial Day weekend lands on Wednesday
