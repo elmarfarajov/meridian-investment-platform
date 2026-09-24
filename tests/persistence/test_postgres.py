@@ -153,3 +153,22 @@ def test_identifier_xref_on_postgres(pg_unit_of_work: UnitOfWork):
     pg_unit_of_work.flush()
     assert pg_unit_of_work.xref.resolve("ticker", "FB", date(2021, 1, 4)) == "US-META"
     assert pg_unit_of_work.xref.resolve("ticker", "FB", date(2023, 1, 4)) is None
+
+
+def test_the_book_of_record_on_postgres(pg_session: Session):
+    """The demonstration book persisted to PostgreSQL: the SQL trial balance equals the ledger's."""
+    from meridian.services.accounting_run import run_demo_accounting
+    from meridian.services.demo_accounting import PORTFOLIO_ID, build_demo_accounting
+
+    demo = build_demo_accounting()
+    unit_of_work = UnitOfWork(pg_session)
+    result = run_demo_accounting(demo, unit_of_work)
+    assert result.passed
+    in_sql = {line.account.code: line.balance for line in unit_of_work.ledger.trial_balance(PORTFOLIO_ID).lines}
+    in_memory = {line.account.code: line.balance for line in demo.book.ledger.trial_balance().lines}
+    assert set(in_sql) == set(in_memory)
+    for code, balance in in_memory.items():
+        assert abs(in_sql[code] - balance) < Decimal("1e-6"), code
+    lots = unit_of_work.tax_lots.open_lots(PORTFOLIO_ID)
+    assert any(lot.wash_sale_adjustment for lot in lots)
+    assert len(unit_of_work.valuations.nav_series(PORTFOLIO_ID)) == len(demo.valuations)
