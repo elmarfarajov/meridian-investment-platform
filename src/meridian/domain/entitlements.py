@@ -173,14 +173,7 @@ def _apply_share_multiplier(
     whole_shares: bool,
 ) -> EntitlementResult:
     factor = action.quantity_factor
-    adjusted = [
-        replace(
-            lot,
-            quantity=lot.quantity * factor,
-            cost_per_unit=(lot.cost_per_unit / factor).quantize(COST_PLACES),
-        )
-        for lot in lots
-    ]
+    adjusted = [lot.rescaled(factor, (lot.cost_per_unit / factor).quantize(COST_PLACES)) for lot in lots]
     notes = [f"{action.describe()}: quantity x{factor.normalize()}, cost per share /{factor.normalize()}"]
     cash: list[CashEntitlement] = []
     transactions: list[Transaction] = []
@@ -298,10 +291,19 @@ def _apply_spin_off(
         basis = lot.cost_basis.amount
         child_basis = (basis * fraction).quantize(COST_PLACES)
         parent_basis = basis - child_basis  # the remainder, so the two always sum to the original
-        parents.append(replace(lot, cost_per_unit=(parent_basis / lot.quantity).quantize(COST_PLACES)))
         child_quantity = lot.quantity * action.ratio
         if whole_shares:
             child_quantity = child_quantity.to_integral_value(rounding=ROUND_DOWN)
+        # a disallowed wash sale loss follows the basis: divided in the same proportion
+        wash_total = lot.wash_sale_adjustment * lot.quantity
+        child_wash = wash_total * fraction if child_quantity > 0 else Decimal(0)
+        parents.append(
+            replace(
+                lot,
+                cost_per_unit=(parent_basis / lot.quantity).quantize(COST_PLACES),
+                wash_sale_adjustment=(wash_total - child_wash) / lot.quantity,
+            )
+        )
         if child_quantity > 0:
             children.append(
                 TaxLot(
@@ -312,6 +314,9 @@ def _apply_spin_off(
                     cost_per_unit=(child_basis / child_quantity).quantize(COST_PLACES),
                     currency=currency,
                     transaction_id=f"{action.action_id}-{portfolio_id}",
+                    holding_period_start=lot.holding_period_start,
+                    open_fx_rate=lot.open_fx_rate,
+                    wash_sale_adjustment=child_wash / child_quantity,
                 )
             )
     received = decimal_sum(lot.quantity for lot in children)
@@ -446,6 +451,9 @@ def _apply_stock_merger(
                 cost_per_unit=(new_basis / new_quantity).quantize(COST_PLACES),
                 currency=lot.currency,
                 transaction_id=f"{action.action_id}-{portfolio_id}",
+                holding_period_start=lot.holding_period_start,
+                open_fx_rate=lot.open_fx_rate,
+                wash_sale_adjustment=lot.wash_sale_adjustment * lot.quantity / new_quantity,
             )
         )
     cash: tuple[CashEntitlement, ...] = ()
