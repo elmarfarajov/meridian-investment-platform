@@ -103,7 +103,7 @@ class LedgerRepository:
         return {
             key: Decimal(str(amount))
             for key, amount in self.session.execute(statement)
-            if abs(Decimal(str(amount))) > BALANCE_TOLERANCE
+            if key is not None and abs(Decimal(str(amount))) > BALANCE_TOLERANCE
         }
 
 
