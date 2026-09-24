@@ -14,7 +14,15 @@ import typer
 from .. import __version__
 from ..config import get_settings
 from ..observability import configure_logging
-from . import calendar_commands, chart_commands, db_commands, market_commands, rates_commands, security_commands
+from . import (
+    book_commands,
+    calendar_commands,
+    chart_commands,
+    db_commands,
+    market_commands,
+    rates_commands,
+    security_commands,
+)
 from ._common import console, render_rows, table
 
 app = typer.Typer(
@@ -29,6 +37,7 @@ app.add_typer(security_commands.app, name="security")
 app.add_typer(rates_commands.app, name="rates")
 app.add_typer(chart_commands.app, name="charts")
 app.add_typer(market_commands.app, name="market")
+app.add_typer(book_commands.app, name="book")
 
 
 def _version_callback(value: bool) -> None:
