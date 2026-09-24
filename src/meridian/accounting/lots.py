@@ -151,6 +151,7 @@ class LotBook:
         self.method = method
         self._lots: dict[str, list[TaxLot]] = {}
         self._sequence = 0
+        self._replacements: set[str] = set()
 
     # ------------------------------------------------------------------ reading
     def instruments(self) -> tuple[str, ...]:
@@ -230,16 +231,23 @@ class LotBook:
         Returns the quantity actually adjusted, which is less than asked for if
         some of those shares have already been sold. A lot only partly used as
         a replacement is split, so each piece carries the right basis.
+
+        A share replaces at most one sold share, so a lot that has already served
+        as a replacement is skipped: when one sale closes several lots, each match
+        lands on different replacement shares, and each piece is tacked with the
+        holding period of its own sold shares - never twice.
         """
         outstanding = quantity
         updated: list[TaxLot] = []
         for lot in self._lots.get(instrument_id, []):
-            if outstanding <= 0 or lot.transaction_id != transaction_id:
+            eligible = lot.transaction_id == transaction_id and lot.lot_id not in self._replacements
+            if outstanding <= 0 or not eligible:
                 updated.append(lot)
                 continue
             take = min(lot.quantity, outstanding)
             target, rest = lot.split(take) if take < lot.quantity else (lot, None)
             updated.append(wash_adjusted(target, per_unit, tacked_days))
+            self._replacements.add(target.lot_id)
             if rest is not None:
                 self._sequence += 1
                 updated.append(replace(rest, lot_id=f"{lot.lot_id}/{self._sequence}"))
