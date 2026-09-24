@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from meridian.accounting.builders import cash_transaction, purchase, sale
@@ -142,3 +142,25 @@ def test_a_loss_realised_in_euros_is_measured_in_the_tax_currency(make_engine):
     assert record.gain_base == Decimal(250)
     assert record.disallowed_loss == 0
     assert record.kind is RealisationKind.SALE
+
+
+def test_a_replacement_matched_to_two_sold_lots_is_split_and_tacked_once_each(make_engine):
+    """One sale closes two lots of different ages; each half of the replacement carries its own sold lot's period."""
+    fx = FixedFx({})
+    book = make_engine(fx).run(
+        [
+            deposit(D(2024, 1, 2), "100000"),
+            buy("OLD", D(2024, 1, 3), 100, "10"),
+            buy("NEW", D(2025, 1, 6), 100, "10"),
+            sell("S1", D(2025, 3, 10), 200, "7"),
+            buy("REP", D(2025, 3, 20), 200, "7"),
+        ]
+    )
+    lots = sorted(book.open_lots["US-AAPL"], key=lambda lot: lot.holding_start)
+    assert [lot.quantity for lot in lots] == [100, 100]
+    old_held = (D(2025, 3, 10) - D(2024, 1, 3)).days
+    new_held = (D(2025, 3, 10) - D(2025, 1, 6)).days
+    assert lots[0].holding_start == D(2025, 3, 20) - timedelta(days=old_held)
+    assert lots[1].holding_start == D(2025, 3, 20) - timedelta(days=new_held)
+    assert all(lot.wash_sale_adjustment == Decimal(3) for lot in lots)
+    assert all(lot.holding_start >= D(2024, 1, 3) for lot in lots)
