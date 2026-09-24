@@ -12,7 +12,8 @@ in [`meridian.gallery`](../src/meridian/gallery.py), so these images are
 reproducible and cannot drift from the code that draws them. The market data figures
 are drawn from the seeded demonstration market in `meridian.services`, planted faults
 and all. The book of record, tax and reconciliation figures are drawn from the
-demonstration account booked on top of that market.
+demonstration account booked on top of that market, and the performance figures
+from that account measured against its policy benchmark.
 
 ---
 ### Calendars
@@ -215,9 +216,70 @@ demonstration account booked on top of that market.
 
 ![One morning, line by line](images/reconciliation-statement.png)
 
+### Performance
+
+**Performance against the benchmark** - Growth of 100, the active return accumulating, and the drawdowns of both.
+
+![Performance against the benchmark](images/cumulative-performance.png)
+
+**From the benchmark's return to the portfolio's** - Allocation, selection, interaction, currency and costs, linked by Cariño, and by sector.
+
+![From the benchmark's return to the portfolio's](images/attribution-bridge.png)
+
+**Attribution by sector** - Average weights, local returns and the three Brinson-Fachler effects, sector by sector.
+
+![Attribution by sector](images/sector-attribution.png)
+
+**Attribution by region** - The same active return decomposed by region, index funds looked through.
+
+![Attribution by region](images/region-attribution.png)
+
+**Attribution, month by month** - Each month's effects by sector, linked within the month so the rows add up.
+
+![Attribution, month by month](images/attribution-calendar.png)
+
+**Why effects have to be linked** - The plain sum of daily active returns drifts from the compounded active return; Cariño closes the gap.
+
+![Why effects have to be linked](images/attribution-linking.png)
+
+**Which return?** - Time-weighted, money-weighted and Modified Dietz, year by year, with the client's flows.
+
+![Which return?](images/return-methods.png)
+
+**Returns by month** - A calendar of monthly returns and of active returns against the benchmark.
+
+![Returns by month](images/monthly-returns.png)
+
+**Risk, as it moved** - Rolling volatility, tracking error, information ratio and beta.
+
+![Risk, as it moved](images/rolling-risk.png)
+
+**Return against risk** - The portfolio, its benchmark and every holding, with lines of equal Sharpe ratio.
+
+![Return against risk](images/risk-return.png)
+
+**Drawdowns** - The deepest falls from peak, how long they lasted and whether they recovered.
+
+![Drawdowns](images/drawdown-episodes.png)
+
+**Currency, kept apart** - Currency weights against the benchmark's and the effect of each currency.
+
+![Currency, kept apart](images/currency-attribution.png)
+
+**Who drove the return** - Each holding's linked contribution to the time-weighted return.
+
+![Who drove the return](images/contribution-to-return.png)
+
+**Day by day against the benchmark** - The distribution of daily active returns, beta, and up and down capture.
+
+![Day by day against the benchmark](images/active-days.png)
+
+**The performance report** - The one page a client reads: returns by period, risk, attribution and contributions.
+
+![The performance report](images/factsheet.png)
+
 ### Platform
 
 **The data model** - Every table, column and foreign key, drawn from the live SQLAlchemy metadata.
 
 ![The data model](images/data-model.png)
-

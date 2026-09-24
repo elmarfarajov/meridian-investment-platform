@@ -125,19 +125,32 @@ balance and the reconciliation dashboard.
 [valuation and the value bridge](notes/valuation-and-the-value-bridge.md),
 [reconciliation](notes/reconciliation.md).
 
-## Day 4 - Performance and attribution
+## Day 4 - Performance and attribution ✅
 
 **Issue #4.** What the return was, and where it came from.
 
-- Time-weighted return with proper treatment of flows (Modified Dietz and true daily
-  linking), money-weighted return by IRR.
-- Brinson-Fachler attribution: allocation, selection and interaction against a benchmark,
-  by sector and by region.
-- Geometric linking of multi-period attribution by the Cariño method, so the effects
-  actually sum to the excess return.
-- Currency attribution separated from local return.
+- Time-weighted return chained daily from the value bridge's own result, flows at the
+  start of the day, so every return reconciles to the ledger; money-weighted return by
+  XIRR; Modified Dietz as the comparison it historically replaced.
+- Holding contributions, with price, currency and income per holding and costs apart,
+  linked so they add up to the portfolio's return exactly.
+- A benchmark built the way an index provider builds one: Meridian World Equity, a
+  synthetic cap-weighted index of 36 stocks generated in the same market as the book,
+  inside an 80/15/5 policy blend rebalanced monthly.
+- Brinson-Fachler attribution on local returns, by sector and by region, with currency
+  and costs as their own effects and index funds looked through to the benchmark.
+- Cariño linking, so the effects sum to the compounded active return with nothing
+  left over, stored per report period.
+- Risk against the benchmark: volatility, Sharpe, Sortino, tracking error, information
+  ratio, beta, capture, drawdown episodes, VaR and expected shortfall, rolling windows.
 
-**Chart:** the attribution bridge from benchmark return to portfolio return.
+**Charts:** fifteen, including the attribution bridge, attribution by sector and by
+region, the monthly attribution calendar, why effects have to be linked, three return
+methods, rolling risk and a one-page factsheet.
+
+**Notes:** [performance measurement](notes/performance-measurement.md),
+[performance attribution](notes/performance-attribution.md),
+[benchmark construction](notes/benchmark-construction.md).
 
 ## Day 5 - Risk
 

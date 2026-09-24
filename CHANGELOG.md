@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-25
+
+Day 4: performance and attribution. What the return was, measured three ways; a
+benchmark that can be taken apart; and an attribution that explains the active return
+to the last basis point, with currency and costs kept apart and the days linked.
+
+### Added
+
+- **Returns.** Daily time-weighted returns chained from the value bridge's own
+  investment result, with flows at the start of the day; money-weighted returns by
+  XIRR on actual days; Modified Dietz; factsheet periods (MTD, QTD, YTD, one year,
+  since inception), annualised only beyond a year; monthly and yearly tables.
+- **Holding contributions.** Every day taken apart into one exposure per holding
+  (opening value, local result with dividends and coupons from the ledger, currency
+  result) and one per currency for cash, with costs apart. Largest daily residual on
+  the demonstration: 9e-11 dollars. Linked by Cariño, the contributions sum to the
+  time-weighted return.
+- **The benchmark.** `SyntheticMarket.companion` generates new instruments in the same
+  market, replaying its market and sector factors without changing any existing
+  price. Meridian World Equity: a cap-weighted, total-return index of 36 stocks with
+  drifting weights and returns split into local and currency. A policy benchmark of
+  80% equity, 15% the Treasury bond (total return from dirty prices and coupons) and
+  5% cash, rebalanced monthly.
+- **Brinson-Fachler attribution** by sector and by region: allocation against the
+  benchmark's total return, selection, interaction as the exact remainder; currency
+  per currency and costs as their own effects; index funds looked through to the
+  benchmark's constituents. Daily residual around 1e-17.
+- **Cariño linking** of daily effects over any period, with the unlinked gap
+  reported; linked monthly attribution.
+- **Risk statistics**: volatility, downside deviation, Sharpe, Sortino, tracking error,
+  information ratio, beta, Jensen's alpha, correlation, up and down capture, hit rate,
+  historical VaR and expected shortfall, skewness and kurtosis, drawdown episodes with
+  recovery dates, and rolling 63-day windows.
+- **Persistence**: `performance_returns` (one row per day) and `attribution_effects`
+  (linked effects per period, dimension and segment), migration 0004. The
+  performance run refuses to write a period whose residual exceeds 1e-10.
+- **`meridian perf`**: `run`, `returns`, `attribution`, `risk`, `contributions`,
+  `factsheet` and `stored`.
+- **Fifteen charts** (sixty-one in the gallery), three methodology notes and ADRs 0019
+  to 0022.
+
+### Changed
+
+- The data model diagram now includes the two performance tables.
+
 ## [0.4.0] - 2026-09-24
 
 Day 3: portfolio accounting. A double-entry book of record at cost, tax lots that know
@@ -193,6 +238,8 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[0.5.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.5.0
+[0.4.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.4.0
 [0.3.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.3.0
 [0.2.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.2.0
 [0.1.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.1.0
