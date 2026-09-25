@@ -50,6 +50,7 @@ from .models import (
     TransactionRow,
 )
 from .performance_repositories import PerformanceRepository
+from .risk_repositories import RiskRepository
 
 T = TypeVar("T")
 
@@ -427,6 +428,7 @@ class UnitOfWork:
         self.valuations = ValuationRepository(session)
         self.reconciliation = ReconciliationRepository(session)
         self.performance = PerformanceRepository(session)
+        self.risk = RiskRepository(session)
 
     def flush(self) -> None:
         self.session.flush()

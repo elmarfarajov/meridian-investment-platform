@@ -417,3 +417,46 @@ class AttributionEffectRow(TimestampMixin, Base):
     interaction: Mapped[float] = mapped_column(Float, default=0.0)
     currency: Mapped[float] = mapped_column(Float, default=0.0)
     costs: Mapped[float] = mapped_column(Float, default=0.0)
+
+
+class RiskFactorReturnRow(TimestampMixin, Base):
+    """One day's return of one factor of a risk model: the history every covariance forecast is built from."""
+
+    __tablename__ = "risk_factor_returns"
+
+    model_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    return_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    factor: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[float] = mapped_column(Float)
+
+
+class RiskForecastRow(TimestampMixin, Base):
+    """The morning's risk forecast for a portfolio on one day, and the day's outcome."""
+
+    __tablename__ = "risk_forecasts"
+
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), primary_key=True)
+    forecast_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    model_id: Mapped[str] = mapped_column(String(64))
+    weekdays: Mapped[int] = mapped_column(Integer)
+    volatility: Mapped[float] = mapped_column(Float)  # forecast standard deviation of the day's return
+    tracking_error: Mapped[float] = mapped_column(Float)
+    factor_share: Mapped[float] = mapped_column(Float)
+    var_99: Mapped[float] = mapped_column(Float)
+    realised: Mapped[float] = mapped_column(Float)
+    active: Mapped[float] = mapped_column(Float)
+    exception: Mapped[bool] = mapped_column(Boolean)
+
+
+class RiskExposureRow(TimestampMixin, Base):
+    """A portfolio's and its benchmark's exposure to one factor on a report date, with the active risk it adds."""
+
+    __tablename__ = "risk_exposures"
+
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), primary_key=True)
+    as_of: Mapped[date] = mapped_column(Date, primary_key=True)
+    factor: Mapped[str] = mapped_column(String(64), primary_key=True)
+    factor_group: Mapped[str] = mapped_column(String(16))
+    portfolio: Mapped[float] = mapped_column(Float)
+    benchmark: Mapped[float] = mapped_column(Float)
+    active_contribution: Mapped[float] = mapped_column(Float)  # annualised contribution to tracking error
