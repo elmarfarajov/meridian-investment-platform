@@ -9,7 +9,7 @@ year backtest over five hundred stocks takes seconds.
 Three covariance forecasters are run side by side:
 
 * **EWMA** - the production choice: half-life 42 days for volatilities and 200
-  for correlations, specific risk on a 63-day half-life with Bayesian shrinkage.
+  for correlations, specific risk by EWMA on a 63-day half-life.
 * **Sample** - equal weights over the last 252 days, the textbook estimator.
 * **Truth** - the generator's own conditional covariance, available only
   because the universe is synthetic: the best any forecaster could do.
@@ -136,7 +136,7 @@ class RollingForecaster:
 
     def _estimates(self, method: str, caps: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         if method == "ewma":
-            return self.ewma.covariance(), self.specific.variances(caps)
+            return self.ewma.covariance(), self.specific.variances(caps, shrink=False)
         if method == "sample":
             return self.sample.covariance(), self.specific_sample.variances()
         raise ValueError(f"unknown forecaster {method!r}")
@@ -192,7 +192,7 @@ class RollingForecaster:
         stacked = np.vstack(rows)
         return {name: stacked[:, index] for index, name in enumerate(self.factors.names)}
 
-    def specific_z_scores(self, *, start: int = WARM_UP, shrink: bool = True) -> np.ndarray:
+    def specific_z_scores(self, *, start: int = WARM_UP, shrink: bool = False) -> np.ndarray:
         """Every stock's specific return over its forecast specific volatility (T x N)."""
         risk = SpecificRisk(len(self.history.stocks))
         rows: list[np.ndarray] = []

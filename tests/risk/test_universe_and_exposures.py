@@ -64,8 +64,16 @@ def test_true_variance_is_the_sum_of_its_parts(small):
 
 def test_the_overlay_replays_the_day_two_market():
     draws = demo_market(7).factor_draws(DEMO_START, DEMO_END)
-    assert np.allclose(draws.market, [value for _, value in demo_market(7).generate(DEMO_START, DEMO_END).market_factor])
-    overlay = Overlay(draws.days, draws.market, draws.market_variance, {"Information Technology": draws.sectors["Information Technology"]}, 0.07)
+    assert np.allclose(
+        draws.market, [value for _, value in demo_market(7).generate(DEMO_START, DEMO_END).market_factor]
+    )
+    overlay = Overlay(
+        draws.days,
+        draws.market,
+        draws.market_variance,
+        {"Information Technology": draws.sectors["Information Technology"]},
+        0.07,
+    )
     history = FactorUniverse(80, seed=3).generate(date(2023, 1, 2), DEMO_END, overlay)
     start = history.overlay_start
     assert start is not None and history.days[start] == DEMO_START

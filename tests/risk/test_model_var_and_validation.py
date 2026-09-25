@@ -83,7 +83,9 @@ def test_historical_and_monte_carlo_var():
     with pytest.raises(ValidationError, match="twenty"):
         historical(returns[:5])
     exposures = np.array([[1.0], [1.0]])
-    simulated, draws = monte_carlo(exposures, np.array([[1e-4]]), np.array([0.0, 0.0]), np.array([0.5, 0.5]), draws=200_000)
+    simulated, draws = monte_carlo(
+        exposures, np.array([[1e-4]]), np.array([0.0, 0.0]), np.array([0.5, 0.5]), draws=200_000
+    )
     assert float(np.std(draws)) == pytest.approx(0.01, rel=0.02)
     assert simulated.var == pytest.approx(0.01 * stats.t.ppf(0.99, 5) * (3 / 5) ** 0.5, rel=0.03)  # unit-variance t(5)
     assert simulated.var > parametric(0.01).var and simulated.es > parametric(0.01).es

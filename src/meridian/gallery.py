@@ -29,6 +29,7 @@ from .performance_gallery import performance_items
 from .quality.engine import QualityReport
 from .refdata import build_security_master, demo_vendor_records
 from .refdata import demo_policy as demo_security_policy
+from .risk_gallery import risk_items
 from .services import (
     DEMO_END,
     DemoMarket,
@@ -92,6 +93,7 @@ GROUPS: tuple[str, ...] = (
     "tax",
     "reconciliation",
     "performance",
+    "risk",
     "platform",
 )
 
@@ -269,6 +271,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *market_data_items(),
         *accounting_items(),
         *performance_items(),
+        *risk_items(),
     )
 
 

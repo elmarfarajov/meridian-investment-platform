@@ -1,18 +1,23 @@
 """Specific risk: what is left of each stock once the factors have taken their share.
 
 A stock's specific variance is forecast from its own specific returns, with an
-exponentially weighted average - and then shrunk. A single stock's specific
-volatility measured over a few months is noisy: the stock whose last quarter
-was unusually quiet is forecast too quiet, and the one with a bad quarter too
-wild. Bayesian shrinkage (as in Barra's USE4) pulls each forecast towards the
-average of stocks of similar size, by more the further it is from that average:
+exponentially weighted average on a 63-day half-life.
+
+**Bayesian shrinkage** (as in Barra's USE4) is implemented and was tested. It
+pulls each forecast towards the average of stocks of similar size, by more the
+further it is from that average:
 
     s_shrunk = v * s_bar + (1 - v) * s,      v = q |s - s_bar| / (dev + q |s - s_bar|)
 
 where ``s_bar`` is the capitalisation-weighted mean specific volatility of the
-stock's size decile and ``dev`` the dispersion within the decile. The
-shrinkage is small for typical stocks and strong for outliers, which is where
-the bias of an unshrunk forecast lives.
+stock's size decile and ``dev`` the dispersion within the decile. It is a cure
+for noisy estimates. Here two tests rejected it: on the estimation universe it
+widened the spread of the stocks' own bias statistics several times over,
+because the differences between stocks are real and persistent and 63 days
+measure them well; on the account it pulled the tracking error forecast a fifth
+too low, because the universe's size deciles are the wrong prior for the
+account's mega-caps. It is off by default and kept, with its evidence, as the
+documented alternative (ADR 0025).
 """
 
 from __future__ import annotations
@@ -82,7 +87,7 @@ class SpecificRisk:
         self.squares = np.where(present, self.decay * self.squares + (1 - self.decay) * clean**2, self.squares)
         self.weight = np.where(present, self.decay * self.weight + (1 - self.decay), self.weight)
 
-    def variances(self, caps: np.ndarray | None = None, *, shrink: bool = True) -> np.ndarray:
+    def variances(self, caps: np.ndarray | None = None, *, shrink: bool = False) -> np.ndarray:
         raw = np.where(self.weight > 0, self.squares / np.maximum(self.weight, 1e-12), np.nan)
         if not shrink or caps is None:
             return raw

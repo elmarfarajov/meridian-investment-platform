@@ -536,8 +536,9 @@ class DemoRisk:
         return RollingForecaster(self.universe, self.estimated).specific_z_scores()
 
     @cached_property
-    def specific_z_raw(self) -> np.ndarray:
-        return RollingForecaster(self.universe, self.estimated).specific_z_scores(shrink=False)
+    def specific_z_shrunk(self) -> np.ndarray:
+        """The rejected alternative: specific risk shrunk towards the stock's size decile."""
+        return RollingForecaster(self.universe, self.estimated).specific_z_scores(shrink=True)
 
     @cached_property
     def world_volatility(self) -> dict[str, np.ndarray]:
@@ -577,7 +578,7 @@ class DemoRisk:
 
     @cached_property
     def minimum_variance(self) -> list[Trial]:
-        return minimum_variance_trials(self.universe, RollingForecaster(self.universe, self.estimated), every=2)
+        return minimum_variance_trials(self.universe, RollingForecaster(self.universe, self.estimated), every=3)
 
 
 @lru_cache(maxsize=2)
