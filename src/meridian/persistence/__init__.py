@@ -53,6 +53,7 @@ from .repositories import (
     UnitOfWork,
     seed_reference_data,
 )
+from .risk_repositories import RiskRepository
 from .session import Database, create_all, create_database_engine, create_session_factory, drop_all, session_scope
 
 __all__ = [
@@ -94,6 +95,7 @@ __all__ = [
     "RealisedLotRow",
     "ReconciliationBreakRow",
     "ReconciliationRepository",
+    "RiskRepository",
     "TaxLotRepository",
     "TaxLotRow",
     "TimestampMixin",

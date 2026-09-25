@@ -20,6 +20,7 @@ GROUPS = {
     "tax",
     "reconciliation",
     "performance",
+    "risk",
     "platform",
 }
 

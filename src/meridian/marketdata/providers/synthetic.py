@@ -112,6 +112,21 @@ class SyntheticHistory:
         return self.dataset.close_series(instrument_id)
 
 
+@dataclass(frozen=True)
+class FactorDraws:
+    """The common factors of a synthetic market, day by day on its weekday grid.
+
+    ``market`` is the market factor's daily log return and ``market_variance``
+    its conditional variance on each day - the GARCH forecast made the evening
+    before, which is the true risk a forecaster is trying to estimate.
+    """
+
+    days: tuple[date, ...]
+    market: np.ndarray
+    sectors: dict[str, np.ndarray]
+    market_variance: np.ndarray
+
+
 def _round(value: float, places: int) -> Decimal:
     return Decimal(repr(value)).quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_EVEN)
 
@@ -276,6 +291,37 @@ class SyntheticMarket:
             market_factor=list(zip(grid, market.tolist(), strict=True)),
             specs={spec.instrument_id: spec for spec in specs},
         )
+
+    def factor_draws(
+        self, start: date, end: date, *, extra_sectors: Sequence[str] = (), seed: int | None = None
+    ) -> FactorDraws:
+        """The market factor and sector moves this market draws, replayed without generating any instrument.
+
+        ``extra_sectors`` are the sectors a :meth:`companion` call with the same
+        ``seed`` would add; their moves are replayed from the companion's own
+        stream, in the same order, so a risk model can be estimated on exactly
+        the factors that moved the demonstration book and its benchmark.
+        """
+        if end <= start:
+            raise ValidationError("a synthetic history needs end after start")
+        rng = np.random.default_rng(self.seed)
+        grid = weekdays(start, end)
+        steps = len(grid)
+        dt = 1.0 / TRADING_DAYS_PER_YEAR
+        market = self._market_factor(rng, steps)
+        sectors = sorted({spec.sector for spec in self.instruments.values()})
+        moves = {sector: rng.standard_normal(steps) * self.sector_vol * math.sqrt(dt) for sector in sectors}
+        own = np.random.default_rng(self.seed + 1_000 if seed is None else seed)
+        for sector in sorted(set(extra_sectors) - set(moves)):
+            moves[sector] = own.standard_normal(steps) * self.sector_vol * math.sqrt(dt)
+        long_run = self.market_vol**2 / TRADING_DAYS_PER_YEAR
+        variance = np.empty(steps)
+        current = long_run
+        omega = long_run * (1 - self.garch_alpha - self.garch_beta)
+        for index in range(steps):
+            variance[index] = current
+            current = omega + self.garch_alpha * market[index] ** 2 + self.garch_beta * current
+        return FactorDraws(tuple(grid), market, moves, variance)
 
     def _student_t(self, rng: np.random.Generator, dof: float, size: int) -> np.ndarray:
         """Student-t draws rescaled to unit variance, so ``dof`` changes the tails and not the volatility."""

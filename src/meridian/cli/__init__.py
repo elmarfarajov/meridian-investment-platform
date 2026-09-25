@@ -22,6 +22,7 @@ from . import (
     market_commands,
     perf_commands,
     rates_commands,
+    risk_commands,
     security_commands,
 )
 from ._common import console, render_rows, table
@@ -40,6 +41,7 @@ app.add_typer(chart_commands.app, name="charts")
 app.add_typer(market_commands.app, name="market")
 app.add_typer(book_commands.app, name="book")
 app.add_typer(perf_commands.app, name="perf")
+app.add_typer(risk_commands.app, name="risk")
 
 
 def _version_callback(value: bool) -> None:

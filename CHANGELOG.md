@@ -4,6 +4,60 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-26
+
+Day 5: risk. A fundamental factor model estimated on a universe whose true risk is
+known, applied to the demonstration account, and validated - on ten years of the
+universe and on every morning's forecast for the account.
+
+### Added
+
+- **The estimation universe.** Five hundred synthetic stocks over ten years with GARCH
+  Student-t factors and residuals, crisis regimes whose factor totals are fixed (the 2020
+  crash, the 2022 bear market, a momentum crash), and every true factor return,
+  exposure and conditional variance recorded. Over the demonstration window it replays
+  the Day 2 market through `SyntheticMarket.factor_draws`.
+- **The factor model.** Twenty-one factors - world, eleven industries, beta, size,
+  value, momentum, quality, four currencies. Descriptors (Vasicek-shrunk historical
+  beta, log size, log book-to-price, 12-1 momentum, return on equity) standardised to
+  cap-weighted mean zero and unit spread; a daily square-root-cap WLS regression with
+  cap-weighted industries constrained to sum to zero.
+- **Covariance.** Sample, EWMA with separate volatility and correlation half-lives
+  (42 and 200 days), Ledoit-Wolf towards the identity (matched to scikit-learn) and
+  towards constant correlation, Marchenko-Pastur bounds and density, the riskless
+  portfolio of a singular sample, Woodbury minimum variance. GARCH(1,1) via `arch`.
+- **The model and its decomposition.** `V = X F X' + D`; Euler contributions to
+  volatility and tracking error by factor, group and holding; marginal risk.
+- **Coverage.** The account's stocks and the benchmark's on the universe's scale; index
+  funds looked through with their basis as its own risk; the bond by time-series beta;
+  cash by currency.
+- **VaR and ES** parametric, Cornish-Fisher, historical and factor Monte Carlo with
+  multivariate Student-t; **stress tests** from historical replays and hypothetical
+  factor shocks.
+- **Validation.** A forward-only rolling forecaster; bias statistics with their band,
+  MRAD and a truth yardstick; Kupiec, Christoffersen and the Basel traffic light; the
+  minimum-variance experiment across estimators.
+- **Persistence**: `risk_factor_returns`, `risk_forecasts`, `risk_exposures` and
+  migration 0005. The risk run checks its controls before writing; the backtest and
+  factor volatilities are recounted in SQL on SQLite and PostgreSQL.
+- **`meridian risk`**: `model`, `portfolio`, `contributions`, `var`, `stress`,
+  `backtest`, `validate`, `report`, `run` and `stored`.
+- **Sixteen charts** (seventy-seven in the gallery), three methodology notes and ADRs
+  0023 to 0026. `scipy` and `arch` join the dependencies, `scikit-learn` the
+  development tools.
+
+### Found by the backtest
+
+- Index funds deviate from their look-through by about 12% a year; without a basis
+  line the tracking error was under-forecast (bias 1.18).
+- The universe's beta factor was at first only loosely tied to the world factor, so
+  the Day 2 stocks' market betas (0.57 to 1.20) could not flow through the model.
+- Bayesian shrinkage of specific risk widened the spread of the stocks' own biases
+  fourfold on the universe and pulled the account's tracking error a fifth too low;
+  it is off by default.
+- A drift cannot make a crash: with volatility four times normal, the first "2020
+  crash" window ended up. Regimes now fix their factors' totals.
+
 ## [0.5.0] - 2026-09-25
 
 Day 4: performance and attribution. What the return was, measured three ways; a
@@ -238,6 +292,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[0.6.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.6.0
 [0.5.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.5.0
 [0.4.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.4.0
 [0.3.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.3.0

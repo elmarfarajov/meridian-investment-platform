@@ -186,3 +186,18 @@ def test_performance_on_postgres(pg_session: Session):
     assert abs(portfolio - perf.portfolio_returns.total()) < 1e-12
     assert abs(benchmark - perf.benchmark_returns.total()) < 1e-12
     assert unit_of_work.performance.effects("PF-GLOBAL-EQ", "region")
+
+
+def test_risk_on_postgres(pg_session: Session):
+    """Factor returns and forecasts stored in PostgreSQL give back the same volatility and the same backtest."""
+    import numpy as np
+
+    from meridian.services.demo_risk import build_demo_risk
+    from meridian.services.risk_run import MODEL_ID, run_demo_risk
+
+    risk = build_demo_risk()
+    unit_of_work = UnitOfWork(pg_session)
+    result = run_demo_risk(risk, unit_of_work)
+    in_sql = unit_of_work.risk.realised_volatility(MODEL_ID, "World")
+    assert abs(in_sql - float(np.std(risk.estimated.factor("World"), ddof=1)) * 252**0.5) < 1e-9
+    assert unit_of_work.risk.exception_count("PF-GLOBAL-EQ") == (result.exceptions, result.scored_days)

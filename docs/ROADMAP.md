@@ -152,21 +152,35 @@ methods, rolling risk and a one-page factsheet.
 [performance attribution](notes/performance-attribution.md),
 [benchmark construction](notes/benchmark-construction.md).
 
-## Day 5 - Risk
+## Day 5 - Risk ✅
 
 **Issue #5.** Risk is a forecast, and a forecast has to be validated.
 
-- A fundamental multi-factor model: market, size, value, momentum, quality, plus
-  sector and currency factors.
-- Covariance estimation with EWMA and Ledoit-Wolf shrinkage; why a raw sample covariance
-  on 500 assets and 250 days is unusable.
-- Portfolio volatility, tracking error, marginal and component contribution to risk,
-  parametric and historical VaR and expected shortfall.
-- Model validation by bias statistics and rolling backtests - the part most toy risk
-  models omit.
+- A fundamental multi-factor model: world, eleven GICS industries, beta, size, value,
+  momentum and quality, and four currencies; exposures from standardised descriptors;
+  factor returns from a daily weighted, industry-constrained cross-sectional regression.
+- An estimation universe of 500 synthetic stocks over ten years whose true risk is
+  recorded - crisis regimes, GARCH Student-t dynamics - that replays the Day 2 market
+  over the demonstration window, so every forecast can be scored against the truth.
+- Covariance: why a sample covariance on 500 stocks and 252 days is singular
+  (Marchenko-Pastur) and what an optimiser does with it; Ledoit-Wolf shrinkage matched
+  to scikit-learn; EWMA with separate half-lives; GARCH(1,1) through `arch`.
+- Specific risk by EWMA, with Bayesian shrinkage tested and rejected on two
+  independent tests; index funds looked through with their basis as its own risk.
+- Portfolio volatility, tracking error, marginal and Euler contributions by factor,
+  group and holding; VaR and expected shortfall four ways; historical and hypothetical
+  stress tests.
+- Validation: bias statistics with their band and a truth yardstick on the universe
+  and on the account's own daily forecasts; Kupiec, Christoffersen and the Basel
+  traffic light. The backtest found and fixed three mis-specifications.
 
-**Chart:** the risk decomposition, and the bias-statistic time series with its confidence
-band.
+**Charts:** sixteen, including the risk decomposition, the bias statistics with their
+band, the eigenvalue spectrum against Marchenko-Pastur, minimum-variance portfolios by
+estimator, the VaR backtest and a one-page risk report.
+
+**Notes:** [the factor risk model](notes/factor-risk-model.md),
+[covariance estimation](notes/covariance-estimation.md),
+[validating a risk model](notes/risk-validation.md).
 
 ## Day 6 - Compliance
 

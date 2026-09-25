@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-867-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-929-2E7D5B)](tests)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
 
 Asset managers do not run on spreadsheets. They run on systems like BlackRock's Aladdin,
@@ -82,13 +82,27 @@ meridian perf attribution --by sector
 meridian perf run --persist && meridian perf stored
 # Daily returns and linked effects written for every report period, then read
 # back from SQL and checked against the relinked active return.
+
+meridian risk portfolio
+# Volatility 12.2%, tracking error 5.8%: the market is two thirds of the
+# account's risk; its tracking error is almost all stock-specific.
+
+meridian risk backtest
+# The account's forecasts scored against 530 days of outcomes: bias statistics
+# with their band, beside what the true volatility scores; Kupiec,
+# Christoffersen and the Basel traffic light.
+
+meridian risk validate
+# Ten years of a 500-stock universe whose true risk is known: EWMA against the
+# sample against the truth, and why a sample covariance promises a riskless
+# portfolio that is not.
 ```
 
 ---
 
 ## The charts
 
-Every module ships a visual, not only numbers. All sixty-one are in the
+Every module ships a visual, not only numbers. All seventy-seven are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **From the benchmark's return to the portfolio's.** The account returned -5.24% against
@@ -116,6 +130,31 @@ flows, all three methods agree to the last digit.
 attribution and the largest contributions, on one page drawn from the book of record.
 
 ![The performance report](docs/images/factsheet.png)
+
+**Where the risk comes from.** A 21-factor fundamental model splits the account's 12.2%
+volatility and 5.8% tracking error into the market, industries, styles, currencies and
+stock-specific risk, exactly, by Euler's theorem. The market is two thirds of the risk;
+the tracking error is almost all the stocks the account chose to own.
+
+![Risk decomposition](docs/images/risk-decomposition.png)
+
+**Is the forecast the right size?** A return divided by the forecast made the evening
+before should have standard deviation one. Scored on ten years of a universe whose true
+risk is known, the EWMA forecast stays within its band; the equal-weighted sample is late
+into every crisis and late out of it.
+
+![Bias statistics](docs/images/bias-statistics.png)
+
+**An optimiser finds the errors in a covariance matrix.** With 500 stocks and 252 days
+the sample covariance is singular and promises a riskless portfolio; it delivers 12%.
+Shrinkage promises too little. The factor model delivers what it promises.
+
+![Minimum-variance portfolios](docs/images/minimum-variance.png)
+
+**Backtesting the account's VaR.** Every morning the model forecast a 99% VaR from what it
+knew. The window turned out calmer than its own true risk, and Kupiec's test says so.
+
+![VaR backtest](docs/images/var-backtest.png)
 
 **Where did the value go?** Every day's change in net asset value is split into flows,
 price, currency, income and costs, and the split is exact: the residual is printed on the
@@ -243,13 +282,16 @@ meridian
 │                 US and UK tax reporting, custodian reconciliation
 ├── performance   time- and money-weighted returns, holding contributions, the
 │                 benchmark, Brinson-Fachler attribution, Cariño linking, risk statistics
+├── risk          a fundamental factor model: the estimation universe, exposures,
+│                 cross-sectional regression, EWMA and GARCH covariance, Ledoit-Wolf,
+│                 specific risk, Euler decomposition, VaR, stress tests, validation
 ├── persistence   SQLAlchemy 2.0 schema, explicit mappers, repositories, unit of work
 ├── marketdata    series, point-in-time storage, sources, adjustment, golden copy
 ├── quality       the data quality rules, the engine and the scoring
 ├── refdata       the security master: identifier cross-reference, golden records
-├── services      application processes: the end-of-day pricing, accounting and
-│                 performance runs, the demonstration market, book and benchmark
-├── viz           the house chart style and sixty-one figures
+├── services      application processes: the end-of-day pricing, accounting,
+│                 performance and risk runs, the demonstration market, book and benchmark
+├── viz           the house chart style and seventy-seven figures
 ├── cli           a thin Typer layer over tested functions
 ├── gallery       one definition of every chart, used by the docs and the tests
 └── seed          a hand-made demonstration book to run everything against
@@ -285,7 +327,9 @@ reasons without loosening a domain invariant. Analytics code never imports SQLAl
 | Returns | Chained daily from the value bridge's own result, flows at the start of the day, so every return reconciles to the ledger ([ADR 0019](docs/adr/0019-returns-are-chained-daily-from-the-value-bridge.md)). |
 | Attribution | Brinson-Fachler on local returns, currency and costs apart, funds looked through ([ADR 0020](docs/adr/0020-brinson-fachler-on-local-returns-with-currency-and-costs-apart.md)); linked by Cariño and stored per period ([ADR 0021](docs/adr/0021-attribution-is-linked-by-carino.md)). |
 | Benchmark | A synthetic cap-weighted index generated in the same market as the book, in an 80/15/5 policy blend ([ADR 0022](docs/adr/0022-a-synthetic-benchmark-from-the-same-market.md)). |
-| Tests | 867 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
+| Risk model | A 21-factor fundamental model by constrained cross-sectional regression, estimated on a universe whose true risk is known ([ADR 0023](docs/adr/0023-a-fundamental-factor-model-on-a-universe-with-known-truth.md)); EWMA factor covariance ([ADR 0024](docs/adr/0024-ewma-factor-covariance-with-separate-half-lives.md)); specific risk and fund basis ([ADR 0025](docs/adr/0025-specific-risk-by-ewma-and-fund-basis-as-its-own-risk.md)). |
+| Model validation | Bias statistics against their band and a truth yardstick, Kupiec, Christoffersen and the Basel traffic light; the risk run writes nothing if a control fails ([ADR 0026](docs/adr/0026-a-risk-model-ships-with-its-validation.md)). |
+| Tests | 929 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
 | Types | `mypy` with `disallow_untyped_defs` across the package; `ruff` for lint and format. |
 
 ---
@@ -308,6 +352,8 @@ meridian book run --persist       # replay, check, value and reconcile the demon
 meridian book trial-balance --from-db   # the trial balance, computed in SQL
 meridian perf run --persist       # returns and linked attribution for every report period
 meridian perf factsheet --out factsheet.png   # the one-page performance report
+meridian risk run --persist       # forecasts, factor history and exposures, after the controls
+meridian risk report --out risk-report.png    # the one-page risk report
 ```
 
 Point it at PostgreSQL by setting one environment variable, with no code change:
@@ -342,8 +388,11 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Performance measurement](docs/notes/performance-measurement.md) | Time-weighted, money-weighted and Modified Dietz, contributions, and the risk measures beside them |
 | [Performance attribution](docs/notes/performance-attribution.md) | Brinson-Fachler, currency apart, funds looked through, and why effects have to be linked |
 | [Benchmark construction](docs/notes/benchmark-construction.md) | A policy benchmark and a cap-weighted index built so attribution can use them |
+| [The factor risk model](docs/notes/factor-risk-model.md) | Factors, descriptors, the constrained regression, a universe with known truth, and the account's risk |
+| [Covariance estimation](docs/notes/covariance-estimation.md) | Why a sample covariance fails, Ledoit-Wolf, EWMA against GARCH, and a shrinkage that was tested and rejected |
+| [Validating a risk model](docs/notes/risk-validation.md) | Bias statistics, the account's backtest and the three errors it caught, VaR four ways, stress tests |
 | [Chart gallery](docs/GALLERY.md) | All forty-six figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Twenty-two records: what was decided, what the alternatives were, and what it costs |
+| [Architecture decisions](docs/adr) | Twenty-six records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -358,7 +407,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 2 | Market data: point-in-time prices, corporate actions, FX, quality rules, golden copy, security master | ✅ Done |
 | 3 | Portfolio accounting: double-entry ledger, tax lots, wash sales, US and UK tax, daily valuation, value bridge, reconciliation | ✅ Done |
 | 4 | Performance: time- and money-weighted returns, benchmark construction, Brinson-Fachler attribution, Cariño linking, risk statistics | ✅ Done |
-| 5 | Risk: factor model, EWMA and shrinkage covariance, VaR, bias-statistic validation | Planned |
+| 5 | Risk: fundamental factor model, EWMA, GARCH and Ledoit-Wolf covariance, VaR four ways, stress tests, bias-statistic and VaR backtests | ✅ Done |
 | 6 | Compliance: a rule DSL for mandate limits, pre- and post-trade checks | Planned |
 | 7 | Tax-aware optimisation: rebalancing with lot selection and tax cost | Planned |
 | 8 | Execution: order management, allocation, transaction cost analysis, client reporting | Planned |
