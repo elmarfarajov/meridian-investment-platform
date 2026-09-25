@@ -28,3 +28,7 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0020](0020-brinson-fachler-on-local-returns-with-currency-and-costs-apart.md) | Brinson-Fachler on local returns, with currency and costs apart and funds looked through | Accepted |
 | [0021](0021-attribution-is-linked-by-carino.md) | Multi-period attribution is linked by Cariño, and stored per period | Accepted |
 | [0022](0022-a-synthetic-benchmark-from-the-same-market.md) | The benchmark is a synthetic index generated in the same market as the book | Accepted |
+| [0023](0023-a-fundamental-factor-model-on-a-universe-with-known-truth.md) | A fundamental factor model, estimated on a universe whose true risk is known | Accepted |
+| [0024](0024-ewma-factor-covariance-with-separate-half-lives.md) | The factor covariance is EWMA, with a shorter half-life for volatility than for correlation | Accepted |
+| [0025](0025-specific-risk-by-ewma-and-fund-basis-as-its-own-risk.md) | Specific risk by EWMA without Bayesian shrinkage; a fund's basis is its own risk | Accepted |
+| [0026](0026-a-risk-model-ships-with-its-validation.md) | A risk model ships with its validation, and a failed control writes nothing | Accepted |

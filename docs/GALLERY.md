@@ -13,7 +13,9 @@ reproducible and cannot drift from the code that draws them. The market data fig
 are drawn from the seeded demonstration market in `meridian.services`, planted faults
 and all. The book of record, tax and reconciliation figures are drawn from the
 demonstration account booked on top of that market, and the performance figures
-from that account measured against its policy benchmark.
+from that account measured against its policy benchmark. The risk figures come from a
+factor model estimated on a synthetic 500-stock universe whose true risk is known, and
+applied to the same account.
 
 ---
 ### Calendars
@@ -277,6 +279,72 @@ from that account measured against its policy benchmark.
 **The performance report** - The one page a client reads: returns by period, risk, attribution and contributions.
 
 ![The performance report](images/factsheet.png)
+
+### Risk
+
+**Risk decomposition** - Volatility and tracking error split into market, industries, styles, currencies and specific risk.
+
+![Risk decomposition](images/risk-decomposition.png)
+
+**Bias statistics** - Ten years of forecasts scored against outcomes, with the 95% band, for EWMA, the sample and the truth.
+
+![Bias statistics](images/bias-statistics.png)
+
+**Why a sample covariance fails** - Eigenvalues of 500 stocks over 252 days against the Marchenko-Pastur law of pure noise.
+
+![Why a sample covariance fails](images/eigenvalue-spectrum.png)
+
+**What an optimiser builds from each estimator** - Minimum-variance portfolios: the risk each covariance estimator promised, and delivered.
+
+![What an optimiser builds from each estimator](images/minimum-variance.png)
+
+**Factor returns** - What the market paid each style and each industry, from the daily cross-sectional regressions.
+
+![Factor returns](images/factor-returns.png)
+
+**Volatility forecasts against the truth** - GARCH, EWMA and an equal-weighted window forecasting the world factor's volatility.
+
+![Volatility forecasts against the truth](images/volatility-forecasts.png)
+
+**The factor covariance** - Correlations and volatilities of the twenty-one factors on the report date.
+
+![The factor covariance](images/factor-correlation.png)
+
+**Active exposures** - The account's industry, style and currency exposures against its benchmark's.
+
+![Active exposures](images/active-exposures.png)
+
+**Risk by holding** - Each holding's contribution to volatility and to tracking error.
+
+![Risk by holding](images/risk-contributions.png)
+
+**VaR backtest** - The account's daily returns against the morning's 99% VaR, with the Basel traffic light.
+
+![VaR backtest](images/var-backtest.png)
+
+**VaR four ways** - Parametric, Cornish-Fisher, historical and Monte Carlo VaR and expected shortfall.
+
+![VaR four ways](images/var-methods.png)
+
+**Stress tests** - Historical replays and hypothetical shocks applied to today's exposures.
+
+![Stress tests](images/stress-tests.png)
+
+**The account's forecasts, validated** - Rolling bias of the account's volatility and tracking error forecasts, against the truth's own score.
+
+![The account's forecasts, validated](images/book-bias.png)
+
+**Specific risk calibration** - Bias of specific-risk forecasts by size decile, with and without Bayesian shrinkage.
+
+![Specific risk calibration](images/specific-risk.png)
+
+**How much the factors explain** - Daily R-squared of the cross-sectional regressions and how often each factor is significant.
+
+![How much the factors explain](images/regression-quality.png)
+
+**The risk report** - The page the risk committee reads: risk by source, contributions, stress tests and the VaR backtest.
+
+![The risk report](images/risk-report.png)
 
 ### Platform
 
