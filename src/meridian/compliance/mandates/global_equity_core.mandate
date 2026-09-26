@@ -1,0 +1,65 @@
+# Global Equity Core - investment restrictions, schedule 2 of the investment
+# management agreement. Weights are shares of net asset value. Hard limits block
+# a trade; soft limits need a recorded override. "warn at" is the early-warning
+# level the compliance team watches before the limit itself.
+
+mandate "Global Equity Core" version 3 effective 2024-04-04
+
+# ---------------------------------------------------------------- concentration
+rule issuer_limit "Single issuer, direct holdings" hard
+    max weight by issuer where asset_class = "equity" <= 12% warn at 10.5%
+
+rule issuer_look_through "Single issuer, including index funds" soft
+    max weight by issuer with look-through where asset_class = "equity" <= 16% warn at 14%
+
+rule government_issuer "Any one government issuer" hard
+    max weight by issuer where asset_class = "fixed income" <= 20%
+
+rule single_fund "Any one fund" hard
+    max weight by instrument where asset_class = "fund" <= 20% warn at 18%
+
+rule sector_limit "Any one sector, including index funds" soft
+    max weight by sector with look-through <= 40% warn at 35%
+
+rule diversification "At least twenty companies, including index funds" hard
+    count with look-through where asset_class = "equity" >= 20
+
+# ---------------------------------------------------------------- asset allocation
+rule equity_band "Equities" hard
+    weight where asset_class in ("equity", "fund") between 70% and 95%
+
+rule fixed_income_band "Fixed income" hard
+    weight where asset_class = "fixed income" between 5% and 20%
+
+rule cash_band "Cash" hard
+    weight where asset_class = "cash" between 1% and 10%
+
+# ---------------------------------------------------------------- geography and currency
+rule outside_us "Outside the United States, including index funds" soft
+    weight with look-through where country != "US" <= 30% warn at 25%
+
+rule currency_limit "Any one currency other than the dollar" soft
+    max weight by currency with look-through where currency != "USD" <= 12% warn at 10%
+
+# ---------------------------------------------------------------- credit and exclusions
+rule credit_quality "Bonds rated A- or better" hard
+    no holdings where asset_class = "fixed income" and rating < "A-"
+
+rule exclusions "Exclusion list, direct holdings" hard
+    no holdings where industry in ("Tobacco", "Controversial Weapons", "Thermal Coal")
+
+rule exclusions_indirect "Exclusion list, inside index funds" soft
+    weight with look-through where industry in ("Tobacco", "Controversial Weapons", "Thermal Coal") <= 0.5% warn at 0.1%
+
+# ---------------------------------------------------------------- liquidity and risk
+rule liquidity "Saleable within a day at 20% of volume" soft
+    weight where days_to_liquidate > 1 <= 10%
+
+rule tracking_error "Tracking error against the policy benchmark" soft
+    tracking_error <= 6% warn at 5.5%
+
+rule volatility "Forecast volatility" soft
+    volatility <= 15% warn at 13.5%
+
+rule active_share "Active share: not a closet index fund" soft
+    active_share >= 30% warn at 35%

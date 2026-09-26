@@ -21,6 +21,7 @@ GROUPS = {
     "reconciliation",
     "performance",
     "risk",
+    "compliance",
     "platform",
 }
 

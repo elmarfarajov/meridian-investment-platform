@@ -15,7 +15,8 @@ and all. The book of record, tax and reconciliation figures are drawn from the
 demonstration account booked on top of that market, and the performance figures
 from that account measured against its policy benchmark. The risk figures come from a
 factor model estimated on a synthetic 500-stock universe whose true risk is known, and
-applied to the same account.
+applied to the same account. The compliance figures come from the account's mandate,
+written in the Meridian mandate language and checked on every day of its history.
 
 ---
 ### Calendars
@@ -345,6 +346,56 @@ applied to the same account.
 **The risk report** - The page the risk committee reads: risk by source, contributions, stress tests and the VaR backtest.
 
 ![The risk report](images/risk-report.png)
+
+### Compliance
+
+**Headroom against every rule** - Each rule of the mandate as the share of its limit in use, with its warning level.
+
+![Headroom against every rule](images/limit-utilisation.png)
+
+**The breach register over time** - Every breach from opening to close, active or passive, hard limits outlined.
+
+![The breach register over time](images/breach-timeline.png)
+
+**Utilisation month by month** - The highest utilisation of every rule in every month, breaches marked.
+
+![Utilisation month by month](images/utilisation-heatmap.png)
+
+**One issuer, two limits** - Microsoft held directly and including the index funds, against its hard and soft limits.
+
+![One issuer, two limits](images/issuer-limits.png)
+
+**What the index funds hide** - Issuer exposure direct and looked through, and excluded industries reached through funds.
+
+![What the index funds hide](images/look-through.png)
+
+**The breach register** - Breaches by rule and cause, how long they lasted, and how they ended.
+
+![The breach register](images/breach-register.png)
+
+**Pre-trade decisions** - Test orders against the mandate, and the largest size each limit allows.
+
+![Pre-trade decisions](images/pretrade-decisions.png)
+
+**The history, replayed** - The book's own trades through the pre-trade check, one at a time and as baskets.
+
+![The history, replayed](images/pretrade-replay.png)
+
+**The UCITS screen** - Issuers above 5% against the 40% ceiling, and each issuer against the 10% limit.
+
+![The UCITS screen](images/ucits-screen.png)
+
+**How a rule is read** - A rule of the mandate language and the tree the Lark parser builds from it.
+
+![How a rule is read](images/rule-parse-tree.png)
+
+**Asset allocation bands** - Equities, fixed income and cash against the mandate's bands, breaches shaded.
+
+![Asset allocation bands](images/allocation-bands.png)
+
+**The compliance report** - The page the compliance committee reads: utilisation, breaches and today's orders.
+
+![The compliance report](images/compliance-report.png)
 
 ### Platform
 

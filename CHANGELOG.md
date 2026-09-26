@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-26
+
+Day 6: compliance. The account's investment restrictions written in a small language,
+checked before every order and after every close, with a register of every breach and
+what caused it.
+
+### Added
+
+- **The mandate language.** A Lark LALR(1) grammar (`compliance/grammar.lark`) for
+  investment restrictions: weights with filters, the heaviest group, concentration sums
+  above a threshold, counts, "no holdings", and risk metrics; `and`/`or` filters with
+  comparisons and memberships; five bound shapes; hard and soft severities; warning
+  levels. Exact decimal limits, ratings compared by credit quality, errors with line
+  and column. A printer that is the parser's inverse, verified by a Hypothesis property
+  test over generated rules.
+- **Mandates**: the account's eighteen restrictions and the UCITS diversification
+  rules, shipped as `.mandate` files.
+- **The rule engine** with value, status, utilisation, headroom and contributors for
+  every rule, and look-through of index funds to their constituents as a clause of
+  each rule.
+- **Pre-trade checks**: blocked, override required, warning or allowed from the
+  portfolio the order would leave; trades that reduce a breach always allowed; the
+  largest permissible order by bisection; baskets checked as a whole; tracking error
+  and volatility re-forecast by the Day 5 model.
+- **Post-trade checks and the breach register**: active or passive by what traded since
+  the previous check, deadlines (same day, or thirty days for passive breaches),
+  overdue, resolved by trading or by the market, graded by severity and peak.
+- **The history replayed**: the Day 3 book's 43 orders through the pre-trade check, one
+  at a time and as daily baskets.
+- **Liquidity** from Day 2 volumes (days to liquidate at 20% of the 20-day average).
+- **Persistence**: `compliance_rules` (text and SHA-256), `compliance_results`,
+  `compliance_breaches`, `pretrade_checks`, migration 0006. The run first proves each
+  stored text parses back to its rule, every breach opened on a day of breach, and no
+  hard breach is overdue.
+- **`meridian compliance`**: `rules`, `parse`, `check`, `pretrade`, `breaches`,
+  `replay`, `ucits`, `report`, `run` and `stored`.
+- **Twelve charts** (eighty-nine in the gallery), two methodology notes and ADRs 0027
+  to 0030. `lark` joins the dependencies.
+
+### Fixed
+
+- Cash payables are carried as negative amounts; an early snapshot subtracted them,
+  and weights on two settlement days added up to 2.9. The snapshot now uses the ledger's
+  own `total_base` and refuses weights that do not add up to one.
+
 ## [0.6.0] - 2026-09-26
 
 Day 5: risk. A fundamental factor model estimated on a universe whose true risk is
@@ -292,6 +337,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[0.7.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.7.0
 [0.6.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.6.0
 [0.5.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.5.0
 [0.4.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.4.0

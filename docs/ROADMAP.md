@@ -182,17 +182,33 @@ estimator, the VaR backtest and a one-page risk report.
 [covariance estimation](notes/covariance-estimation.md),
 [validating a risk model](notes/risk-validation.md).
 
-## Day 6 - Compliance
+## Day 6 - Compliance ✅
 
 **Issue #6.** A mandate is a contract, and it has to be machine-checkable.
 
-- A small rule DSL: `max weight of issuer <= 5% of NAV`, `no holdings rated below BBB-`,
-  `cash between 1% and 10%`, UCITS 5/10/40, concentration and liquidity limits.
-- Pre-trade checks on a proposed order, post-trade checks on the book, and passive-breach
-  handling when a limit is broken by market movement rather than by a trade.
-- A breach register with severity, age and remediation state.
+- A mandate language - weights with filters, the heaviest issuer or sector, UCITS-style
+  concentration sums, counts, exclusions, risk metrics; hard and soft limits with
+  warning levels - parsed by a Lark LALR grammar into typed rules with exact decimal
+  limits, errors reported by line and column, and printed back exactly (a Hypothesis
+  property test).
+- The account's eighteen investment restrictions, and the UCITS diversification rules
+  as a four-line what-if.
+- Look-through to index-fund constituents as a clause of each rule: Microsoft is 10.3%
+  directly and 15.6% counting the funds; an excluded tobacco company is found inside
+  the world fund.
+- Pre-trade checks on the portfolio an order would leave: blocked, override, warning or
+  allowed; trades that reduce a breach always allowed; the largest permissible order by
+  bisection; baskets judged as a whole; risk metrics re-forecast by the Day 5 model.
+- Post-trade checks every day, and a breach register: active or passive by what traded
+  since the previous check, deadlines, overdue, resolved by trading or by the market.
+- The book's own history replayed through the pre-trade check it never had.
 
-**Chart:** a limit-utilisation panel showing headroom against every rule.
+**Charts:** twelve, including the limit-utilisation panel, the breach timeline, one
+issuer against two limits, what the index funds hide, pre-trade decisions, the history
+replayed, the parse tree of a rule and a one-page compliance report.
+
+**Notes:** [the mandate language](notes/mandate-language.md),
+[pre-trade and post-trade compliance](notes/pre-and-post-trade-compliance.md).
 
 ## Day 7 - Tax-aware optimisation
 

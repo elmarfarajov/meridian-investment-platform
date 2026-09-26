@@ -201,3 +201,16 @@ def test_risk_on_postgres(pg_session: Session):
     in_sql = unit_of_work.risk.realised_volatility(MODEL_ID, "World")
     assert abs(in_sql - float(np.std(risk.estimated.factor("World"), ddof=1)) * 252**0.5) < 1e-9
     assert unit_of_work.risk.exception_count("PF-GLOBAL-EQ") == (result.exceptions, result.scored_days)
+
+
+def test_compliance_on_postgres(pg_session: Session):
+    """The register and the status counts stored in PostgreSQL agree with the run."""
+    from meridian.services.compliance_run import run_demo_compliance
+    from meridian.services.demo_compliance import build_demo_compliance
+
+    compliance = build_demo_compliance()
+    unit_of_work = UnitOfWork(pg_session)
+    result = run_demo_compliance(compliance, unit_of_work)
+    assert len(unit_of_work.compliance.breaches("PF-GLOBAL-EQ")) == result.breaches
+    counts = unit_of_work.compliance.status_counts("PF-GLOBAL-EQ", compliance.history.reports[-1].day)
+    assert sum(counts.values()) == len(compliance.mandate.rules)

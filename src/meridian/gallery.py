@@ -20,6 +20,7 @@ from matplotlib.figure import Figure
 from .analytics.bonds import FixedRateBond
 from .analytics.curves import YieldCurve, bootstrap_par_curve
 from .book_gallery import accounting_items
+from .compliance_gallery import compliance_items
 from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
@@ -94,6 +95,7 @@ GROUPS: tuple[str, ...] = (
     "reconciliation",
     "performance",
     "risk",
+    "compliance",
     "platform",
 )
 
@@ -272,6 +274,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *accounting_items(),
         *performance_items(),
         *risk_items(),
+        *compliance_items(),
     )
 
 

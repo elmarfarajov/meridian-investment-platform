@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-929-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-984-2E7D5B)](tests)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
 
 Asset managers do not run on spreadsheets. They run on systems like BlackRock's Aladdin,
@@ -96,13 +96,26 @@ meridian risk validate
 # Ten years of a 500-stock universe whose true risk is known: EWMA against the
 # sample against the truth, and why a sample covariance promises a riskless
 # portfolio that is not.
+
+meridian compliance check
+# The account's 18 investment restrictions, written in the Meridian mandate
+# language: 14 pass, 4 warn - Microsoft is 10.3% held directly, 15.6% counting
+# the index funds.
+
+meridian compliance pretrade US-MSFT 100000
+# Blocked: single issuer 10.29% -> 12.28% against a 12% hard limit. The
+# largest purchase the hard limits allow is 85,976 dollars.
+
+meridian compliance replay
+# The book's 43 historical orders through the pre-trade check it never had:
+# 7 blocked one at a time, 3 trading days blocked as baskets.
 ```
 
 ---
 
 ## The charts
 
-Every module ships a visual, not only numbers. All seventy-seven are in the
+Every module ships a visual, not only numbers. All eighty-nine are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **From the benchmark's return to the portfolio's.** The account returned -5.24% against
@@ -155,6 +168,24 @@ Shrinkage promises too little. The factor model delivers what it promises.
 knew. The window turned out calmer than its own true risk, and Kupiec's test says so.
 
 ![VaR backtest](docs/images/var-backtest.png)
+
+**A mandate is a contract, and it has to be machine-checkable.** The account's investment
+restrictions are eighteen rules in the Meridian mandate language, parsed by a Lark
+grammar. Every day each rule reports how much of its limit is in use.
+
+![Limit utilisation](docs/images/limit-utilisation.png)
+
+**What the index funds hide.** Microsoft is 10.3% of the account held directly and 15.6%
+counting the Microsoft inside the S&P 500 and world funds. Look-through is a clause of each
+rule, so the mandate says which of the two numbers each limit applies to.
+
+![One issuer, two limits](docs/images/issuer-limits.png)
+
+**Active or passive?** Replayed through its mandate, the book breached eight of its rules
+37 times since inception: 9 times because of a trade, 28 because prices moved. Each
+breach opens, ages against its deadline, and closes by trading or by the market.
+
+![The breach timeline](docs/images/breach-timeline.png)
 
 **Where did the value go?** Every day's change in net asset value is split into flows,
 price, currency, income and costs, and the split is exact: the residual is printed on the
@@ -285,13 +316,16 @@ meridian
 ├── risk          a fundamental factor model: the estimation universe, exposures,
 │                 cross-sectional regression, EWMA and GARCH covariance, Ledoit-Wolf,
 │                 specific risk, Euler decomposition, VaR, stress tests, validation
+├── compliance    the mandate language (a Lark grammar), the rule engine with
+│                 look-through, pre-trade checks and baskets, the breach register
 ├── persistence   SQLAlchemy 2.0 schema, explicit mappers, repositories, unit of work
 ├── marketdata    series, point-in-time storage, sources, adjustment, golden copy
 ├── quality       the data quality rules, the engine and the scoring
 ├── refdata       the security master: identifier cross-reference, golden records
 ├── services      application processes: the end-of-day pricing, accounting,
-│                 performance and risk runs, the demonstration market, book and benchmark
-├── viz           the house chart style and seventy-seven figures
+│                 performance, risk and compliance runs, the demonstration market, book
+│                 and benchmark
+├── viz           the house chart style and eighty-nine figures
 ├── cli           a thin Typer layer over tested functions
 ├── gallery       one definition of every chart, used by the docs and the tests
 └── seed          a hand-made demonstration book to run everything against
@@ -329,7 +363,9 @@ reasons without loosening a domain invariant. Analytics code never imports SQLAl
 | Benchmark | A synthetic cap-weighted index generated in the same market as the book, in an 80/15/5 policy blend ([ADR 0022](docs/adr/0022-a-synthetic-benchmark-from-the-same-market.md)). |
 | Risk model | A 21-factor fundamental model by constrained cross-sectional regression, estimated on a universe whose true risk is known ([ADR 0023](docs/adr/0023-a-fundamental-factor-model-on-a-universe-with-known-truth.md)); EWMA factor covariance ([ADR 0024](docs/adr/0024-ewma-factor-covariance-with-separate-half-lives.md)); specific risk and fund basis ([ADR 0025](docs/adr/0025-specific-risk-by-ewma-and-fund-basis-as-its-own-risk.md)). |
 | Model validation | Bias statistics against their band and a truth yardstick, Kupiec, Christoffersen and the Basel traffic light; the risk run writes nothing if a control fails ([ADR 0026](docs/adr/0026-a-risk-model-ships-with-its-validation.md)). |
-| Tests | 929 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
+| Mandates | Investment restrictions written in a small language parsed by Lark, printed back exactly (a property test), stored as text with a hash ([ADR 0027](docs/adr/0027-mandates-are-written-in-a-language-parsed-by-lark.md)); look-through stated rule by rule ([ADR 0028](docs/adr/0028-look-through-is-part-of-the-rule.md)). |
+| Compliance | Active and passive breaches with deadlines ([ADR 0029](docs/adr/0029-breaches-are-active-or-passive-and-age-against-a-deadline.md)); pre-trade checks on the resulting portfolio, baskets as a whole, the largest permissible order ([ADR 0030](docs/adr/0030-pre-trade-checks-judge-the-portfolio-after-the-order-and-baskets-as-a-whole.md)). |
+| Tests | 984 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
 | Types | `mypy` with `disallow_untyped_defs` across the package; `ruff` for lint and format. |
 
 ---
@@ -354,6 +390,8 @@ meridian perf run --persist       # returns and linked attribution for every rep
 meridian perf factsheet --out factsheet.png   # the one-page performance report
 meridian risk run --persist       # forecasts, factor history and exposures, after the controls
 meridian risk report --out risk-report.png    # the one-page risk report
+meridian compliance run --persist # the mandate checked on every day, the register, the orders
+meridian compliance pretrade US-MSFT 100000   # test an order before it is sent
 ```
 
 Point it at PostgreSQL by setting one environment variable, with no code change:
@@ -391,8 +429,10 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [The factor risk model](docs/notes/factor-risk-model.md) | Factors, descriptors, the constrained regression, a universe with known truth, and the account's risk |
 | [Covariance estimation](docs/notes/covariance-estimation.md) | Why a sample covariance fails, Ledoit-Wolf, EWMA against GARCH, and a shrinkage that was tested and rejected |
 | [Validating a risk model](docs/notes/risk-validation.md) | Bias statistics, the account's backtest and the three errors it caught, VaR four ways, stress tests |
+| [The mandate language](docs/notes/mandate-language.md) | Rules, measures and filters, look-through, parsing with Lark, and the UCITS rules in four lines |
+| [Pre-trade and post-trade compliance](docs/notes/pre-and-post-trade-compliance.md) | Checking orders and baskets, the history replayed, active and passive breaches, the register |
 | [Chart gallery](docs/GALLERY.md) | All forty-six figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Twenty-six records: what was decided, what the alternatives were, and what it costs |
+| [Architecture decisions](docs/adr) | Thirty records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -408,7 +448,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 3 | Portfolio accounting: double-entry ledger, tax lots, wash sales, US and UK tax, daily valuation, value bridge, reconciliation | ✅ Done |
 | 4 | Performance: time- and money-weighted returns, benchmark construction, Brinson-Fachler attribution, Cariño linking, risk statistics | ✅ Done |
 | 5 | Risk: fundamental factor model, EWMA, GARCH and Ledoit-Wolf covariance, VaR four ways, stress tests, bias-statistic and VaR backtests | ✅ Done |
-| 6 | Compliance: a rule DSL for mandate limits, pre- and post-trade checks | Planned |
+| 6 | Compliance: a mandate language parsed by Lark, look-through, pre- and post-trade checks, baskets, the breach register | ✅ Done |
 | 7 | Tax-aware optimisation: rebalancing with lot selection and tax cost | Planned |
 | 8 | Execution: order management, allocation, transaction cost analysis, client reporting | Planned |
 | 9 | Platform: web API, role-based access, release | Planned |

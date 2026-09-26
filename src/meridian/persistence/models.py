@@ -460,3 +460,69 @@ class RiskExposureRow(TimestampMixin, Base):
     portfolio: Mapped[float] = mapped_column(Float)
     benchmark: Mapped[float] = mapped_column(Float)
     active_contribution: Mapped[float] = mapped_column(Float)  # annualised contribution to tracking error
+
+
+class ComplianceRuleRow(TimestampMixin, Base):
+    """One rule of one version of a mandate, kept as the text it was written in and its hash."""
+
+    __tablename__ = "compliance_rules"
+
+    mandate: Mapped[str] = mapped_column(String(128), primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str | None] = mapped_column(String(256))
+    severity: Mapped[str] = mapped_column(String(8))
+    text: Mapped[str] = mapped_column(String(2000))
+    text_hash: Mapped[str] = mapped_column(String(64))
+    effective: Mapped[date] = mapped_column(Date)
+
+
+class ComplianceResultRow(TimestampMixin, Base):
+    """A rule's result for a portfolio on one day."""
+
+    __tablename__ = "compliance_results"
+
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), primary_key=True)
+    check_date: Mapped[date] = mapped_column(Date, primary_key=True)
+    rule_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    mandate_version: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16))
+    value: Mapped[float | None] = mapped_column(Float)
+    utilisation: Mapped[float | None] = mapped_column(Float)
+    headroom: Mapped[float | None] = mapped_column(Float)
+    top_contributor: Mapped[str | None] = mapped_column(String(128))
+
+
+class ComplianceBreachRow(TimestampMixin, Base):
+    """A breach in the register: when it opened and closed, what caused it, how bad it got."""
+
+    __tablename__ = "compliance_breaches"
+
+    breach_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), index=True)
+    rule_id: Mapped[str] = mapped_column(String(64))
+    severity: Mapped[str] = mapped_column(String(8))
+    kind: Mapped[str] = mapped_column(String(8))  # active | passive
+    opened: Mapped[date] = mapped_column(Date)
+    closed: Mapped[date | None] = mapped_column(Date)
+    deadline: Mapped[date] = mapped_column(Date)
+    days: Mapped[int] = mapped_column(Integer)
+    peak_utilisation: Mapped[float] = mapped_column(Float)
+    peak_value: Mapped[float] = mapped_column(Float)
+    resolution: Mapped[str] = mapped_column(String(32))
+
+
+class PreTradeCheckRow(TimestampMixin, Base):
+    """The pre-trade decision on one order, with the rules that decided it."""
+
+    __tablename__ = "pretrade_checks"
+
+    check_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), index=True)
+    check_date: Mapped[date] = mapped_column(Date)
+    instrument_id: Mapped[str] = mapped_column(String(64))
+    side: Mapped[str] = mapped_column(String(4))
+    amount: Mapped[float] = mapped_column(Float)
+    decision: Mapped[str] = mapped_column(String(24))
+    maximum: Mapped[float | None] = mapped_column(Float)
+    reasons: Mapped[str] = mapped_column(String(2000))
