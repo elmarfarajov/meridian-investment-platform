@@ -31,6 +31,7 @@ from .accounting_repositories import (
     ValuationRepository,
 )
 from .bulk import bulk_upsert
+from .compliance_repositories import ComplianceRepository
 from .marketdata_repositories import (
     CorporateActionRepository,
     PriceObservationRepository,
@@ -429,6 +430,7 @@ class UnitOfWork:
         self.reconciliation = ReconciliationRepository(session)
         self.performance = PerformanceRepository(session)
         self.risk = RiskRepository(session)
+        self.compliance = ComplianceRepository(session)
 
     def flush(self) -> None:
         self.session.flush()

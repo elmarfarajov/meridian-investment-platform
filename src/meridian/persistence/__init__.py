@@ -7,6 +7,7 @@ from .accounting_repositories import (
     ValuationRepository,
 )
 from .base import Base, TimestampMixin
+from .compliance_repositories import ComplianceRepository
 from .marketdata_repositories import (
     CorporateActionRepository,
     PriceObservationRepository,
@@ -65,6 +66,7 @@ __all__ = [
     "BenchmarkRow",
     "ClientRepository",
     "ClientRow",
+    "ComplianceRepository",
     "CorporateActionRepository",
     "CorporateActionRow",
     "Database",
