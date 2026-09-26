@@ -1,0 +1,85 @@
+// The mandate language: an investment management agreement, machine-checkable.
+//
+//   mandate "Global Equity Core" version 3 effective 2024-04-01
+//
+//   rule issuer_limit "Single issuer" hard
+//       max weight by issuer with look-through <= 10% warn at 9%
+//
+// A mandate is a header and a list of rules. Each rule has an identifier, an
+// optional title, a severity, a measure and a bound, and optionally a warning
+// level. Keywords are case-insensitive; comments run from '#' to the end of the line.
+
+start: header rule+
+
+header: "mandate"i STRING "version"i INT "effective"i DATE
+
+rule: "rule"i IDENT STRING? SEVERITY measure bound? warning?
+
+SEVERITY: /hard|soft/i
+
+// ---------------------------------------------------------------- measures
+?measure: weight_measure
+        | group_measure
+        | concentration_measure
+        | count_measure
+        | absence_measure
+        | metric_measure
+
+weight_measure: "weight"i lookthrough? filter?
+group_measure: "max"i "weight"i "by"i FIELD lookthrough? filter?
+concentration_measure: "sum"i "weight"i "by"i FIELD "above"i PERCENT lookthrough? filter?
+count_measure: "count"i lookthrough? filter?
+absence_measure: "no"i "holdings"i lookthrough? filter
+metric_measure: METRIC
+
+lookthrough: "with"i "look-through"i
+
+// ---------------------------------------------------------------- filters
+filter: "where"i condition
+
+?condition: disjunction
+?disjunction: conjunction ("or"i conjunction)*
+?conjunction: atom ("and"i atom)*
+?atom: comparison
+     | membership
+     | "(" condition ")"
+
+comparison: FIELD comparator literal
+comparator: UPPER | LOWER | EQ | NE
+membership: FIELD NOT? "in"i "(" literal ("," literal)* ")"
+
+NOT: /not/i
+
+// ---------------------------------------------------------------- bounds
+?bound: upper | lower | exact | range
+upper: UPPER number
+lower: LOWER number
+exact: EQ number
+range: "between"i number "and"i number
+
+warning: "warn"i "at"i number
+
+UPPER: "<=" | "<"
+LOWER: ">=" | ">"
+EQ: "="
+NE: "!="
+
+?literal: STRING | number
+?number: PERCENT | DECIMAL_NUMBER
+
+PERCENT: /-?\d+(\.\d+)?%/
+DECIMAL_NUMBER: /-?\d+(\.\d+)?/
+DATE: /\d{4}-\d{2}-\d{2}/
+INT: /\d+/
+
+// A field of a holding, or a portfolio-level metric; which is which is decided by the checker.
+FIELD: /(asset_class|sector|industry|issuer|country|currency|rating|instrument|days_to_liquidate|weight)\b/
+METRIC: /(tracking_error|volatility|var_99|beta|active_share)\b/
+IDENT: /[a-z_][a-z0-9_]*/
+
+STRING: /"[^"]*"/
+
+COMMENT: /#[^\n]*/
+%import common.WS
+%ignore WS
+%ignore COMMENT

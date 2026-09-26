@@ -1,0 +1,17 @@
+# UCITS eligibility screen: the diversification rules of the UCITS Directive
+# (2009/65/EC, articles 52 and 55), as a what-if on the account. Would the
+# account qualify as a UCITS fund as it stands?
+
+mandate "UCITS eligibility screen" version 1 effective 2024-04-04
+
+rule issuer_10 "No issuer above 10% (art. 52(2))" hard
+    max weight by issuer where asset_class = "equity" <= 10%
+
+rule five_ten_forty "Issuers above 5% together at most 40% (art. 52(2))" hard
+    sum weight by issuer above 5% where asset_class = "equity" <= 40%
+
+rule government_35 "Any one government issuer at most 35% (art. 52(4))" hard
+    max weight by issuer where asset_class = "fixed income" <= 35%
+
+rule fund_20 "Any one fund at most 20% (art. 55(1))" hard
+    max weight by instrument where asset_class = "fund" <= 20%
