@@ -32,3 +32,7 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0024](0024-ewma-factor-covariance-with-separate-half-lives.md) | The factor covariance is EWMA, with a shorter half-life for volatility than for correlation | Accepted |
 | [0025](0025-specific-risk-by-ewma-and-fund-basis-as-its-own-risk.md) | Specific risk by EWMA without Bayesian shrinkage; a fund's basis is its own risk | Accepted |
 | [0026](0026-a-risk-model-ships-with-its-validation.md) | A risk model ships with its validation, and a failed control writes nothing | Accepted |
+| [0027](0027-mandates-are-written-in-a-language-parsed-by-lark.md) | Mandates are written in a small language, parsed by Lark, and stored as text | Accepted |
+| [0028](0028-look-through-is-part-of-the-rule.md) | Look-through is part of the rule, not a global setting | Accepted |
+| [0029](0029-breaches-are-active-or-passive-and-age-against-a-deadline.md) | Breaches are active or passive, and age against a deadline | Accepted |
+| [0030](0030-pre-trade-checks-judge-the-portfolio-after-the-order-and-baskets-as-a-whole.md) | Pre-trade checks judge the portfolio after the order, and baskets as a whole | Accepted |
