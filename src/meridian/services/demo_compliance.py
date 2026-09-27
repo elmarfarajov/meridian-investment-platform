@@ -315,7 +315,7 @@ class DemoCompliance:
 
     # ------------------------------------------------------------------ pre-trade
     def metric_model(self, snapshot: Snapshot) -> dict[str, float]:
-        """Volatility, tracking error and VaR of a proposed portfolio, from the Day 5 model on the last day."""
+        """Volatility, tracking error, VaR and active share of a proposed portfolio, on the Day 5 model's last day."""
         weights: dict[str, float] = defaultdict(float)
         index = self.risk.last
         bench = self.risk.performance.benchmark_days[index - 1]
@@ -334,9 +334,17 @@ class DemoCompliance:
         for key, value in self.risk.benchmark_weights(index).items():
             active[key] = active.get(key, 0.0) - value
         tracking = model.decompose(active)
+        benchmark = self.risk.benchmark_weights(index)
+        keys = {key for key in weights.keys() | benchmark.keys() if not key.endswith(":basis")}
+        share = 0.5 * sum(abs(weights.get(key, 0.0) - benchmark.get(key, 0.0)) for key in keys)
         metrics = dict(snapshot.metrics)
         metrics.update(
-            {"volatility": total.volatility, "tracking_error": tracking.volatility, "var_99": 2.3263 * total.daily}
+            {
+                "volatility": total.volatility,
+                "tracking_error": tracking.volatility,
+                "var_99": 2.3263 * total.daily,
+                "active_share": share,
+            }
         )
         return metrics
 
