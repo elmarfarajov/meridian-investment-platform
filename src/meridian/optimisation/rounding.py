@@ -128,7 +128,8 @@ def round_trades(
         cash <= settings.cash_band[1] * nav,
     ]
     problem = cp.Problem(cp.Minimize(cp.sum(deviation) / nav), constraints)
-    problem.solve(solver=cp.HIGHS)
+    # HiGHS directly when highspy is installed, otherwise through SciPy's milp (the same HiGHS inside)
+    problem.solve(solver=cp.HIGHS if cp.HIGHS in cp.installed_solvers() else cp.SCIPY)
     if problem.status not in (cp.OPTIMAL, cp.OPTIMAL_INACCURATE):
         raise ValidationError(f"the rounding is {problem.status}")
     units: dict[str, float] = {}
