@@ -26,6 +26,7 @@ from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
 from .marketdata.fx_history import FxHistory
 from .marketdata.golden import compare_to_reference
+from .optimisation_gallery import optimisation_items
 from .performance_gallery import performance_items
 from .quality.engine import QualityReport
 from .refdata import build_security_master, demo_vendor_records
@@ -96,6 +97,7 @@ GROUPS: tuple[str, ...] = (
     "performance",
     "risk",
     "compliance",
+    "optimisation",
     "platform",
 )
 
@@ -275,6 +277,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *performance_items(),
         *risk_items(),
         *compliance_items(),
+        *optimisation_items(),
     )
 
 
