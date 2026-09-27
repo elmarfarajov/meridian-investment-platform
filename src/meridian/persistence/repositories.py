@@ -50,6 +50,7 @@ from .models import (
     TaxLotRow,
     TransactionRow,
 )
+from .optimisation_repositories import OptimisationRepository
 from .performance_repositories import PerformanceRepository
 from .risk_repositories import RiskRepository
 
@@ -431,6 +432,7 @@ class UnitOfWork:
         self.performance = PerformanceRepository(session)
         self.risk = RiskRepository(session)
         self.compliance = ComplianceRepository(session)
+        self.optimisation = OptimisationRepository(session)
 
     def flush(self) -> None:
         self.session.flush()

@@ -22,6 +22,7 @@ GROUPS = {
     "performance",
     "risk",
     "compliance",
+    "optimisation",
     "platform",
 }
 

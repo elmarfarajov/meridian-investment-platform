@@ -39,6 +39,7 @@ from .models import (
     TaxLotRow,
     TransactionRow,
 )
+from .optimisation_repositories import OptimisationRepository
 from .performance_repositories import PerformanceRepository
 from .repositories import (
     AccountRepository,
@@ -80,6 +81,7 @@ __all__ = [
     "JournalEntryRow",
     "JournalPostingRow",
     "LedgerRepository",
+    "OptimisationRepository",
     "PerformanceRepository",
     "PerformanceReturnRow",
     "PortfolioRepository",

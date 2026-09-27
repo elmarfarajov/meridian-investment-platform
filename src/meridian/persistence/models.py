@@ -526,3 +526,93 @@ class PreTradeCheckRow(TimestampMixin, Base):
     decision: Mapped[str] = mapped_column(String(24))
     maximum: Mapped[float | None] = mapped_column(Float)
     reasons: Mapped[str] = mapped_column(String(2000))
+
+
+class RebalanceProposalRow(TimestampMixin, Base):
+    """A rebalance the optimiser proposed: the settings it ran with, what it achieved, and what checked it."""
+
+    __tablename__ = "rebalance_proposals"
+
+    proposal_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), index=True)
+    as_of: Mapped[date] = mapped_column(Date)
+    risk_aversion: Mapped[float] = mapped_column(Float)
+    harvest: Mapped[bool] = mapped_column(Boolean)
+    lot_relief: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(24))
+    solver: Mapped[str] = mapped_column(String(16))
+    rounds: Mapped[int] = mapped_column(Integer)
+    nav: Mapped[float] = mapped_column(Float)
+    tracking_error_before: Mapped[float] = mapped_column(Float)
+    tracking_error_after: Mapped[float] = mapped_column(Float)
+    active_share_before: Mapped[float] = mapped_column(Float)
+    active_share_after: Mapped[float] = mapped_column(Float)
+    tax: Mapped[float] = mapped_column(Float)  # base currency, the rounded orders' lots at their own rates
+    realised_gains: Mapped[float] = mapped_column(Float)
+    realised_losses: Mapped[float] = mapped_column(Float)
+    cost: Mapped[float] = mapped_column(Float)  # base currency
+    turnover: Mapped[float] = mapped_column(Float)
+    cash_before: Mapped[float] = mapped_column(Float)
+    cash_after: Mapped[float] = mapped_column(Float)
+    compliance_decision: Mapped[str] = mapped_column(String(24))
+    repairs: Mapped[str] = mapped_column(String(4000))
+
+
+class ProposedOrderRow(TimestampMixin, Base):
+    """One ticket of a proposal, rounded to whole lots, beside the optimiser's continuous trade."""
+
+    __tablename__ = "proposed_orders"
+
+    proposal_id: Mapped[str] = mapped_column(ForeignKey("rebalance_proposals.proposal_id"), primary_key=True)
+    sequence: Mapped[int] = mapped_column(Integer, primary_key=True)
+    instrument_id: Mapped[str] = mapped_column(String(64))
+    side: Mapped[str] = mapped_column(String(4))
+    units: Mapped[float] = mapped_column(Float)
+    value: Mapped[float] = mapped_column(Float)
+    continuous_value: Mapped[float] = mapped_column(Float)
+
+
+class ProposedLotSaleRow(TimestampMixin, Base):
+    """A tax lot a proposal relieves: how much, at what gain, and the tax at the lot's own rate."""
+
+    __tablename__ = "proposed_lot_sales"
+
+    proposal_id: Mapped[str] = mapped_column(ForeignKey("rebalance_proposals.proposal_id"), primary_key=True)
+    lot_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    instrument_id: Mapped[str] = mapped_column(String(64), index=True)
+    units: Mapped[float] = mapped_column(Float)
+    gain: Mapped[float] = mapped_column(Float)
+    tax: Mapped[float] = mapped_column(Float)
+    long_term: Mapped[bool] = mapped_column(Boolean)
+    wash_sale: Mapped[bool] = mapped_column(Boolean)
+
+
+class RebalanceFrontierRow(TimestampMixin, Base):
+    """A point on the tracking-error / tax frontier computed with a proposal."""
+
+    __tablename__ = "rebalance_frontier"
+
+    proposal_id: Mapped[str] = mapped_column(ForeignKey("rebalance_proposals.proposal_id"), primary_key=True)
+    point: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tax: Mapped[float] = mapped_column(Float)
+    tracking_error: Mapped[float] = mapped_column(Float)
+    cost: Mapped[float] = mapped_column(Float)
+    turnover: Mapped[float] = mapped_column(Float)
+
+
+class TaxAlphaResultRow(TimestampMixin, Base):
+    """One manager's averages over a tax-alpha backtest."""
+
+    __tablename__ = "tax_alpha_results"
+
+    backtest_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    strategy: Mapped[str] = mapped_column(String(32), primary_key=True)
+    paths: Mapped[int] = mapped_column(Integer)
+    months: Mapped[int] = mapped_column(Integer)
+    pre_tax: Mapped[float] = mapped_column(Float)
+    after_tax: Mapped[float] = mapped_column(Float)
+    tax_alpha: Mapped[float] = mapped_column(Float)
+    tax_alpha_held: Mapped[float] = mapped_column(Float)
+    tracking_error: Mapped[float] = mapped_column(Float)
+    harvested: Mapped[float] = mapped_column(Float)
+    turnover: Mapped[float] = mapped_column(Float)

@@ -36,3 +36,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0028](0028-look-through-is-part-of-the-rule.md) | Look-through is part of the rule, not a global setting | Accepted |
 | [0029](0029-breaches-are-active-or-passive-and-age-against-a-deadline.md) | Breaches are active or passive, and age against a deadline | Accepted |
 | [0030](0030-pre-trade-checks-judge-the-portfolio-after-the-order-and-baskets-as-a-whole.md) | Pre-trade checks judge the portfolio after the order, and baskets as a whole | Accepted |
+| [0031](0031-tax-aware-rebalancing-is-a-conic-programme.md) | Tax-aware rebalancing is a conic programme, solved by Clarabel through cvxpy | Accepted |
+| [0032](0032-lots-are-decision-variables.md) | Lots are decision variables; fixed relief rules are applied after the solve | Accepted |
+| [0033](0033-non-convex-rules-are-met-in-rounds.md) | Rules that are not convex are met in rounds: wash-sale repair and the convex-concave procedure | Accepted |
+| [0034](0034-orders-are-rounded-by-a-mixed-integer-programme.md) | Orders are rounded to whole lots by a separate mixed-integer programme | Accepted |
+| [0035](0035-tax-alpha-is-measured-on-liquidation-value-over-simulated-paths.md) | Tax alpha is measured on liquidation value, over simulated paths, against a tax-blind manager | Accepted |

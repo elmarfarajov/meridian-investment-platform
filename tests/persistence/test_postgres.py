@@ -214,3 +214,16 @@ def test_compliance_on_postgres(pg_session: Session):
     assert len(unit_of_work.compliance.breaches("PF-GLOBAL-EQ")) == result.breaches
     counts = unit_of_work.compliance.status_counts("PF-GLOBAL-EQ", compliance.history.reports[-1].day)
     assert sum(counts.values()) == len(compliance.mandate.rules)
+
+
+def test_rebalance_on_postgres(pg_session: Session):
+    """The proposal, its orders and its lot sales stored in PostgreSQL agree with the run."""
+    from meridian.services.demo_optimisation import build_demo_optimisation
+    from meridian.services.optimisation_run import run_demo_optimisation
+
+    demo = build_demo_optimisation()
+    unit_of_work = UnitOfWork(pg_session)
+    result = run_demo_optimisation(demo, unit_of_work, with_frontier=False)
+    assert len(unit_of_work.optimisation.orders(result.proposal_id)) == result.orders
+    by_term = unit_of_work.optimisation.tax_by_term(result.proposal_id)
+    assert sum(tax for _, tax in by_term.values()) == pytest.approx(result.tax, abs=1e-6)

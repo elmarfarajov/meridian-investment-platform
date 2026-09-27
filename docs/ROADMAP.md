@@ -210,16 +210,39 @@ replayed, the parse tree of a rule and a one-page compliance report.
 **Notes:** [the mandate language](notes/mandate-language.md),
 [pre-trade and post-trade compliance](notes/pre-and-post-trade-compliance.md).
 
-## Day 7 - Tax-aware optimisation
+## Day 7 - Tax-aware optimisation ✅
 
 **Issue #7.** The after-tax return is the only one the client spends.
 
-- Rebalancing towards a target with transaction costs, round lots and minimum trade sizes.
-- Tax-aware lot selection, loss harvesting and the wash-sale constraint.
-- The trade-off surface: tracking error against realised tax cost.
+- A rebalance that sells by the lot. It is a conic programme (cvxpy, Clarabel) that
+  weighs:
+  - tracking error from the Day 5 factor model;
+  - tax at each lot's own rate, a loss as a saving;
+  - commission, spread and square-root impact.
+  The Day 6 mandate is compiled into its constraints.
+- Lot selection: specific identification against FIFO, LIFO and highest cost first, on
+  the same trades.
+- Rules that are not convex, met in rounds: wash-sale repair, and an active-share floor
+  held by the convex-concave procedure.
+- Orders rounded to board lots and minimum tickets by a mixed-integer programme (HiGHS),
+  checked by the compliance engine as one basket.
+- The frontier of tracking error against tax, as the lower envelope of two sweeps.
+- Tax alpha over simulated years: four managers through the same markets, the US tax
+  ledger with carryforward and wash-sale deferral, and the value on liquidation.
 
-**Chart:** the efficient frontier of tracking error versus tax cost, with the chosen
-rebalance marked.
+**Charts:** fourteen, including:
+- the efficient frontier with the proposal marked;
+- the lots relieved four ways;
+- the harvesting map;
+- the rounds;
+- the orders;
+- the mandate after the trades;
+- tax alpha across paths;
+- after-tax wealth;
+- the harvest calendar;
+- the one-page proposal.
+
+**Notes:** [tax-aware rebalancing](notes/tax-aware-rebalancing.md).
 
 ## Day 8 - Execution and reporting
 
