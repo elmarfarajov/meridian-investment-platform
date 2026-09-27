@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-984-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-1039-2E7D5B)](tests)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
 
 Asset managers do not run on spreadsheets. They run on systems like BlackRock's Aladdin,
@@ -109,14 +109,42 @@ meridian compliance pretrade US-MSFT 100000
 meridian compliance replay
 # The book's 43 historical orders through the pre-trade check it never had:
 # 7 blocked one at a time, 3 trading days blocked as baskets.
+
+meridian rebalance propose
+# Tracking error 5.80% -> 2.64% for -96.9k of tax: 540k of losses harvested,
+# three names barred by the wash-sale rule, active share held at its 30% floor,
+# 27 orders in whole lots, and the compliance engine's verdict on the basket.
+
+meridian rebalance lots
+# Every lot the proposal sells, and the same trades relieved FIFO, LIFO and
+# highest cost first: choosing lots is worth 45k against last in, first out.
+
+meridian rebalance backtest --paths 16
+# Four managers through the same simulated markets: tax-aware +0.55% a year
+# after tax against the tax-blind manager, on liquidation value.
 ```
 
 ---
 
 ## The charts
 
-Every module ships a visual, not only numbers. All eighty-nine are in the
+Every module ships a visual, not only numbers. All one hundred and three are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
+
+**How much tracking error does a dollar of tax buy?** Every point on this frontier is a
+full, compliant rebalance of the account: the mandate, the cash band, the wash-sale rule
+and the active-share floor all hold. Harvested losses pay for the first half of the move;
+after that, each 0.1 point of tracking error costs about $11k of tax. The proposal sits
+on the frontier; the tax-blind trade sits at its far end, $100k of tax away.
+
+![The efficient frontier of tracking error against tax](docs/images/tax-frontier.png)
+
+**What tax-awareness is worth over years.** Four managers through the same simulated
+markets, 16 paths of three years, with the US tax ledger and the value the account
+would have if liquidated at the end. Choosing lots and deferring gains is worth about
+half a percent a year after tax; harvesting saves more tax but spends it on turnover.
+
+![Tax alpha across simulated paths](docs/images/tax-alpha.png)
 
 **From the benchmark's return to the portfolio's.** The account returned -5.24% against
 -8.30% for its policy benchmark. Brinson-Fachler on local returns, with currency and
@@ -318,14 +346,17 @@ meridian
 │                 specific risk, Euler decomposition, VaR, stress tests, validation
 ├── compliance    the mandate language (a Lark grammar), the rule engine with
 │                 look-through, pre-trade checks and baskets, the breach register
+├── optimisation  tax-aware rebalancing: a conic programme over lots (cvxpy, Clarabel),
+│                 the mandate compiled, wash-sale and active-share rounds, orders
+│                 rounded by MILP (HiGHS), the frontier, the tax-alpha simulation
 ├── persistence   SQLAlchemy 2.0 schema, explicit mappers, repositories, unit of work
 ├── marketdata    series, point-in-time storage, sources, adjustment, golden copy
 ├── quality       the data quality rules, the engine and the scoring
 ├── refdata       the security master: identifier cross-reference, golden records
 ├── services      application processes: the end-of-day pricing, accounting,
-│                 performance, risk and compliance runs, the demonstration market, book
-│                 and benchmark
-├── viz           the house chart style and eighty-nine figures
+│                 performance, risk, compliance and rebalance runs, the demonstration
+│                 market, book and benchmark
+├── viz           the house chart style and one hundred and three figures
 ├── cli           a thin Typer layer over tested functions
 ├── gallery       one definition of every chart, used by the docs and the tests
 └── seed          a hand-made demonstration book to run everything against
@@ -365,7 +396,9 @@ reasons without loosening a domain invariant. Analytics code never imports SQLAl
 | Model validation | Bias statistics against their band and a truth yardstick, Kupiec, Christoffersen and the Basel traffic light; the risk run writes nothing if a control fails ([ADR 0026](docs/adr/0026-a-risk-model-ships-with-its-validation.md)). |
 | Mandates | Investment restrictions written in a small language parsed by Lark, printed back exactly (a property test), stored as text with a hash ([ADR 0027](docs/adr/0027-mandates-are-written-in-a-language-parsed-by-lark.md)); look-through stated rule by rule ([ADR 0028](docs/adr/0028-look-through-is-part-of-the-rule.md)). |
 | Compliance | Active and passive breaches with deadlines ([ADR 0029](docs/adr/0029-breaches-are-active-or-passive-and-age-against-a-deadline.md)); pre-trade checks on the resulting portfolio, baskets as a whole, the largest permissible order ([ADR 0030](docs/adr/0030-pre-trade-checks-judge-the-portfolio-after-the-order-and-baskets-as-a-whole.md)). |
-| Tests | 984 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
+| Optimisation | A conic programme over tax lots, solved by Clarabel ([ADR 0031](docs/adr/0031-tax-aware-rebalancing-is-a-conic-programme.md)); lots as decision variables ([ADR 0032](docs/adr/0032-lots-are-decision-variables.md)); wash sales and an active-share floor met in rounds ([ADR 0033](docs/adr/0033-non-convex-rules-are-met-in-rounds.md)); orders rounded by a MILP ([ADR 0034](docs/adr/0034-orders-are-rounded-by-a-mixed-integer-programme.md)). |
+| Tax alpha | Measured on liquidation value, over simulated paths, against a tax-blind manager, with harvested losses valued at the rate difference they actually earn ([ADR 0035](docs/adr/0035-tax-alpha-is-measured-on-liquidation-value-over-simulated-paths.md)). |
+| Tests | 1039 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
 | Types | `mypy` with `disallow_untyped_defs` across the package; `ruff` for lint and format. |
 
 ---
@@ -392,6 +425,8 @@ meridian risk run --persist       # forecasts, factor history and exposures, aft
 meridian risk report --out risk-report.png    # the one-page risk report
 meridian compliance run --persist # the mandate checked on every day, the register, the orders
 meridian compliance pretrade US-MSFT 100000   # test an order before it is sent
+meridian rebalance propose        # today's tax-aware rebalance, as orders
+meridian rebalance run --persist  # the proposal, its orders, lots and frontier, after the controls
 ```
 
 Point it at PostgreSQL by setting one environment variable, with no code change:
@@ -431,8 +466,9 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Validating a risk model](docs/notes/risk-validation.md) | Bias statistics, the account's backtest and the three errors it caught, VaR four ways, stress tests |
 | [The mandate language](docs/notes/mandate-language.md) | Rules, measures and filters, look-through, parsing with Lark, and the UCITS rules in four lines |
 | [Pre-trade and post-trade compliance](docs/notes/pre-and-post-trade-compliance.md) | Checking orders and baskets, the history replayed, active and passive breaches, the register |
-| [Chart gallery](docs/GALLERY.md) | All forty-six figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Thirty records: what was decided, what the alternatives were, and what it costs |
+| [Tax-aware rebalancing](docs/notes/tax-aware-rebalancing.md) | The rebalance as a conic programme over lots, rules that are not convex, orders, the frontier, and tax alpha measured honestly |
+| [Chart gallery](docs/GALLERY.md) | All one hundred and three figures, with what each one argues |
+| [Architecture decisions](docs/adr) | Thirty-five records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -449,7 +485,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 4 | Performance: time- and money-weighted returns, benchmark construction, Brinson-Fachler attribution, Cariño linking, risk statistics | ✅ Done |
 | 5 | Risk: fundamental factor model, EWMA, GARCH and Ledoit-Wolf covariance, VaR four ways, stress tests, bias-statistic and VaR backtests | ✅ Done |
 | 6 | Compliance: a mandate language parsed by Lark, look-through, pre- and post-trade checks, baskets, the breach register | ✅ Done |
-| 7 | Tax-aware optimisation: rebalancing with lot selection and tax cost | Planned |
+| 7 | Tax-aware optimisation: a conic rebalance over tax lots, wash sales and an active-share floor in rounds, MILP rounding, the tracking-error / tax frontier, tax alpha over simulated years | ✅ Done |
 | 8 | Execution: order management, allocation, transaction cost analysis, client reporting | Planned |
 | 9 | Platform: web API, role-based access, release | Planned |
 

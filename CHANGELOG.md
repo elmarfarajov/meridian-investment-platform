@@ -4,6 +4,81 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-28
+
+Day 7: tax-aware optimisation. Rebalancing that chooses which lots to sell, harvests
+losses the wash-sale rule allows, meets the mandate, and knows what each dollar of tax
+buys in tracking error - with the frontier to prove it and a multi-year simulation to
+say what it is worth.
+
+### Added
+
+- **The rebalance** (`optimisation/rebalance.py`), a conic programme in cvxpy solved by
+  Clarabel:
+  - weights bought per asset and **sold per tax lot**;
+  - tracking error in the Day 5 model's factor form (a second-order cone);
+  - tax linear per lot at the lot's own rate, a loss as a saving;
+  - commission, half-spread and square-root market impact as a 3-D power cone;
+  - the cash band, and optional tracking-error and tax budgets.
+  Solver fallback: Clarabel, then Clarabel given longer, then SCS.
+- **The mandate compiled into constraints** (`optimisation/constraints.py`): weights
+  with look-through, the heaviest group, exclusions (applied by removing the
+  variables), tracking error, volatility, and active share. Soft rules are penalised,
+  and every limit is met 5 bp inside.
+- **Non-convex rules in rounds**:
+  - wash sales by repair (a stock whose loss lots are sold is barred from purchase);
+  - an active-share floor by the convex-concave procedure, started twice with the
+    better kept.
+  Every round is recorded.
+- **Lot relief**: specific identification (lowest tax per unit first), FIFO, LIFO and
+  highest cost first, and the same trades relieved every way.
+- **Orders** (`optimisation/rounding.py`): a mixed-integer programme in HiGHS that
+  rounds the continuous trades to whole lots (100-share board lots in Tokyo) and
+  minimum tickets, keeping the cash band. Sales are allocated to lots.
+- **The frontier** (`optimisation/frontier.py`): tracking error against tax as the lower
+  envelope of an epsilon-constraint sweep and a price-of-risk sweep, with the dominated
+  local optima kept.
+- **Tax alpha** (`optimisation/backtest.py`): four managers through the same markets,
+  simulated from the Day 5 model on a 100-stock index reconstituted quarterly:
+  - the US ledger: netting, the $3,000 offset, carryforward, and wash-sale deferral
+    into the replacement's basis;
+  - the client's outside gains, which harvested losses offset;
+  - tax alpha on liquidation value and as held.
+- **The demonstration** (`services/demo_optimisation.py`):
+  - the book's 31 open lots and 30 benchmark stocks to buy;
+  - the Day 6 mandate;
+  - a proposal checked by the Day 6 compliance engine as one basket;
+  - three managers compared.
+- **Persistence**: `rebalance_proposals`, `proposed_orders`, `proposed_lot_sales`,
+  `rebalance_frontier` and `tax_alpha_results`, in migration 0007. The run writes
+  nothing unless:
+  - value is conserved;
+  - no stock is both sold at a loss and bought;
+  - the orders are tradable;
+  - the compliance engine does not block the proposal;
+  - the frontier is monotone.
+- **`meridian rebalance`**: `propose`, `lots`, `frontier`, `compare`, `backtest`, `run`
+  and `stored`.
+- **Fourteen charts** (one hundred and three in the gallery), a methodology note and ADRs
+  0031 to 0035. `cvxpy` joins the dependencies.
+
+### Changed
+
+- The Day 6 pre-trade metric model re-computes active share for a proposed portfolio
+  instead of carrying the morning's value.
+
+### Fixed (found while building it)
+
+- cvxpy's default rewriting of `x^1.5` stalled the interior-point solver on small
+  trades. Impact is now an explicit power cone.
+- Pinning a barred purchase to zero with an equality left the problem without an
+  interior. Such variables are now removed instead.
+- A float remnant of a sold lot, carrying a deferred wash-sale loss, reached a basis of
+  hundreds of thousands per unit. Near-complete sales now relieve the whole lot.
+- The first tax-alpha simulation valued harvested losses at the full short-term rate.
+  It harvested three times as much and lost after-tax return. A loss is now valued at
+  the short-term rate less the long-term rate it will be recaptured at.
+
 ## [0.7.0] - 2026-09-26
 
 Day 6: compliance. The account's investment restrictions written in a small language,
@@ -337,6 +412,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[0.8.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.8.0
 [0.7.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.7.0
 [0.6.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.6.0
 [0.5.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.5.0

@@ -16,7 +16,9 @@ demonstration account booked on top of that market, and the performance figures
 from that account measured against its policy benchmark. The risk figures come from a
 factor model estimated on a synthetic 500-stock universe whose true risk is known, and
 applied to the same account. The compliance figures come from the account's mandate,
-written in the Meridian mandate language and checked on every day of its history.
+written in the Meridian mandate language and checked on every day of its history. The
+optimisation figures come from the same account rebalanced by the tax-aware optimiser, and
+from a tax-alpha simulation on the factor model's universe.
 
 ---
 ### Calendars
@@ -397,8 +399,67 @@ written in the Meridian mandate language and checked on every day of its history
 
 ![The compliance report](images/compliance-report.png)
 
+### Optimisation
+
+**The efficient frontier of tracking error against tax** - Every point a full compliant rebalance; the proposal, the tax-blind trade and today's portfolio placed on it.
+
+![The efficient frontier of tracking error against tax](images/tax-frontier.png)
+
+**The proposed rebalance** - Weights before and after against the target, and the tax each sale realises or saves.
+
+![The proposed rebalance](images/rebalance-trades.png)
+
+**Which lots to sell** - Tax per dollar sold, lot by lot, and the same trades relieved first in, last in and highest cost first.
+
+![Which lots to sell](images/lot-relief.png)
+
+**The harvesting map** - Every open lot by days held and gain, the one-year line, the wash-sale window, and the lots sold.
+
+![The harvesting map](images/harvesting-map.png)
+
+**Non-convex rules met in rounds** - Wash-sale repairs and the convex-concave rounds that hold active share above its floor.
+
+![Non-convex rules met in rounds](images/solve-rounds.png)
+
+**Trading costs** - Commission, half-spread and square-root market impact for every trade, and the impact law.
+
+![Trading costs](images/trading-costs.png)
+
+**From weights to orders** - The optimiser's trades rounded to board lots and minimum tickets by a mixed-integer programme.
+
+![From weights to orders](images/order-rounding.png)
+
+**Three managers, one account** - Tax-blind, tax-aware and harvesting rebalances of the same account on the same day.
+
+![Three managers, one account](images/three-managers.png)
+
+**The mandate after the trades** - The Day 6 engine on the proposal as one basket: every limit's utilisation before and after.
+
+![The mandate after the trades](images/post-trade-compliance.png)
+
+**Tax alpha across simulated paths** - Annual after-tax return over the tax-blind manager, on liquidation and as held, for three managers.
+
+![Tax alpha across simulated paths](images/tax-alpha.png)
+
+**After-tax wealth** - Wealth against the tax-blind manager over three years, and the tax each manager paid.
+
+![After-tax wealth](images/after-tax-wealth.png)
+
+**The harvest calendar** - Losses harvested and gains realised month by month, the carryforward, and the dispersion behind them.
+
+![The harvest calendar](images/harvest-calendar.png)
+
+**Risk spent to save tax** - Ex-ante tracking error month by month for each manager against the tax-aware budget.
+
+![Risk spent to save tax](images/tracking-error-budget.png)
+
+**The rebalance proposal** - One page for the investment committee: numbers, orders, frontier and checks.
+
+![The rebalance proposal](images/rebalance-proposal.png)
+
 ### Platform
 
 **The data model** - Every table, column and foreign key, drawn from the live SQLAlchemy metadata.
 
 ![The data model](images/data-model.png)
+
