@@ -41,3 +41,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0033](0033-non-convex-rules-are-met-in-rounds.md) | Rules that are not convex are met in rounds: wash-sale repair and the convex-concave procedure | Accepted |
 | [0034](0034-orders-are-rounded-by-a-mixed-integer-programme.md) | Orders are rounded to whole lots by a separate mixed-integer programme | Accepted |
 | [0035](0035-tax-alpha-is-measured-on-liquidation-value-over-simulated-paths.md) | Tax alpha is measured on liquidation value, over simulated paths, against a tax-blind manager | Accepted |
+| [0036](0036-orders-are-a-checked-state-machine-in-fix-states.md) | Orders are a checked state machine, in FIX states | Accepted |
+| [0037](0037-execution-is-simulated-with-the-counterfactual-price-kept.md) | Execution is simulated minute by minute, with the price path without our trades kept | Accepted |
+| [0038](0038-algorithms-are-schedules-and-is-follows-almgren-chriss.md) | Algorithms are schedules; IS follows Almgren-Chriss with impact matched to the square-root law | Accepted |
+| [0039](0039-block-orders-are-allocated-at-one-price-pro-rata.md) | Block orders are allocated at one average price, pro rata, by a rule fixed before trading | Accepted |
+| [0040](0040-the-client-report-is-assembled-from-the-modules-own-objects.md) | Cost is implementation shortfall; the client report is assembled from the modules' own objects | Accepted |
