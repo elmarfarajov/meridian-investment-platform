@@ -32,6 +32,7 @@ from .accounting_repositories import (
 )
 from .bulk import bulk_upsert
 from .compliance_repositories import ComplianceRepository
+from .execution_repositories import ExecutionRepository
 from .marketdata_repositories import (
     CorporateActionRepository,
     PriceObservationRepository,
@@ -433,6 +434,7 @@ class UnitOfWork:
         self.risk = RiskRepository(session)
         self.compliance = ComplianceRepository(session)
         self.optimisation = OptimisationRepository(session)
+        self.execution = ExecutionRepository(session)
 
     def flush(self) -> None:
         self.session.flush()
