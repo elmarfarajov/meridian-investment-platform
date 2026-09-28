@@ -24,6 +24,7 @@ from .compliance_gallery import compliance_items
 from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
+from .execution_gallery import execution_items
 from .marketdata.fx_history import FxHistory
 from .marketdata.golden import compare_to_reference
 from .optimisation_gallery import optimisation_items
@@ -98,6 +99,8 @@ GROUPS: tuple[str, ...] = (
     "risk",
     "compliance",
     "optimisation",
+    "execution",
+    "reporting",
     "platform",
 )
 
@@ -278,6 +281,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *risk_items(),
         *compliance_items(),
         *optimisation_items(),
+        *execution_items(),
     )
 
 
