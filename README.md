@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-1039-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-1080-2E7D5B)](tests)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
 
 Asset managers do not run on spreadsheets. They run on systems like BlackRock's Aladdin,
@@ -122,13 +122,29 @@ meridian rebalance lots
 meridian rebalance backtest --paths 16
 # Four managers through the same simulated markets: tax-aware +0.55% a year
 # after tax against the tax-blind manager, on liquidation value.
+
+meridian trade blotter
+# The rebalance traded the next morning: 78 orders from three accounts in 26
+# blocks, each worked by the algorithm its size calls for - VWAP, IS or POV.
+
+meridian trade costs
+# Implementation shortfall -7.9 bp: +9.8 bp the desk controls (spread, impact,
+# fees) and -17.7 bp the market gave while it traded. Components add up exactly.
+
+meridian trade calibrate
+# The square-root impact coefficient from 400 orders: 0.355 measured, against a
+# true 0.350; from what a desk actually observes, an interval that includes zero.
+
+meridian report client --out client-report.pdf
+# The quarterly client report: nine pages, from the valuation to the trades,
+# every number drawn from the module that owns it.
 ```
 
 ---
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and three are in the
+Every module ships a visual, not only numbers. All one hundred and seventeen are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -145,6 +161,25 @@ would have if liquidated at the end. Choosing lots and deferring gains is worth 
 half a percent a year after tax; harvesting saves more tax but spends it on turnover.
 
 ![Tax alpha across simulated paths](docs/images/tax-alpha.png)
+
+**What the rebalance cost to trade, exactly.** Against the paper portfolio - every
+share at the decision price - the day's shortfall splits into what the desk controls
+(spread, impact, fees) and what the market did on its own. The simulator keeps the
+price path the market would have taken without the orders, so impact is measured, not
+estimated.
+
+![Implementation shortfall of the rebalance](docs/images/implementation-shortfall.png)
+
+**Calibrating the impact model, with the answer known.** Measured directly, 400
+orders recover the square-root coefficient to within 1.5%; from the prices a desk
+actually sees, the market's own moves drown it.
+
+![Calibrating the impact model](docs/images/impact-calibration.png)
+
+**The client report,** assembled from every module's objects - so no number on one
+page can disagree with another.
+
+![The client report](docs/images/client-report-pages.png)
 
 **From the benchmark's return to the portfolio's.** The account returned -5.24% against
 -8.30% for its policy benchmark. Brinson-Fachler on local returns, with currency and
@@ -349,14 +384,18 @@ meridian
 ├── optimisation  tax-aware rebalancing: a conic programme over lots (cvxpy, Clarabel),
 │                 the mandate compiled, wash-sale and active-share rounds, orders
 │                 rounded by MILP (HiGHS), the frontier, the tax-alpha simulation
+├── execution     orders in FIX states, a minute-by-minute market with its
+│                 counterfactual, TWAP / VWAP / POV / IS (Almgren-Chriss) / Close,
+│                 block allocation, implementation shortfall and impact calibration
+├── reporting     the client report: every module's pages in one PDF
 ├── persistence   SQLAlchemy 2.0 schema, explicit mappers, repositories, unit of work
 ├── marketdata    series, point-in-time storage, sources, adjustment, golden copy
 ├── quality       the data quality rules, the engine and the scoring
 ├── refdata       the security master: identifier cross-reference, golden records
 ├── services      application processes: the end-of-day pricing, accounting,
-│                 performance, risk, compliance and rebalance runs, the demonstration
-│                 market, book and benchmark
-├── viz           the house chart style and one hundred and three figures
+│                 performance, risk, compliance, rebalance and trading runs, the
+│                 demonstration market, book and benchmark
+├── viz           the house chart style and one hundred and seventeen figures
 ├── cli           a thin Typer layer over tested functions
 ├── gallery       one definition of every chart, used by the docs and the tests
 └── seed          a hand-made demonstration book to run everything against
@@ -398,7 +437,10 @@ reasons without loosening a domain invariant. Analytics code never imports SQLAl
 | Compliance | Active and passive breaches with deadlines ([ADR 0029](docs/adr/0029-breaches-are-active-or-passive-and-age-against-a-deadline.md)); pre-trade checks on the resulting portfolio, baskets as a whole, the largest permissible order ([ADR 0030](docs/adr/0030-pre-trade-checks-judge-the-portfolio-after-the-order-and-baskets-as-a-whole.md)). |
 | Optimisation | A conic programme over tax lots, solved by Clarabel ([ADR 0031](docs/adr/0031-tax-aware-rebalancing-is-a-conic-programme.md)); lots as decision variables ([ADR 0032](docs/adr/0032-lots-are-decision-variables.md)); wash sales and an active-share floor met in rounds ([ADR 0033](docs/adr/0033-non-convex-rules-are-met-in-rounds.md)); orders rounded by a MILP ([ADR 0034](docs/adr/0034-orders-are-rounded-by-a-mixed-integer-programme.md)). |
 | Tax alpha | Measured on liquidation value, over simulated paths, against a tax-blind manager, with harvested losses valued at the rate difference they actually earn ([ADR 0035](docs/adr/0035-tax-alpha-is-measured-on-liquidation-value-over-simulated-paths.md)). |
-| Tests | 1039 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
+| Orders | FIX `OrdStatus` as a checked state machine with an audit trail; parent and child orders ([ADR 0036](docs/adr/0036-orders-are-a-checked-state-machine-in-fix-states.md)). |
+| Execution | A minute-by-minute market with the price path without our trades kept, so impact is measured ([ADR 0037](docs/adr/0037-execution-is-simulated-with-the-counterfactual-price-kept.md)); algorithms as schedules, IS by Almgren-Chriss ([ADR 0038](docs/adr/0038-algorithms-are-schedules-and-is-follows-almgren-chriss.md)); blocks allocated at one price ([ADR 0039](docs/adr/0039-block-orders-are-allocated-at-one-price-pro-rata.md)). |
+| Transaction costs and reporting | Implementation shortfall decomposed exactly; the client report built from the modules' own objects ([ADR 0040](docs/adr/0040-the-client-report-is-assembled-from-the-modules-own-objects.md)). |
+| Tests | 1080 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
 | Types | `mypy` with `disallow_untyped_defs` across the package; `ruff` for lint and format. |
 
 ---
@@ -427,6 +469,8 @@ meridian compliance run --persist # the mandate checked on every day, the regist
 meridian compliance pretrade US-MSFT 100000   # test an order before it is sent
 meridian rebalance propose        # today's tax-aware rebalance, as orders
 meridian rebalance run --persist  # the proposal, its orders, lots and frontier, after the controls
+meridian trade run --persist      # the day's orders, fills, allocations and costs, after the controls
+meridian report client --out client-report.pdf   # the nine-page client report
 ```
 
 Point it at PostgreSQL by setting one environment variable, with no code change:
@@ -467,8 +511,9 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [The mandate language](docs/notes/mandate-language.md) | Rules, measures and filters, look-through, parsing with Lark, and the UCITS rules in four lines |
 | [Pre-trade and post-trade compliance](docs/notes/pre-and-post-trade-compliance.md) | Checking orders and baskets, the history replayed, active and passive breaches, the register |
 | [Tax-aware rebalancing](docs/notes/tax-aware-rebalancing.md) | The rebalance as a conic programme over lots, rules that are not convex, orders, the frontier, and tax alpha measured honestly |
-| [Chart gallery](docs/GALLERY.md) | All one hundred and three figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Thirty-five records: what was decided, what the alternatives were, and what it costs |
+| [Execution and transaction costs](docs/notes/execution-and-transaction-costs.md) | Orders in FIX states, a market with its counterfactual, five algorithms and Almgren-Chriss, allocation, the shortfall decomposed, calibration, the client report |
+| [Chart gallery](docs/GALLERY.md) | All one hundred and seventeen figures, with what each one argues |
+| [Architecture decisions](docs/adr) | Forty records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -486,7 +531,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 5 | Risk: fundamental factor model, EWMA, GARCH and Ledoit-Wolf covariance, VaR four ways, stress tests, bias-statistic and VaR backtests | ✅ Done |
 | 6 | Compliance: a mandate language parsed by Lark, look-through, pre- and post-trade checks, baskets, the breach register | ✅ Done |
 | 7 | Tax-aware optimisation: a conic rebalance over tax lots, wash sales and an active-share floor in rounds, MILP rounding, the tracking-error / tax frontier, tax alpha over simulated years | ✅ Done |
-| 8 | Execution: order management, allocation, transaction cost analysis, client reporting | Planned |
+| 8 | Execution and reporting: orders in FIX states, a simulated intraday market, five algorithms and Almgren-Chriss, block allocation, implementation shortfall, a nine-page client report | ✅ Done |
 | 9 | Platform: web API, role-based access, release | Planned |
 
 ---

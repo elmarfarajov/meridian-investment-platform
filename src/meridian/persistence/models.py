@@ -616,3 +616,84 @@ class TaxAlphaResultRow(TimestampMixin, Base):
     tracking_error: Mapped[float] = mapped_column(Float)
     harvested: Mapped[float] = mapped_column(Float)
     turnover: Mapped[float] = mapped_column(Float)
+
+
+class ExecutionOrderRow(TimestampMixin, Base):
+    """A block order or one of its child orders, with its final state."""
+
+    __tablename__ = "execution_orders"
+
+    order_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    parent_id: Mapped[str | None] = mapped_column(ForeignKey("execution_orders.order_id"), index=True)
+    trade_date: Mapped[date] = mapped_column(Date, index=True)
+    instrument_id: Mapped[str] = mapped_column(String(64))
+    side: Mapped[str] = mapped_column(String(4))
+    quantity: Mapped[float] = mapped_column(Float)
+    filled: Mapped[float] = mapped_column(Float)
+    average_price: Mapped[float | None] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(24))
+    algorithm: Mapped[str | None] = mapped_column(String(16))
+    decision_price: Mapped[float | None] = mapped_column(Float)
+    limit_price: Mapped[float | None] = mapped_column(Float)
+
+
+class ExecutionEventRow(TimestampMixin, Base):
+    """One line of an order's audit trail."""
+
+    __tablename__ = "execution_events"
+
+    order_id: Mapped[str] = mapped_column(ForeignKey("execution_orders.order_id"), primary_key=True)
+    sequence: Mapped[int] = mapped_column(Integer, primary_key=True)
+    minute: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(24))
+    note: Mapped[str] = mapped_column(String(256))
+
+
+class ExecutionFillRow(TimestampMixin, Base):
+    """An execution report against a child order."""
+
+    __tablename__ = "execution_fills"
+
+    fill_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    order_id: Mapped[str] = mapped_column(ForeignKey("execution_orders.order_id"), index=True)
+    minute: Mapped[int] = mapped_column(Integer)
+    quantity: Mapped[float] = mapped_column(Float)
+    price: Mapped[float] = mapped_column(Float)
+
+
+class OrderAllocationRow(TimestampMixin, Base):
+    """An account's share of a block order."""
+
+    __tablename__ = "order_allocations"
+
+    order_id: Mapped[str] = mapped_column(ForeignKey("execution_orders.order_id"), primary_key=True)
+    portfolio_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    instrument_id: Mapped[str] = mapped_column(String(64))
+    side: Mapped[str] = mapped_column(String(4))
+    requested: Mapped[float] = mapped_column(Float)
+    quantity: Mapped[float] = mapped_column(Float)
+    price: Mapped[float] = mapped_column(Float)
+
+
+class TransactionCostRow(TimestampMixin, Base):
+    """A block order's implementation shortfall, decomposed, base currency."""
+
+    __tablename__ = "transaction_costs"
+
+    order_id: Mapped[str] = mapped_column(ForeignKey("execution_orders.order_id"), primary_key=True)
+    algorithm: Mapped[str] = mapped_column(String(16))
+    decision_price: Mapped[float] = mapped_column(Float)
+    arrival_price: Mapped[float] = mapped_column(Float)
+    close_price: Mapped[float] = mapped_column(Float)
+    vwap: Mapped[float | None] = mapped_column(Float)
+    participation: Mapped[float] = mapped_column(Float)
+    size_adv: Mapped[float] = mapped_column(Float)
+    paper_value: Mapped[float] = mapped_column(Float)
+    delay: Mapped[float] = mapped_column(Float)
+    spread: Mapped[float] = mapped_column(Float)
+    temporary_impact: Mapped[float] = mapped_column(Float)
+    permanent_impact: Mapped[float] = mapped_column(Float)
+    timing: Mapped[float] = mapped_column(Float)
+    opportunity: Mapped[float] = mapped_column(Float)
+    fees: Mapped[float] = mapped_column(Float)
+    shortfall: Mapped[float] = mapped_column(Float)

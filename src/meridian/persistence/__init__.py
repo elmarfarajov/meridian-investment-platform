@@ -8,6 +8,7 @@ from .accounting_repositories import (
 )
 from .base import Base, TimestampMixin
 from .compliance_repositories import ComplianceRepository
+from .execution_repositories import ExecutionRepository
 from .marketdata_repositories import (
     CorporateActionRepository,
     PriceObservationRepository,
@@ -71,6 +72,7 @@ __all__ = [
     "CorporateActionRepository",
     "CorporateActionRow",
     "Database",
+    "ExecutionRepository",
     "FxRateRepository",
     "FxRateRow",
     "HouseholdRepository",

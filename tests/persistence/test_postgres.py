@@ -227,3 +227,15 @@ def test_rebalance_on_postgres(pg_session: Session):
     assert len(unit_of_work.optimisation.orders(result.proposal_id)) == result.orders
     by_term = unit_of_work.optimisation.tax_by_term(result.proposal_id)
     assert sum(tax for _, tax in by_term.values()) == pytest.approx(result.tax, abs=1e-6)
+
+
+def test_trading_day_on_postgres(pg_session: Session):
+    """Orders, fills and costs stored in PostgreSQL recount to the day."""
+    from meridian.services.demo_execution import build_demo_execution
+    from meridian.services.execution_run import run_demo_execution
+
+    demo = build_demo_execution()
+    unit_of_work = UnitOfWork(pg_session)
+    run_demo_execution(demo, unit_of_work)
+    filled = unit_of_work.execution.filled_by_block(demo.trade_date)
+    assert sum(filled.values()) == pytest.approx(sum(result.parent.cumulative for result in demo.executions))

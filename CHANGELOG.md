@@ -4,6 +4,57 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-09-29
+
+Day 8: execution and reporting. The Day 7 rebalance traded: block orders across three
+accounts worked by algorithms through a simulated market, allocated back at one price,
+and its cost decomposed exactly - then everything the platform knows about the
+account assembled into a nine-page client report.
+
+### Added
+
+- **Orders** (`execution/orders.py`): a FIX `OrdStatus` state machine with a checked
+  transition table, an audit trail of every event, parent and child orders, and
+  invariants re-checked after every event (no overfill, no fill through the limit,
+  average price recomputed from the fills).
+- **The market** (`execution/market.py`): 390 one-minute bars per stock from its Day 2
+  profile:
+  - U-shaped volume;
+  - U-shaped intraday variance and an overnight gap;
+  - half-spread, square-root temporary impact and linear permanent impact.
+  The price path without our trades is kept beside the one with them.
+- **Algorithms** (`execution/algorithms.py`): TWAP, VWAP, POV, IS and Close as
+  schedules, worked into 15-minute child orders under a 25% participation cap and
+  optional limit. IS follows **Almgren-Chriss** (`execution/almgren_chriss.py`): the
+  closed-form trajectory, its cost-risk frontier, and linear impact matched to the
+  square-root law.
+- **Allocation** (`execution/allocation.py`): account orders aggregated into blocks and
+  allocated at one average price, pro rata by largest remainder, with a minimum and no
+  account over its request.
+- **Transaction cost analysis** (`execution/tca.py`): implementation shortfall against
+  the decision price, split exactly into delay, spread, temporary and permanent impact,
+  timing, opportunity and fees; VWAP and arrival slippage; a pre-trade estimate; impact
+  calibration by regression, from measured impact and from what a desk observes.
+- **The trading day** (`services/demo_execution.py`):
+  - the Day 7 tickets for three accounts on the same model, 78 orders in 26 blocks;
+  - an algorithm wheel;
+  - every block re-run with every algorithm on the same day;
+  - a 400-order desk history for calibration.
+- **The client report** (`reporting/client_pack.py`): nine A3 pages in one PDF.
+  - New pages: cover, summary, holdings and tax, trading and costs, methodology.
+  - The Day 4 to Day 7 one-page reports, drawn from the same objects.
+- **Persistence**: `execution_orders`, `execution_events`, `execution_fills`,
+  `order_allocations` and `transaction_costs`, in migration 0008. The run writes
+  nothing unless:
+  - every order's invariants hold;
+  - every fill is within the day's prices;
+  - every block is allocated in full;
+  - every shortfall adds up.
+- **`meridian trade`**: `blotter`, `order`, `costs`, `algos`, `calibrate`,
+  `allocations`, `run` and `stored`. **`meridian report client`** writes the PDF.
+- **Fourteen charts** (one hundred and seventeen in the gallery), a methodology note and
+  ADRs 0036 to 0040.
+
 ## [0.8.0] - 2026-09-28
 
 Day 7: tax-aware optimisation. Rebalancing that chooses which lots to sell, harvests
@@ -412,6 +463,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[0.9.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.9.0
 [0.8.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.8.0
 [0.7.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.7.0
 [0.6.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.6.0
