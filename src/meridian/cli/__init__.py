@@ -26,6 +26,7 @@ from . import (
     rebalance_commands,
     risk_commands,
     security_commands,
+    trade_commands,
 )
 from ._common import console, render_rows, table
 
@@ -46,6 +47,8 @@ app.add_typer(perf_commands.app, name="perf")
 app.add_typer(risk_commands.app, name="risk")
 app.add_typer(compliance_commands.app, name="compliance")
 app.add_typer(rebalance_commands.app, name="rebalance")
+app.add_typer(trade_commands.app, name="trade")
+app.add_typer(trade_commands.report_app, name="report")
 
 
 def _version_callback(value: bool) -> None:
