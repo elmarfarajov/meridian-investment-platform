@@ -244,18 +244,32 @@ replayed, the parse tree of a rule and a one-page compliance report.
 
 **Notes:** [tax-aware rebalancing](notes/tax-aware-rebalancing.md).
 
-## Day 8 - Execution and reporting
+## Day 8 - Execution and reporting ✅
 
 **Issue #8.** From a target portfolio to a filled order to a statement.
 
-- Order management: parent orders, allocation across accounts, partial fills, average
-  price.
-- Transaction cost analysis: implementation shortfall against arrival price, VWAP
-  benchmarking, market impact.
-- Client reporting: a multi-page PDF pack - holdings, performance, attribution, risk,
-  costs and tax.
+- Order management: parent and child orders in FIX states, a checked audit trail, block
+  orders across the accounts that follow one model, allocation at one average price.
+- Execution: a minute-by-minute market simulated from the Day 2 profiles, with the price
+  path without our trades kept. The algorithms are TWAP, VWAP, POV, IS (Almgren-Chriss)
+  and Close, and an algorithm wheel routes the orders.
+- Transaction cost analysis: implementation shortfall decomposed exactly (delay, spread,
+  impact, timing, opportunity, fees); VWAP slippage; pre-trade against post-trade; the
+  impact model calibrated against known parameters.
+- Client reporting: a nine-page PDF assembled from every module's objects.
 
-**Chart:** the implementation shortfall decomposition, and the client report itself.
+**Charts:** fourteen, including:
+- the shortfall waterfall;
+- five algorithms on one order;
+- the Almgren-Chriss frontier;
+- one block's day with and without its impact;
+- the algorithms compared;
+- the impact calibration;
+- block allocation;
+- an order's life in FIX states;
+- the client report's pages.
+
+**Notes:** [execution and transaction costs](notes/execution-and-transaction-costs.md).
 
 ## Day 9 - Platform
 

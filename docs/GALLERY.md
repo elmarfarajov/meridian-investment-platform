@@ -18,7 +18,9 @@ factor model estimated on a synthetic 500-stock universe whose true risk is know
 applied to the same account. The compliance figures come from the account's mandate,
 written in the Meridian mandate language and checked on every day of its history. The
 optimisation figures come from the same account rebalanced by the tax-aware optimiser, and
-from a tax-alpha simulation on the factor model's universe.
+from a tax-alpha simulation on the factor model's universe. The execution figures come from
+that rebalance traded the next day through a simulated intraday market, and the reporting
+figures are pages of the client report assembled from all of it.
 
 ---
 ### Calendars
@@ -456,6 +458,66 @@ from a tax-alpha simulation on the factor model's universe.
 **The rebalance proposal** - One page for the investment committee: numbers, orders, frontier and checks.
 
 ![The rebalance proposal](images/rebalance-proposal.png)
+
+### Execution
+
+**Implementation shortfall of the rebalance** - The day's cost against the decision prices, split into delay, spread, impact, timing, opportunity and fees.
+
+![Implementation shortfall of the rebalance](images/implementation-shortfall.png)
+
+**Five ways to work the same order** - TWAP, VWAP, POV, IS and Close: planned and realised completion against the volume curve.
+
+![Five ways to work the same order](images/execution-trajectories.png)
+
+**The Almgren-Chriss frontier** - Expected cost against its risk for one block, and the trajectories from risk-neutral to urgent.
+
+![The Almgren-Chriss frontier](images/almgren-chriss-frontier.png)
+
+**One block through the day** - The price with and without our trades, every fill, and the decision, arrival, average and VWAP.
+
+![One block through the day](images/intraday-execution.png)
+
+**The same blocks, five algorithms** - Every block re-run with each algorithm on the same simulated day: cost, risk, fill rate, VWAP slippage.
+
+![The same blocks, five algorithms](images/algorithm-comparison.png)
+
+**Calibrating the impact model** - The square-root coefficient recovered from the desk's history, measured and as observed, against the truth.
+
+![Calibrating the impact model](images/impact-calibration.png)
+
+**Pre-trade estimate against outcome** - The cost model's forecast against each order's realised spread, impact and fees, by order size.
+
+![Pre-trade estimate against outcome](images/pre-post-trade.png)
+
+**Block orders allocated to accounts** - Three accounts' orders traded as one block per stock and shared back at one price, pro rata.
+
+![Block orders allocated to accounts](images/block-allocation.png)
+
+**An order's life in FIX states** - A parent order and its child orders through new, partially filled, cancelled, filled and expired.
+
+![An order's life in FIX states](images/order-lifecycle.png)
+
+**Participation minute by minute** - Each block's share of the market's volume through the day, against the 25% cap.
+
+![Participation minute by minute](images/participation-heatmap.png)
+
+**The trading blotter** - Every block of the day: algorithm, fill, slippage against arrival and shortfall.
+
+![The trading blotter](images/trading-blotter.png)
+
+### Reporting
+
+**The client report** - All nine pages of the quarterly client report, assembled from every module's numbers.
+
+![The client report](images/client-report-pages.png)
+
+**Client report: the summary page** - Value, returns, risk, the mandate and the tax position on one page, with the quarter in brief.
+
+![Client report: the summary page](images/client-report-summary.png)
+
+**Client report: trading and costs** - The account's share of the block orders, the prices it received and what trading cost.
+
+![Client report: trading and costs](images/client-report-trading.png)
 
 ### Platform
 
