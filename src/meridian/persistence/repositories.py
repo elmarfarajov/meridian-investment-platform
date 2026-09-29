@@ -53,6 +53,7 @@ from .models import (
 )
 from .optimisation_repositories import OptimisationRepository
 from .performance_repositories import PerformanceRepository
+from .platform_repositories import PlatformRepository
 from .risk_repositories import RiskRepository
 
 T = TypeVar("T")
@@ -435,6 +436,7 @@ class UnitOfWork:
         self.compliance = ComplianceRepository(session)
         self.optimisation = OptimisationRepository(session)
         self.execution = ExecutionRepository(session)
+        self.platform = PlatformRepository(session)
 
     def flush(self) -> None:
         self.session.flush()

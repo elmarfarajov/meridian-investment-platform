@@ -29,6 +29,23 @@ class Settings(BaseSettings):
     reports_dir: Path = PROJECT_ROOT / "reports"
     log_level: str = "INFO"
     log_json: bool = False
+    # ------------------------------------------------------------------ the web platform
+    #: signs the API's access tokens. The default is for a laptop only; the service refuses to start
+    #: in production mode with it (see meridian.api.app)
+    jwt_secret: str = "meridian-development-secret-change-me-0123456789"
+    jwt_ttl_minutes: int = 30
+    environment: str = "development"  # development | production
+    api_rate_limit: int = 120  # requests per minute per user
+    four_eyes_threshold: float = 250_000.0  # orders above this value need a second person's approval
+    demo_users: bool = True  # create the demonstration users on start-up if there are none
+    password_iterations: int = 600_000  # PBKDF2-SHA256 work factor (OWASP 2023); lowered only in tests
+
+    @field_validator("environment")
+    @classmethod
+    def _environment(cls, value: str) -> str:
+        if value not in ("development", "production"):
+            raise ValueError("environment must be development or production")
+        return value
 
     @field_validator("base_currency")
     @classmethod
