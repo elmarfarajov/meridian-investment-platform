@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: meridian
+    folder: Meridian
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
