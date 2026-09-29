@@ -22,6 +22,7 @@ from . import (
     db_commands,
     market_commands,
     perf_commands,
+    platform_commands,
     rates_commands,
     rebalance_commands,
     risk_commands,
@@ -49,6 +50,7 @@ app.add_typer(compliance_commands.app, name="compliance")
 app.add_typer(rebalance_commands.app, name="rebalance")
 app.add_typer(trade_commands.app, name="trade")
 app.add_typer(trade_commands.report_app, name="report")
+app.add_typer(platform_commands.app, name="platform")
 
 
 def _version_callback(value: bool) -> None:
