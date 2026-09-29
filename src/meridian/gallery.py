@@ -29,6 +29,7 @@ from .marketdata.fx_history import FxHistory
 from .marketdata.golden import compare_to_reference
 from .optimisation_gallery import optimisation_items
 from .performance_gallery import performance_items
+from .platform_gallery import platform_items
 from .quality.engine import QualityReport
 from .refdata import build_security_master, demo_vendor_records
 from .refdata import demo_policy as demo_security_policy
@@ -101,6 +102,7 @@ GROUPS: tuple[str, ...] = (
     "optimisation",
     "execution",
     "reporting",
+    "web platform",
     "platform",
 )
 
@@ -282,6 +284,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *compliance_items(),
         *optimisation_items(),
         *execution_items(),
+        *platform_items(),
     )
 
 
