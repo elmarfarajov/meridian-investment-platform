@@ -79,3 +79,30 @@ jobs:
         run: alembic check
       - name: Integration tests
         run: pytest -q -m integration
+
+  docker:
+    name: Docker image and stack
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker compose build
+      - name: Start the stack
+        run: docker compose up -d db migrate api
+      - name: Wait for the API
+        run: |
+          for attempt in $(seq 1 60); do
+            curl -fsS http://localhost:8000/health && break
+            sleep 2
+          done
+      - name: Smoke test
+        run: |
+          curl -fsS http://localhost:8000/ready
+          TOKEN=$(curl -fsS -X POST http://localhost:8000/auth/token -d "username=analyst&password=analyst-demo-2026" | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
+          curl -fsS -H "Authorization: Bearer $TOKEN" http://localhost:8000/v1/portfolios
+          curl -fsS http://localhost:8000/openapi.json > /dev/null
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/v1/portfolios)" = "401"
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs

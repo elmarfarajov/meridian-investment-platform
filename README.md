@@ -6,20 +6,43 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Tests](https://img.shields.io/badge/tests-1080-2E7D5B)](tests)
+[![Release](https://img.shields.io/badge/release-v1.0.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.0.0)
+[![Tests](https://img.shields.io/badge/tests-1127-2E7D5B)](tests)
+[![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
+[![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6A4C93)](docs/notes/the-web-platform.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
 
 Asset managers do not run on spreadsheets. They run on systems like BlackRock's Aladdin,
 Charles River IMS and SimCorp Dimension: one place that holds every position and tax lot,
 values it every night, attributes the return against a benchmark, decomposes the risk,
 checks every proposed trade against the mandate, and produces the statement the client
-reads. Meridian is a working implementation of that spine, built from first principles.
+reads. Meridian is a working implementation of that spine, built from first principles -
+nine modules in nine days, and a web platform over all of them.
 
 It is a portfolio engineering project, not a commercial product. The point is to show the
 reasoning: why money is a `Decimal` and never a float, why a curve's interpolation method
 is a modelling decision rather than a detail, why an exchange calendar is generated from
 statutory rules rather than loaded from a file that goes stale, and why duration alone is
 not a risk measure.
+
+![Nine days, one platform](docs/images/nine-days.png)
+
+## Run the whole platform
+
+```bash
+docker compose up --build
+```
+
+| Where | What |
+| --- | --- |
+| http://localhost:8000/docs | the API, interactive: sign in as `pm` / `pm-demo-2026` (or `analyst`, `trader`, `compliance`, `aliyeva`, `admin`, each `<name>-demo-2026`; the client is `client-demo-2026`) |
+| http://localhost:3000 | Grafana, with the Meridian dashboard provisioned |
+| http://localhost:9090 | Prometheus, scraping the API |
+
+PostgreSQL 16, a migration job, the API (two workers, non-root, health-checked),
+Prometheus and Grafana: the same stack CI builds and smoke-tests on every pull request.
+
+![The architecture](docs/images/platform-architecture.png)
 
 ---
 
@@ -138,13 +161,21 @@ meridian trade calibrate
 meridian report client --out client-report.pdf
 # The quarterly client report: nine pages, from the valuation to the trades,
 # every number drawn from the module that owns it.
+
+meridian platform serve
+# The API on :8000 - 21 endpoints, bearer tokens, role-based access, rate limits,
+# idempotent writes, four-eyes order approval, and every request hash-chained.
+
+meridian platform verify-audit
+# Walks the audit log's hash chain: "608 records, chain intact" - or the first
+# record that was edited, deleted or forged.
 ```
 
 ---
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and seventeen are in the
+Every module ships a visual, not only numbers. All one hundred and thirty-two are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -180,6 +211,27 @@ actually sees, the market's own moves drown it.
 page can disagree with another.
 
 ![The client report](docs/images/client-report-pages.png)
+
+**Seven layers between a request and the data.** A working day on the platform, driven
+over HTTP against the real modules by seven people - one of them an intruder. Each layer
+stops what it should, and every request, stopped or not, is written to a hash-chained
+audit log.
+
+![Seven layers between a request and the data](docs/images/request-pipeline.png)
+
+**The platform watching itself.** Request rate by user, responses by status, latency and
+the busiest routes, as its Prometheus metrics and its audit log recorded them.
+
+![The operations dashboard](docs/images/operations-dashboard.png)
+
+**A tamper-evident audit trail.** Edit one record and it, and every link after it, stop
+verifying - and readiness fails, so a doctored deployment stops taking traffic.
+
+![A tamper-evident audit trail](docs/images/audit-chain.png)
+
+**Nine days, ten releases** - measured from the git tags.
+
+![Nine days, ten releases](docs/images/codebase-growth.png)
 
 **From the benchmark's return to the portfolio's.** The account returned -5.24% against
 -8.30% for its policy benchmark. Brinson-Fachler on local returns, with currency and
@@ -388,6 +440,10 @@ meridian
 │                 counterfactual, TWAP / VWAP / POV / IS (Almgren-Chriss) / Close,
 │                 block allocation, implementation shortfall and impact calibration
 ├── reporting     the client report: every module's pages in one PDF
+├── api           the web platform: FastAPI, JWT and PBKDF2, roles and entitlements,
+│                 rate limits, idempotency keys, four-eyes orders, Prometheus metrics
+├── devtools      the project measured: growth by release, the package graph, a
+│                 working day driven over HTTP
 ├── persistence   SQLAlchemy 2.0 schema, explicit mappers, repositories, unit of work
 ├── marketdata    series, point-in-time storage, sources, adjustment, golden copy
 ├── quality       the data quality rules, the engine and the scoring
@@ -395,7 +451,7 @@ meridian
 ├── services      application processes: the end-of-day pricing, accounting,
 │                 performance, risk, compliance, rebalance and trading runs, the
 │                 demonstration market, book and benchmark
-├── viz           the house chart style and one hundred and seventeen figures
+├── viz           the house chart style and one hundred and thirty-two figures
 ├── cli           a thin Typer layer over tested functions
 ├── gallery       one definition of every chart, used by the docs and the tests
 └── seed          a hand-made demonstration book to run everything against
@@ -440,7 +496,9 @@ reasons without loosening a domain invariant. Analytics code never imports SQLAl
 | Orders | FIX `OrdStatus` as a checked state machine with an audit trail; parent and child orders ([ADR 0036](docs/adr/0036-orders-are-a-checked-state-machine-in-fix-states.md)). |
 | Execution | A minute-by-minute market with the price path without our trades kept, so impact is measured ([ADR 0037](docs/adr/0037-execution-is-simulated-with-the-counterfactual-price-kept.md)); algorithms as schedules, IS by Almgren-Chriss ([ADR 0038](docs/adr/0038-algorithms-are-schedules-and-is-follows-almgren-chriss.md)); blocks allocated at one price ([ADR 0039](docs/adr/0039-block-orders-are-allocated-at-one-price-pro-rata.md)). |
 | Transaction costs and reporting | Implementation shortfall decomposed exactly; the client report built from the modules' own objects ([ADR 0040](docs/adr/0040-the-client-report-is-assembled-from-the-modules-own-objects.md)). |
-| Tests | 1080 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
+| Web platform | The API serves the modules and computes nothing ([ADR 0041](docs/adr/0041-the-api-serves-the-modules-it-does-not-compute.md)); permissions, entitlements and separation of duties ([ADR 0042](docs/adr/0042-permissions-entitlements-and-separation-of-duties.md)); a hash-chained audit log in the readiness probe ([ADR 0043](docs/adr/0043-the-audit-log-is-a-hash-chain.md)); idempotent writes and four-eyes orders ([ADR 0044](docs/adr/0044-writes-are-idempotent-and-orders-need-four-eyes.md)); one-command deployment tested in CI ([ADR 0045](docs/adr/0045-one-command-deployment-with-its-own-observability.md)). |
+| Layering | Every import points down the layers - checked by a test that parses the source. |
+| Tests | 1127 tests, including property-based tests (Hypothesis) for the invariants that must hold for every input: allocation conserves the total, rate conversions round-trip, monotone interpolation stays monotone. |
 | Types | `mypy` with `disallow_untyped_defs` across the package; `ruff` for lint and format. |
 
 ---
@@ -471,7 +529,11 @@ meridian rebalance propose        # today's tax-aware rebalance, as orders
 meridian rebalance run --persist  # the proposal, its orders, lots and frontier, after the controls
 meridian trade run --persist      # the day's orders, fills, allocations and costs, after the controls
 meridian report client --out client-report.pdf   # the nine-page client report
+meridian platform serve           # the web platform on :8000 (OpenAPI at /docs)
 ```
+
+Or the whole stack - PostgreSQL, migrations, the API, Prometheus and Grafana - with
+`docker compose up --build`.
 
 Point it at PostgreSQL by setting one environment variable, with no code change:
 
@@ -512,8 +574,9 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Pre-trade and post-trade compliance](docs/notes/pre-and-post-trade-compliance.md) | Checking orders and baskets, the history replayed, active and passive breaches, the register |
 | [Tax-aware rebalancing](docs/notes/tax-aware-rebalancing.md) | The rebalance as a conic programme over lots, rules that are not convex, orders, the frontier, and tax alpha measured honestly |
 | [Execution and transaction costs](docs/notes/execution-and-transaction-costs.md) | Orders in FIX states, a market with its counterfactual, five algorithms and Almgren-Chriss, allocation, the shortfall decomposed, calibration, the client report |
-| [Chart gallery](docs/GALLERY.md) | All one hundred and seventeen figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Forty records: what was decided, what the alternatives were, and what it costs |
+| [The web platform](docs/notes/the-web-platform.md) | One API over the modules, seven layers of control, roles and entitlements, four eyes, the hash-chained audit log, idempotency, a measured working day, deployment |
+| [Chart gallery](docs/GALLERY.md) | All one hundred and thirty-two figures, with what each one argues |
+| [Architecture decisions](docs/adr) | Forty-five records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -532,7 +595,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 6 | Compliance: a mandate language parsed by Lark, look-through, pre- and post-trade checks, baskets, the breach register | ✅ Done |
 | 7 | Tax-aware optimisation: a conic rebalance over tax lots, wash sales and an active-share floor in rounds, MILP rounding, the tracking-error / tax frontier, tax alpha over simulated years | ✅ Done |
 | 8 | Execution and reporting: orders in FIX states, a simulated intraday market, five algorithms and Almgren-Chriss, block allocation, implementation shortfall, a nine-page client report | ✅ Done |
-| 9 | Platform: web API, role-based access, release | Planned |
+| 9 | Platform: a FastAPI service with JWT, roles and entitlements, a hash-chained audit log, idempotent writes, four-eyes orders, Prometheus and Grafana, Docker Compose; release v1.0.0 | ✅ Done |
 
 ---
 

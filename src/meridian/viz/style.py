@@ -202,7 +202,7 @@ def save_figure(fig: Figure, path: str | Path, *, dpi: int = 150, close: bool = 
     """Write a figure to disk, creating the directory, and return where it landed."""
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(destination, dpi=dpi)
+    fig.savefig(destination, dpi=dpi, facecolor=fig.get_facecolor())  # a dark dashboard keeps its background
     if close:
         plt.close(fig)
     return destination

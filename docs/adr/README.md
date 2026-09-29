@@ -46,3 +46,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0038](0038-algorithms-are-schedules-and-is-follows-almgren-chriss.md) | Algorithms are schedules; IS follows Almgren-Chriss with impact matched to the square-root law | Accepted |
 | [0039](0039-block-orders-are-allocated-at-one-price-pro-rata.md) | Block orders are allocated at one average price, pro rata, by a rule fixed before trading | Accepted |
 | [0040](0040-the-client-report-is-assembled-from-the-modules-own-objects.md) | Cost is implementation shortfall; the client report is assembled from the modules' own objects | Accepted |
+| [0041](0041-the-api-serves-the-modules-it-does-not-compute.md) | The API serves the modules; it does not compute | Accepted |
+| [0042](0042-permissions-entitlements-and-separation-of-duties.md) | Access is permissions and entitlements, with separation of duties built into the matrix | Accepted |
+| [0043](0043-the-audit-log-is-a-hash-chain.md) | The audit log is a hash chain, verified by the readiness probe | Accepted |
+| [0044](0044-writes-are-idempotent-and-orders-need-four-eyes.md) | Writes are idempotent by key; orders are checked pre-trade and need four eyes above a threshold | Accepted |
+| [0045](0045-one-command-deployment-with-its-own-observability.md) | One-command deployment, with its own observability, tested in CI | Accepted |

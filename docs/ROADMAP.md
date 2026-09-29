@@ -271,13 +271,41 @@ replayed, the parse tree of a rule and a one-page compliance report.
 
 **Notes:** [execution and transaction costs](notes/execution-and-transaction-costs.md).
 
-## Day 9 - Platform
+## Day 9 - Platform ✅
 
 **Issue #9.** Making it something a team could run.
 
-- A FastAPI service over the same domain layer, with role-based access control.
-- Audit trail, idempotent endpoints, and OpenAPI documentation.
-- Docker Compose for the whole stack, and release v1.0.0.
+- A FastAPI service over the same domain objects: 21 endpoints, an OpenAPI 3.1 contract
+  in which every endpoint records its permission.
+- Access control:
+  - PBKDF2 passwords and JWT access tokens;
+  - roles as bundles of permissions;
+  - client entitlements that answer as if absent;
+  - separation of duties;
+  - a token-bucket rate limit.
+- A hash-chained audit log of every request, verified by the readiness probe;
+  idempotent writes; orders checked pre-trade and approved by a second person above a
+  threshold.
+- Prometheus metrics, a provisioned Grafana dashboard, a multi-stage non-root image,
+  and Docker Compose for the whole stack, built and smoke-tested in CI.
+- The project measured: its growth over the release tags, its package graph (every
+  import points down, checked by a test), and a working day driven over HTTP.
+- Release v1.0.0.
+
+**Charts:** fifteen, including:
+- the architecture;
+- the seven layers a request crosses;
+- the role matrix;
+- the API surface;
+- latency by endpoint;
+- the operations dashboard;
+- the audit chain;
+- four eyes;
+- the deployment;
+- the package graph;
+- the growth over nine days.
+
+**Notes:** [the web platform](notes/the-web-platform.md).
 
 ---
 

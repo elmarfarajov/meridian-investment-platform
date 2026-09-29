@@ -1,0 +1,76 @@
+# The whole platform on one machine:
+#
+#   docker compose up --build
+#
+#   API          http://localhost:8000/docs   (sign in as pm / pm-demo-2026 and friends)
+#   Grafana      http://localhost:3000        (the Meridian dashboard is provisioned)
+#   Prometheus   http://localhost:9090
+#
+# PostgreSQL holds the platform's data; a one-off service runs the Alembic
+# migrations before the API starts; Prometheus scrapes the API's /metrics.
+
+name: meridian
+
+x-meridian-environment: &meridian-environment
+  MERIDIAN_DATABASE_URL: postgresql+psycopg://meridian:meridian@db:5432/meridian
+  MERIDIAN_JWT_SECRET: ${MERIDIAN_JWT_SECRET:-compose-only-secret-replace-before-any-real-use-0123456789}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: meridian
+      POSTGRES_PASSWORD: meridian
+      POSTGRES_DB: meridian
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meridian -d meridian"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build: .
+    image: meridian-platform:1.0.0
+    command: ["alembic", "upgrade", "head"]
+    environment: *meridian-environment
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    image: meridian-platform:1.0.0
+    environment: *meridian-environment
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/meridian.json
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:

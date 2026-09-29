@@ -697,3 +697,67 @@ class TransactionCostRow(TimestampMixin, Base):
     opportunity: Mapped[float] = mapped_column(Float)
     fees: Mapped[float] = mapped_column(Float)
     shortfall: Mapped[float] = mapped_column(Float)
+
+
+class PlatformUserRow(TimestampMixin, Base):
+    """A user of the web platform: a salted password hash, roles, and the portfolios a client may see."""
+
+    __tablename__ = "platform_users"
+
+    username: Mapped[str] = mapped_column(String(64), primary_key=True)
+    full_name: Mapped[str] = mapped_column(String(128))
+    password_hash: Mapped[str] = mapped_column(String(256))
+    roles: Mapped[str] = mapped_column(String(256))  # comma-separated
+    portfolios: Mapped[str | None] = mapped_column(String(512))  # comma-separated; None for staff (all)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AuditLogRow(Base):
+    """One request to the platform, chained to the previous record by a SHA-256 hash."""
+
+    __tablename__ = "audit_log"
+
+    sequence: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    request_id: Mapped[str] = mapped_column(String(64))
+    username: Mapped[str | None] = mapped_column(String(64), index=True)
+    method: Mapped[str] = mapped_column(String(8))
+    path: Mapped[str] = mapped_column(String(256))
+    status: Mapped[int] = mapped_column(Integer)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128))
+    detail: Mapped[str | None] = mapped_column(String(512))
+    previous_hash: Mapped[str] = mapped_column(String(64))
+    record_hash: Mapped[str] = mapped_column(String(64))
+
+
+class IdempotencyKeyRow(TimestampMixin, Base):
+    """A write request's key, its fingerprint and the response it produced, so a retry gets the same answer."""
+
+    __tablename__ = "idempotency_keys"
+
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), primary_key=True)
+    method: Mapped[str] = mapped_column(String(8))
+    path: Mapped[str] = mapped_column(String(256))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[int] = mapped_column(Integer)
+    response_body: Mapped[str] = mapped_column(String(20000))
+
+
+class OrderRequestRow(TimestampMixin, Base):
+    """An order entered through the platform: its pre-trade decision and its four-eyes approval."""
+
+    __tablename__ = "order_requests"
+
+    order_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    portfolio_id: Mapped[str] = mapped_column(String(64), index=True)
+    instrument_id: Mapped[str] = mapped_column(String(64))
+    side: Mapped[str] = mapped_column(String(4))
+    amount: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(24))  # pending approval | approved | rejected
+    pretrade_decision: Mapped[str] = mapped_column(String(24))
+    pretrade_reasons: Mapped[str] = mapped_column(String(2000))
+    created_by: Mapped[str] = mapped_column(String(64))
+    decided_by: Mapped[str | None] = mapped_column(String(64))
+    decision_note: Mapped[str | None] = mapped_column(String(512))

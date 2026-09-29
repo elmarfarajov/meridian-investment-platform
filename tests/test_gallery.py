@@ -25,6 +25,7 @@ GROUPS = {
     "optimisation",
     "execution",
     "reporting",
+    "web platform",
     "platform",
 }
 

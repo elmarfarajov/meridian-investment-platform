@@ -20,7 +20,9 @@ written in the Meridian mandate language and checked on every day of its history
 optimisation figures come from the same account rebalanced by the tax-aware optimiser, and
 from a tax-alpha simulation on the factor model's universe. The execution figures come from
 that rebalance traded the next day through a simulated intraday market, and the reporting
-figures are pages of the client report assembled from all of it.
+figures are pages of the client report assembled from all of it. The web platform figures
+are drawn from the application itself (its role matrix and OpenAPI document), from a
+working day driven over HTTP, from the source's import graph and from the release tags.
 
 ---
 ### Calendars
@@ -518,6 +520,68 @@ figures are pages of the client report assembled from all of it.
 **Client report: trading and costs** - The account's share of the block orders, the prices it received and what trading cost.
 
 ![Client report: trading and costs](images/client-report-trading.png)
+
+### Web Platform
+
+**The architecture** - Users, the API and its seven controls, the nine modules, storage and operations.
+
+![The architecture](images/platform-architecture.png)
+
+**Seven layers between a request and the data** - A working day's requests, and what each layer stopped.
+
+![Seven layers between a request and the data](images/request-pipeline.png)
+
+**Role-based access control** - Permissions by role, with separation of duties.
+
+![Role-based access control](images/rbac-matrix.png)
+
+**The API surface** - Every endpoint and the permission it requires, read from the OpenAPI document.
+
+![The API surface](images/api-surface.png)
+
+**Latency, endpoint by endpoint** - Every request of the working day, with its median and 95th percentile.
+
+![Latency, endpoint by endpoint](images/api-latency.png)
+
+**The operations dashboard** - Request rate by user, statuses, latency and the busiest routes.
+
+![The operations dashboard](images/operations-dashboard.png)
+
+**A tamper-evident audit trail** - The hash chain, an edited record caught, and the cost of verifying.
+
+![A tamper-evident audit trail](images/audit-chain.png)
+
+**Who was refused, and why** - Each person's requests by the platform's answer.
+
+![Who was refused, and why](images/access-outcomes.png)
+
+**Orders under four eyes** - Pre-trade checks, the approval threshold and the second person.
+
+![Orders under four eyes](images/four-eyes.png)
+
+**Deployment** - The Docker Compose topology: database, migrations, API, Prometheus, Grafana.
+
+![Deployment](images/deployment-topology.png)
+
+**The package graph** - Which package imports which, parsed from the source.
+
+![The package graph](images/package-graph.png)
+
+**The tests** - Test functions by area, property-based among them, and what CI runs.
+
+![The tests](images/test-landscape.png)
+
+**Security controls** - The OWASP API Security Top 10 mapped to controls and the tests that prove them.
+
+![Security controls](images/security-controls.png)
+
+**Nine days, ten releases** - Code, tests, figures and decisions at every release tag.
+
+![Nine days, ten releases](images/codebase-growth.png)
+
+**Nine days, one platform** - Each day's module and its headline chart.
+
+![Nine days, one platform](images/nine-days.png)
 
 ### Platform
 
