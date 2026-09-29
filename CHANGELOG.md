@@ -4,6 +4,58 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-09-30
+
+Day 9: the platform. One web service over the eight modules, with the controls a
+regulated firm needs, and the whole stack runnable with one command. Release 1.0.0.
+
+### Added
+
+- **The API** (`api/`): FastAPI with 21 endpoints under `/v1`:
+  - portfolios with valuation, performance, attribution, risk, compliance and tax lots;
+  - pre-trade checks and rebalance proposals;
+  - orders with four-eyes decisions;
+  - trading costs, the client report as a PDF, and the audit log.
+  Every response is a Pydantic model, errors are RFC 9457 problem details, and the
+  OpenAPI 3.1 document records each endpoint's permission as `x-permission`. The API
+  serves the modules through a data facade and computes nothing of its own.
+- **Access control** (`api/security.py`):
+  - PBKDF2-HMAC-SHA256 passwords at 600,000 iterations;
+  - HS256 JWTs with issuer and expiry;
+  - six roles as bundles of twelve permissions, and client entitlements answered as
+    absent;
+  - separation of duties, and a token-bucket rate limit with `Retry-After`;
+  - refusal to start in production with the development key.
+- **A tamper-evident audit log** (`core/audit_chain.py`): every request chained by
+  SHA-256, verified at `/v1/audit/verify` and by the readiness probe, appended
+  optimistically across worker processes.
+- **Idempotent writes** by `Idempotency-Key`, and **four-eyes orders**: checked against
+  the Day 6 mandate, approved by a second person above $250,000 or when an override is
+  needed, never by their author.
+- **Observability**: Prometheus metrics (requests, latency histograms, refusals, audit
+  records and failures) and a provisioned Grafana dashboard.
+- **Deployment**:
+  - a multi-stage, non-root, health-checked image, with dependencies in their own
+    cached layer;
+  - Docker Compose with PostgreSQL 16, a migration job, the API, Prometheus and
+    Grafana;
+  - a CI job that builds the stack and smoke-tests it.
+- **Persistence**: `platform_users`, `audit_log`, `idempotency_keys` and
+  `order_requests`, in migration 0009.
+- **`meridian platform`**: `serve`, `users`, `add-user`, `verify-audit`, `openapi`.
+- **The project measured** (`devtools/`):
+  - growth at every release tag;
+  - the package graph, with a test that every import points down the layers;
+  - a working day driven over HTTP against the real modules.
+- **Fifteen charts** (one hundred and thirty-two in the gallery), a methodology note and
+  ADRs 0041 to 0045.
+
+### Changed
+
+- The workload simulator lives in `devtools`, not `services`, and the hash chain lives in
+  `core`. The layering test found two imports pointing up; both were moved rather than
+  excused.
+
 ## [0.9.0] - 2026-09-29
 
 Day 8: execution and reporting. The Day 7 rebalance traded: block orders across three
@@ -463,6 +515,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[1.0.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.0.0
 [0.9.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.9.0
 [0.8.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.8.0
 [0.7.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.7.0
