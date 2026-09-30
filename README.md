@@ -127,7 +127,7 @@ meridian compliance check
 
 meridian compliance pretrade US-MSFT 100000
 # Blocked: single issuer 10.29% -> 12.28% against a 12% hard limit. The
-# largest purchase the hard limits allow is 85,976 dollars.
+# largest purchase the hard limits allow is 85,978 dollars.
 
 meridian compliance replay
 # The book's 43 historical orders through the pre-trade check it never had:

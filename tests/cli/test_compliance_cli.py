@@ -41,7 +41,7 @@ def test_check_today_and_a_past_day():
 
 def test_pretrade_blocks_and_allows():
     blocked = invoke("pretrade", "US-MSFT", "100000")
-    assert "blocked" in blocked and "85,976" in blocked
+    assert "blocked" in blocked and "85,978" in blocked
     assert "allowed" in invoke("pretrade", "US-MSFT", "50000", "--side", "sell")
     assert runner.invoke(app, ["compliance", "pretrade", "US-MSFT", "9000000", "--side", "sell"]).exit_code == 1
 

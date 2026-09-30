@@ -16,6 +16,12 @@ function, so it always overestimates the loss from a rise in yields and
 underestimates the gain from a fall. Convexity is the second-order correction,
 and for a large move it is not a rounding error.
 
+*Some bonds trade ex-dividend.* A UK gilt bought in the seven business days before
+a coupon settles without that coupon: the seller keeps it. The buyer is compensated
+by *negative* accrued interest for the days the seller holds the bond but not its
+coupon. The price from a yield leaves the coupon out. Both follow the UK Debt
+Management Office's formulae, and QuantLib's ``exCouponPeriod``.
+
 *Discounting off a curve is not the same as discounting at a yield.* The yield is
 one number for the whole bond; the curve prices each cash flow at its own rate.
 Both are implemented here, and the difference between them is the bond's spread.
@@ -29,14 +35,24 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from ..core.calendars import BusinessDayConvention, get_calendar
 from ..core.compounding import Compounding
 from ..core.daycount import DayCountConvention, year_fraction
 from ..core.decimals import to_decimal
 from ..core.enums import Frequency
 from ..core.exceptions import ValidationError
-from ..core.schedules import Schedule, generate_schedule
+from ..core.schedules import Schedule, SchedulePeriod, generate_schedule
 from .curves import YieldCurve
 from .solvers import solve
+
+_THIRTY_360 = frozenset(
+    {
+        DayCountConvention.THIRTY_360_US,
+        DayCountConvention.THIRTY_360_BOND_BASIS,
+        DayCountConvention.THIRTY_E_360,
+        DayCountConvention.THIRTY_E_360_ISDA,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +83,7 @@ class FixedRateBond:
     day_count: DayCountConvention = DayCountConvention.THIRTY_360_US
     settlement_lag: int = 1
     name: str = "bond"
+    ex_dividend_days: int = 0  # business days before a coupon when the bond goes ex (gilts: 7)
 
     @classmethod
     def create(
@@ -80,14 +97,32 @@ class FixedRateBond:
         calendar: str = "SIFMA",
         day_count: DayCountConvention = DayCountConvention.THIRTY_360_US,
         name: str = "bond",
+        ex_dividend_days: int = 0,
+        convention: BusinessDayConvention = BusinessDayConvention.MODIFIED_FOLLOWING,
     ) -> FixedRateBond:
-        schedule = generate_schedule(issue_date, maturity, frequency, calendar=calendar)
+        schedule = generate_schedule(issue_date, maturity, frequency, calendar=calendar, convention=convention)
         return cls(
             face_value=face_value,
             coupon_rate=coupon_rate,
             schedule=schedule,
             day_count=day_count,
             name=name,
+            ex_dividend_days=ex_dividend_days,
+        )
+
+    @classmethod
+    def gilt(cls, *, issue_date: date, maturity: date, coupon_rate: float, name: str = "gilt") -> FixedRateBond:
+        """A conventional UK gilt: semi-annual, ACT/ACT ICMA, London calendar, seven business days ex-dividend."""
+        return cls.create(
+            issue_date=issue_date,
+            maturity=maturity,
+            coupon_rate=coupon_rate,
+            frequency=Frequency.SEMI_ANNUAL,
+            calendar="XLON",
+            day_count=DayCountConvention.ACT_ACT_ICMA,
+            name=name,
+            ex_dividend_days=7,
+            convention=BusinessDayConvention.FOLLOWING,  # a coupon on a holiday is paid the next business day
         )
 
     # ------------------------------------------------------------------ structure
@@ -123,16 +158,43 @@ class FixedRateBond:
             )
             amount = self.face_value * self.coupon_rate * fraction
             is_final = index == len(periods) - 1 and period.end == self.maturity
+            if index == 0 and settlement is not None and self._ex_period(settlement) == period:
+                if not is_final:
+                    continue  # the seller keeps this coupon
+                amount = 0.0
             flows.append(
                 CashFlow(
                     payment_date=period.payment_date,
                     amount=amount + (self.face_value if is_final else 0.0),
-                    kind="coupon+redemption" if is_final else "coupon",
+                    kind=("coupon+redemption" if amount else "redemption") if is_final else "coupon",
                     accrual_start=period.start,
                     accrual_end=period.end,
                 )
             )
         return tuple(flows)
+
+    # ------------------------------------------------------------------ ex-dividend
+
+    def ex_dividend_date(self, period: SchedulePeriod) -> date | None:
+        """The first day a buyer no longer receives this period's coupon, if the bond trades ex.
+
+        Counted back in business days from the coupon's nominal date, not from the day it
+        is paid when that is later - the DMO's rule, and QuantLib's.
+        """
+        if not self.ex_dividend_days:
+            return None
+        return get_calendar(self.schedule.calendar_name).add_business_days(period.end, -self.ex_dividend_days)
+
+    def is_ex_dividend(self, settlement: date) -> bool:
+        period = self.schedule.period_containing(settlement)
+        if period is None or settlement <= period.start:
+            return False
+        ex_date = self.ex_dividend_date(period)
+        return ex_date is not None and settlement >= ex_date
+
+    def _ex_period(self, settlement: date) -> SchedulePeriod | None:
+        """The period whose coupon the seller keeps, when settlement falls in its ex-dividend window."""
+        return self.schedule.period_containing(settlement) if self.is_ex_dividend(settlement) else None
 
     # ------------------------------------------------------------------ accrued
 
@@ -141,6 +203,20 @@ class FixedRateBond:
         period = self.schedule.period_containing(settlement)
         if period is None or settlement <= period.start:
             return 0.0
+        if self.is_ex_dividend(settlement):
+            # the buyer is owed interest for the days to a coupon it will not receive
+            owed = float(
+                year_fraction(
+                    settlement,
+                    period.end,
+                    self.day_count,
+                    period_start=period.start,
+                    period_end=period.end,
+                    frequency=self.frequency,
+                    calendar=self.schedule.calendar_name,
+                )
+            )
+            return -self.face_value * self.coupon_rate * owed
         earned = float(
             year_fraction(
                 period.start,
@@ -193,8 +269,18 @@ class FixedRateBond:
             return []
         first = periods[0]
         span = (first.end - first.start).days
-        unexpired = 1.0 if settlement <= first.start or span <= 0 else (first.end - settlement).days / span
-        return [unexpired + index for index in range(len(periods))]
+        if settlement <= first.start or span <= 0:
+            unexpired = 1.0
+        elif self.day_count in _THIRTY_360:
+            # DSC/E on the bond's own basis: 30/360 days, as SIFMA's Standard Securities
+            # Calculation Methods define it, not calendar days
+            unexpired = float(year_fraction(settlement, first.end, self.day_count)) * self.frequency
+        else:
+            unexpired = (first.end - settlement).days / span
+        grid = [unexpired + index for index in range(len(periods))]
+        if self._ex_period(settlement) == first and len(periods) > 1:
+            grid = grid[1:]  # the coupon the seller keeps is not one of the buyer's flows
+        return grid
 
     def yield_to_maturity(self, clean_price: float, settlement: date, guess: float = 0.05) -> float:
         """The single discount rate that reproduces the quoted price."""
