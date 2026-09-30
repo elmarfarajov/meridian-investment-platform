@@ -117,7 +117,7 @@ follow_imports = "skip"
 follow_imports_for_stubs = true
 
 [[tool.mypy.overrides]]
-module = ["matplotlib.*", "pandas.*", "structlog.*", "scipy.*", "arch.*", "sklearn.*", "cvxpy", "cvxpy.*"]
+module = ["matplotlib.*", "pandas.*", "structlog.*", "scipy.*", "arch.*", "sklearn.*", "cvxpy", "cvxpy.*", "QuantLib", "QuantLib.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]

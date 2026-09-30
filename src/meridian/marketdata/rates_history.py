@@ -154,3 +154,30 @@ def gsw_curve() -> tuple[tuple[SvenssonParameters, ...], np.ndarray]:
             [float(row[f"SVENY{tenor:02d}"]) if row[f"SVENY{tenor:02d}"] != "NA" else np.nan for tenor in GSW_TENORS]
         )
     return tuple(parameters), np.array(yields)
+
+
+# Typical SOFR swap spreads to Treasuries, in basis points, by tenor in years. Long swap
+# spreads have been negative since 2015: the balance-sheet cost of holding Treasuries
+# outweighs their credit advantage over a cleared swap.
+_SWAP_SPREADS_BP = ((0.0, -3.0), (1.0, -8.0), (2.0, -18.0), (3.0, -24.0), (5.0, -32.0), (7.0, -38.0),
+                    (10.0, -45.0), (20.0, -70.0), (30.0, -80.0), (50.0, -85.0))  # fmt: skip
+
+
+def illustrative_sofr_quotes(day: date, tenors: Sequence[str] | None = None) -> tuple[float, ...]:
+    """SOFR OIS quotes for a day: the Treasury par curve plus typical swap spreads.
+
+    These are **illustrative**, not market data. Cleared SOFR swap quotes are not
+    published free of charge. Anchoring them to the real Treasury curve of the day
+    gives a curve with the right level and shape to build and to test against.
+    """
+    from ..analytics.curve_building import SOFR_TENORS, Tenor
+
+    curve = par_curve_on(day)
+    names = tuple(tenors or SOFR_TENORS)
+    spread_x, spread_y = zip(*_SWAP_SPREADS_BP, strict=True)
+    quotes = []
+    for name in names:
+        years = Tenor.parse(name).years
+        treasury = float(np.interp(years, curve.tenors, curve.yields))  # flat beyond 30 years
+        quotes.append(round(treasury + float(np.interp(years, spread_x, spread_y)) / 10_000, 6))
+    return tuple(quotes)
