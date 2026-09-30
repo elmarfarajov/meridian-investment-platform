@@ -108,10 +108,11 @@ class NelsonSiegelSvensson:
                 factor = float(self.discount_factors([tenor])[0])
                 result.append((1 / factor - 1) / tenor)
                 continue
-            count = round(tenor * frequency)
+            count = math.ceil(tenor * frequency - 1e-9)
             times = tenor - step * np.arange(count)[::-1]
             factors = self.discount_factors(times)
-            result.append(frequency * (1 - factors[-1]) / factors.sum())
+            elapsed = max(0.0, 1.0 - times[0] * frequency)  # accrued share of a short first period
+            result.append(frequency * (1 - factors[-1]) / (factors.sum() - elapsed))
         return np.array(result)
 
     @classmethod
@@ -168,12 +169,16 @@ def fit_par_curve(
     svensson: bool = True,
     frequency: int = 2,
     starting_zeros: Sequence[float] | None = None,
+    initial: NelsonSiegelSvensson | None = None,
 ) -> CurveFit:
     """Fit Nelson-Siegel (``svensson=False``) or Svensson to par yields in decimals.
 
     ``starting_zeros`` - zero rates at the same tenors, from a bootstrap - seed the
     grid search. Without them the par yields themselves are used, which is a fair
     first guess on an upward-sloping curve and a poorer one on an inverted curve.
+    ``initial`` - the previous day's fit, say - skips the grid and refines from there,
+    which is how a long series is fitted quickly and without hopping between local
+    minima.
     """
     t = np.asarray(tenors, dtype=float)
     observed = np.asarray(par_yields, dtype=float)
@@ -190,6 +195,8 @@ def fit_par_curve(
         error = float(np.sum((candidate.par_yields(t, frequency) - observed) ** 2))
         starts.append((error, candidate))
     starts.sort(key=lambda item: item[0])
+    if initial is not None:
+        starts = [(0.0, initial)]
 
     # 2. refine the best few starts against the par yields themselves
     def residuals(x: np.ndarray) -> np.ndarray:

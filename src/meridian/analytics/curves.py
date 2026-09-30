@@ -182,6 +182,11 @@ class YieldCurve:
         Inside the first coupon period there is no coupon to pay, so the quote is a
         money-market rate on a simple basis - which is how the short end is quoted,
         and what keeps this consistent with the deposits used to bootstrap it.
+
+        Between coupon dates (a 0.8-year bond, say) the first period is short and part
+        of it has already accrued, so a bond priced at par *clean* satisfies
+        ``c/f * (sum of DF - a) + DF(T) = 1``, where ``a`` is the elapsed share of that
+        period. Leaving ``a`` out draws a sawtooth between coupon dates.
         """
         if tenor <= 1.0 / frequency + 1e-9:
             factor = self.discount_factor(tenor)
@@ -190,7 +195,8 @@ class YieldCurve:
         if not times:
             raise CurveError(f"A {tenor}y par rate needs at least one coupon date")
         factors = [self.discount_factor(time) for time in times]
-        annuity = sum(factors) / frequency
+        elapsed = max(0.0, 1.0 - times[0] * frequency)  # the accrued share of a short first period
+        annuity = (sum(factors) - elapsed) / frequency
         if annuity <= 0:
             raise CurveError("Degenerate annuity; the curve cannot produce a par rate here")
         return (1.0 - factors[-1]) / annuity

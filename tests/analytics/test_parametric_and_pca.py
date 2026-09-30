@@ -1,6 +1,7 @@
 """Nelson-Siegel-Svensson against the Federal Reserve's own curve, and PCA against Litterman-Scheinkman."""
 
 from datetime import date
+from itertools import pairwise
 
 import numpy as np
 import pytest
@@ -127,3 +128,16 @@ def test_pca_needs_a_matrix_with_enough_days():
         curve_pca([date(2026, 1, 1)], np.zeros((1, 3)), ["a", "b", "c"], [1, 2, 3])
     with pytest.raises(ValidationError):
         curve_pca([date(2026, 1, 1)] * 20, np.zeros((20, 3)), ["a", "b"], [1, 2])
+
+
+def test_par_yields_between_coupon_dates_are_smooth_not_a_sawtooth():
+    from meridian.gallery import reference_curve
+
+    curve = reference_curve()
+    model = NelsonSiegelSvensson(0.042, -0.015, 0.02, -0.01, 1.8, 11.0)
+    grid = [0.55 + step / 100 for step in range(0, 950)]
+    curve_jumps = max(abs(curve.par_rate(b) - curve.par_rate(a)) for a, b in pairwise(grid))
+    model_yields = model.par_yields(grid)
+    # a hundredth of a year apart, the par yield moves by a fraction of a basis point; the sawtooth moved it by tens
+    assert curve_jumps * 1e4 < 1.0
+    assert np.max(np.abs(np.diff(model_yields))) * 1e4 < 1.0
