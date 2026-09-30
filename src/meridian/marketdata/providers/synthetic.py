@@ -357,7 +357,8 @@ class SyntheticMarket:
     def _price_path(
         self, rng: np.random.Generator, spec: InstrumentSpec, grid: list[date], daily: np.ndarray
     ) -> tuple[list[Quote], list[CorporateAction], TimeSeries, list[float]]:
-        calendar = get_calendar(spec.calendar)
+        # the scheduled sessions: a later-recorded closure must not reshuffle the simulated history
+        calendar = get_calendar(spec.calendar).scheduled()
         trading = [index for index, day in enumerate(grid) if calendar.is_business_day(day)]
         if len(trading) < 2:
             raise ValidationError(f"{spec.instrument_id}: fewer than two trading days in the requested window")

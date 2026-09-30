@@ -168,7 +168,7 @@ class FaultInjector:
                 continue
             if spec.key not in quotes:
                 raise ValidationError(f"no quotes for {spec.key} to damage")
-            calendar = get_calendar(calendar_map.get(spec.key, "XNYS"))
+            calendar = get_calendar(calendar_map.get(spec.key, "XNYS")).scheduled()
             faults.append(self._damage(quotes[spec.key], spec, calendar, rng))
 
         damaged = MarketDataset.from_records(
