@@ -438,6 +438,21 @@ class SyntheticMarket:
                 )
             )
 
+        # Published on the actual calendar: a special closure removes that day's quote, and
+        # its move is priced at the next open - the random path itself is untouched.
+        actual = get_calendar(spec.calendar)
+        sessions = [grid[index] for index in trading]
+        if not all(actual.is_business_day(day) for day in sessions):
+            merged: list[float] = []
+            carried = 0.0
+            for day, value in zip(sessions[1:], returns, strict=True):
+                carried += value
+                if actual.is_business_day(day):
+                    merged.append(carried)
+                    carried = 0.0
+            returns = merged
+            quotes = [quote for quote in quotes if actual.is_business_day(quote.day)]
+            economic_points = [(day, value) for day, value in economic_points if actual.is_business_day(day)]
         economic = TimeSeries(
             ((day, _round(value, 8)) for day, value in economic_points), name=f"{spec.instrument_id} (economic)"
         )
