@@ -50,7 +50,7 @@ def test_bond_solves_a_yield_from_a_price():
     )
     assert result.exit_code == 0
     assert "Yield to maturity" in result.stdout
-    assert "4.500" in result.stdout
+    assert "4.4998" in result.stdout  # DSC/E counted on 30/360: 54 days to the coupon, not 55
     assert "Modified duration" in result.stdout
 
 
@@ -150,3 +150,19 @@ def test_charts_schema_writes_the_diagram(tmp_path):
     result = runner.invoke(app, ["charts", "schema", "--out", str(destination)])
     assert result.exit_code == 0
     assert destination.exists()
+
+
+def test_the_treasury_curve_of_a_real_day_is_bootstrapped_and_fitted():
+    result = runner.invoke(app, ["rates", "treasury", "2019-08-28"], env={"COLUMNS": "160"})
+    assert result.exit_code == 0, result.output
+    assert "2019-08-28" in result.output and "Svensson RMSE" in result.output
+    assert runner.invoke(app, ["rates", "treasury", "1985-01-02"]).exit_code == 1
+
+
+def test_validation_against_quantlib_from_the_command_line():
+    import pytest
+
+    pytest.importorskip("QuantLib")
+    result = runner.invoke(app, ["rates", "validate"], env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    assert "checks passed" in result.output and "XETR" in result.output
