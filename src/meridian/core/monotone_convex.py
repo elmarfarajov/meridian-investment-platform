@@ -80,10 +80,18 @@ class MonotoneConvex:
     @staticmethod
     def _g(x: float, g0: float, g1: float) -> tuple[float, float]:
         """The correction and its integral from 0 to x, for end values g0 and g1."""
+        # An end that equals the discrete forward in exact arithmetic arrives as rounding noise
+        # (1e-17), and the region formulas would turn it into a transition 1e-15 wide - a jump
+        noise = 1e-9 * max(abs(g0), abs(g1))
+        g0 = 0.0 if abs(g0) <= noise else g0
+        g1 = 0.0 if abs(g1) <= noise else g1
         if g0 == 0 and g1 == 0:
             return 0.0, 0.0
-        if (g0 < 0 and -0.5 * g0 <= g1 <= -2 * g0) or (g0 > 0 and -0.5 * g0 >= g1 >= -2 * g0):
-            # region (i): a plain quadratic already stays within its bounds
+        if g0 == 0 or g1 == 0 or (g0 < 0 and -0.5 * g0 <= g1 <= -2 * g0) or (g0 > 0 and -0.5 * g0 >= g1 >= -2 * g0):
+            # region (i): a plain quadratic already stays within its bounds. It also takes the
+            # axes, where one end sits exactly on the discrete forward: there the monotone
+            # shapes of regions (ii)-(iv) collapse into a jump, and the quadratic is the only
+            # continuous choice that integrates to zero.
             value = g0 * (1 - 4 * x + 3 * x * x) + g1 * (-2 * x + 3 * x * x)
             integral = g0 * (x - 2 * x * x + x**3) + g1 * (-(x * x) + x**3)
             return value, integral

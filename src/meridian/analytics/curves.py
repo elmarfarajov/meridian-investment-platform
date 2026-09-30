@@ -119,9 +119,13 @@ class YieldCurve:
                 (0.0, *self.years), (1.0, *self._pillar_factors), InterpolationMethod.LOG_LINEAR
             )
             self._interpolates_factors = True
+        elif len(self.years) == 1:
+            # one pillar is a flat curve whatever the method; the first step of a bootstrap needs it
+            self._interpolator = make_interpolator(
+                (self.years[0], self.years[0] + 1.0), (self.rates[0], self.rates[0]), InterpolationMethod.LINEAR
+            )
         else:
             self._interpolator = make_interpolator(self.years, self.rates, self.interpolation)
-            self._interpolates_factors = False
 
     # ------------------------------------------------------------------ lookups
 
