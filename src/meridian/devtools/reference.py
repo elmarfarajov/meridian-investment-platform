@@ -57,6 +57,7 @@ class KnownDifference:
     applies: Callable[[date], bool]
     reason: str
     evidence: str
+    label: str = ""
 
 
 def _japan_equinox_before_2000(day: date) -> bool:
@@ -74,6 +75,7 @@ KNOWN_DIFFERENCES: tuple[KnownDifference, ...] = (
         lambda day: day.month == 12 and day.day == 31,
         "Meridian closes Xetra on New Year's Eve; QuantLib's Xetra calendar trades.",
         "Deutsche Boerse's published Xetra trading calendar lists 31 December as a non-trading day.",
+        "Xetra closes on New Year's Eve (Deutsche Boerse)",
     ),
     KnownDifference(
         "calendars",
@@ -82,6 +84,7 @@ KNOWN_DIFFERENCES: tuple[KnownDifference, ...] = (
         "QuantLib's equinox formula for 1980-1999 is a day early in several years.",
         "Meeus's algorithm (Astronomical Algorithms, ch. 27) puts the 1990 vernal equinox at 21:19 UTC on "
         "20 March - 21 March in Tokyo - which is when Japan observed it.",
+        "QuantLib's equinox a day early before 2000",
     ),
     KnownDifference(
         "calendars",
@@ -90,6 +93,7 @@ KNOWN_DIFFERENCES: tuple[KnownDifference, ...] = (
         "QuantLib applies the 2007 substitute-holiday rule to earlier years.",
         "Before the 2005 amendment took effect in 2007, a Sunday holiday was substituted only by the "
         "Monday after it, so 6 May was a business day in 1992, 1997, 1998 and 2003.",
+        "QuantLib's 2007 substitute rule applied earlier",
     ),
     KnownDifference(
         "bonds",
@@ -99,6 +103,7 @@ KNOWN_DIFFERENCES: tuple[KnownDifference, ...] = (
         "(last coupon to settlement), which counts the 31st as the 31st when it ends a period.",
         "SIFMA's Standard Securities Calculation Methods count DSC from settlement, so the 31st is the 30th; "
         "summing QuantLib's own day counter from settlement reproduces Meridian's price exactly.",
+        "30/360 is not additive",
     ),
 )
 
@@ -345,8 +350,7 @@ def compare_gilt(start: date = date(2025, 12, 1), end: date = date(2026, 9, 1)) 
             ex_days += ours.is_ex_dividend(day)
         day += timedelta(days=1)
     return [
-        Check("gilts", f"{key} ({ex_days} of {days} days ex-dividend)", days, value, 1e-10)
-        for key, value in worst.items()
+        Check("gilts", f"gilt {key} ({ex_days} of {days} days ex)", days, value, 1e-10) for key, value in worst.items()
     ]
 
 
