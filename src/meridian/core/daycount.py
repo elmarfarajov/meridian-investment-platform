@@ -37,6 +37,7 @@ class DayCountConvention(str, Enum):
     ACT_ACT_ISDA = "ACT/ACT ISDA"
     ACT_ACT_ICMA = "ACT/ACT ICMA"
     THIRTY_360_US = "30/360 US"
+    THIRTY_360_BOND_BASIS = "30/360 Bond Basis"
     THIRTY_E_360 = "30E/360"
     THIRTY_E_360_ISDA = "30E/360 ISDA"
     BUS_252 = "BUS/252"
@@ -55,6 +56,7 @@ class DayCountConvention(str, Enum):
             DayCountConvention.ACT_ACT_ISDA: "365 or 366, per calendar year",
             DayCountConvention.ACT_ACT_ICMA: "coupon period x frequency",
             DayCountConvention.THIRTY_360_US: "360",
+            DayCountConvention.THIRTY_360_BOND_BASIS: "360",
             DayCountConvention.THIRTY_E_360: "360",
             DayCountConvention.THIRTY_E_360_ISDA: "360",
             DayCountConvention.BUS_252: "252",
@@ -62,6 +64,7 @@ class DayCountConvention(str, Enum):
 
 
 def _days_360(start: date, end: date, *, european: bool) -> int:
+    """30E/360 when ``european``; otherwise the ISDA 2006 Bond Basis (section 4.16(f))."""
     d1, d2 = start.day, end.day
     if european:
         d1 = min(d1, 30)
@@ -71,6 +74,27 @@ def _days_360(start: date, end: date, *, european: bool) -> int:
             d1 = 30
         if d2 == 31 and d1 == 30:
             d2 = 30
+    return 360 * (end.year - start.year) + 30 * (end.month - start.month) + (d2 - d1)
+
+
+def _days_30_360_us(start: date, end: date) -> int:
+    """30/360 US, as SIFMA's Standard Securities Calculation Methods define it.
+
+    It is the Bond Basis plus two February rules: the last day of February counts as
+    the 30th when it starts a period, and when it ends a period that also started on
+    the last day of February. Without them, a bond paying on the last day of February
+    accrues two days too few or too many across February.
+    """
+    d1, d2 = start.day, end.day
+    start_is_february_end = start.month == 2 and _is_last_day_of_month(start)
+    if start_is_february_end and end.month == 2 and _is_last_day_of_month(end):
+        d2 = 30
+    if start_is_february_end:
+        d1 = 30
+    if d2 == 31 and d1 >= 30:
+        d2 = 30
+    if d1 == 31:
+        d1 = 30
     return 360 * (end.year - start.year) + 30 * (end.month - start.month) + (d2 - d1)
 
 
@@ -126,6 +150,8 @@ def year_fraction(
     if convention is DayCountConvention.ACT_365_25:
         return to_decimal((end - start).days) / Decimal("365.25")
     if convention is DayCountConvention.THIRTY_360_US:
+        return to_decimal(_days_30_360_us(start, end)) / Decimal(360)
+    if convention is DayCountConvention.THIRTY_360_BOND_BASIS:
         return to_decimal(_days_360(start, end, european=False)) / Decimal(360)
     if convention is DayCountConvention.THIRTY_E_360:
         return to_decimal(_days_360(start, end, european=True)) / Decimal(360)
