@@ -25,7 +25,8 @@ are drawn from the application itself (its role matrix and OpenAPI document), fr
 working day driven over HTTP, from the source's import graph and from the release tags. The
 validation and rates figures come from QuantLib, from 36 years of the US Treasury's published
 par curve and the Federal Reserve's GSW curve, packaged with the code, and from illustrative
-SOFR quotes built on the Treasury curve.
+SOFR quotes built on the Treasury curve. The real-FX figures come from 27 years of the ECB's
+euro reference rates and the Federal Reserve's noon rates, packaged with the code.
 
 ---
 ### Calendars
@@ -184,6 +185,26 @@ SOFR quotes built on the Treasury curve.
 
 ![Expected against received](images/coverage-calendar.png)
 
+**The quality engine on real data** - 1,282 findings on 27 years of ECB fixings, and where each step of awareness sent them.
+
+![The quality engine on real data](images/fx-quality-waterfall.png)
+
+**How often should a rate not move?** - Expected unchanged fixings from volatility and resolution, against the real ones.
+
+![How often should a rate not move?](images/staleness-model.png)
+
+**Real days, real findings** - The findings around six documented events, explained and open.
+
+![Real days, real findings](images/real-fx-events.png)
+
+**A split on a day with no print** - The returns around an ex-date the feed missed, before and after the fix.
+
+![A split on a day with no print](images/missing-ex-date.png)
+
+**What is left for a person** - Every finding still open after 27 years of fixings were reviewed.
+
+![What is left for a person](images/fx-open-findings.png)
+
 ### Market Data
 
 **A split is not a crash** - Raw, capital-adjusted and total-return histories against the generator's economic truth.
@@ -210,6 +231,26 @@ SOFR quotes built on the Treasury curve.
 
 ![The synthetic market behaves like a real one](images/return-distribution.png)
 
+**A pegged rate is supposed to look stale** - Boards, ERM II bands and floors, as distances from their central rates.
+
+![A pegged rate is supposed to look stale](images/pegs-and-bands.png)
+
+**Twenty-seven years of the euro, currency by currency** - Annualised volatility of every ECB fixing, year by year.
+
+![Twenty-seven years of the euro, currency by currency](images/euro-volatility-map.png)
+
+**Two central banks, one exchange rate** - The ECB's 14:15 fix against the Fed's noon rate, and why they differ.
+
+![Two central banks, one exchange rate](images/ecb-vs-fed.png)
+
+**When is 'the' price?** - The world's FX fixes on one UTC day, and how daylight saving moves them.
+
+![When is 'the' price?](images/fixing-clock.png)
+
+**The pence trap** - A sterling dividend on a share quoted in pence, adjusted right and wrong.
+
+![The pence trap](images/pence-trap.png)
+
 ### Reference Data
 
 **An identifier is not a name** - Ticker renames, a reused ticker and an ISIN change, resolved by date.
@@ -219,6 +260,10 @@ SOFR quotes built on the Treasury curve.
 **One security, three vendors** - Golden records built field by field, with lineage, conflicts and refused values.
 
 ![One security, three vendors](images/golden-record.png)
+
+**Forty-one currencies against the euro** - Every currency the ECB has fixed since 1999: its regime, and how it ended.
+
+![Forty-one currencies against the euro](images/currency-lifecycles.png)
 
 ### Accounting
 
