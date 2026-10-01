@@ -309,6 +309,58 @@ replayed, the parse tree of a rule and a one-page compliance report.
 
 ---
 
+## Revisits
+
+After the nine days, each day is revisited in order and held to a stricter standard:
+independent references, real data where it exists, and every disagreement either fixed
+or explained in writing. Each revisit is an issue, a branch, a pull request and a
+release, like the days themselves.
+
+### Day 1, revisited - the rates engine, validated ✅
+
+**Issue #20, release v1.1.0.**
+
+- Reconciled against **QuantLib**, 27 checks:
+  - six calendars over 106,451 weekdays;
+  - eight day counts;
+  - bond and gilt analytics;
+  - a SOFR curve.
+  72 calendar breaks remain, down from 309, each explained with its evidence.
+- **Calendars with history**:
+  - rules with the years they apply to;
+  - special closures and openings as named data;
+  - the equinoxes computed by Meeus's algorithm;
+  - a *scheduled* view, so the simulation is not reshuffled when history is added.
+- **30/360 US** with SIFMA's February rules, and the street convention for 30/360 bond
+  prices.
+- **Curves from dated instruments**: deposits and SOFR OIS, a Jacobian, and bucketed
+  DV01 with its hedge.
+- **Monotone convex** interpolation, and an iterative bootstrap for non-local methods.
+- **36 years of the real Treasury curve** and the Federal Reserve's GSW curve,
+  packaged.
+- **Analysis on real data**: Nelson-Siegel-Svensson against the Fed, and PCA into
+  level, slope and curvature.
+- **UK gilts**, ex-dividend.
+
+**Charts:** fifteen, including:
+
+- the reconciliation;
+- the calendar breaks before and after;
+- the equinox arbiter;
+- the SOFR curve;
+- four interpolators;
+- the Jacobian;
+- bucketed DV01;
+- the Treasury curve since 1990 as a heatmap and a surface;
+- the principal components;
+- the fits beside the Fed's.
+
+**Notes:** [the rates engine, validated](notes/the-rates-engine-validated.md).
+
+### Days 2 to 9, revisited - next
+
+---
+
 ## Working method
 
 - One issue per day, closed by one pull request.

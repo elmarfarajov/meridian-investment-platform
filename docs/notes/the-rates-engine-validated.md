@@ -205,8 +205,27 @@ steps through the scheduled one, because a state funeral closes the market but n
 the world: news keeps arriving, and the next open prices all of it.
 `calendar.scheduled()` gives the view.
 
-With it, 18 of the 19 failures return to their original values bit for bit. The
-nineteenth is the $2 change from the street-convention fix, which is correct.
+With it, 18 of the 19 failures return to their original values. The nineteenth is
+the $2 change from the street-convention fix, which is correct.
+
+Two refinements followed:
+
+- **Publish on the actual calendar.** The simulation still steps through scheduled
+  sessions, but it publishes quotes only on days the market actually opened. Left
+  alone, the synthetic market had printed prices on the day of President Carter's
+  funeral, and the data quality engine rightly flagged them. The random path is
+  untouched; the closed day's move is folded into the next day's return.
+- **One random stream per vendor and instrument.** Removing those prints then shifted
+  the vendors' noise, which had been a single stream across every instrument. By
+  chance, the exchange vendor's drop landed on exactly the day of a planted price
+  spike and hid it. Each vendor-instrument pair now draws from its own stream,
+  seeded from the vendor and the instrument. The end-of-day pricing run moved
+  slightly (207 findings, not 211; 5,606 golden prices, not 5,613), and every planted
+  fault is still caught.
+
+The principle is the same both times: a simulation's randomness should be keyed to
+what it describes, so that adding or removing one observation changes that
+observation and nothing else.
 
 ---
 

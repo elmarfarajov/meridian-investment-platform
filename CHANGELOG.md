@@ -4,6 +4,93 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-01
+
+Day 1 revisited: the rates engine, validated. It is reconciled against QuantLib and
+tested on 36 years of the real US Treasury curve and the Federal Reserve's own fitted
+curve. Every difference is either fixed or explained in writing.
+
+### Added
+
+- **Reconciliation against QuantLib** (`devtools/reference.py`, `meridian rates validate`).
+  It runs 27 checks:
+  - six calendars on every weekday 1990-2060;
+  - eight day counts on 19,884 date pairs each;
+  - bond analytics in ACT/ACT ICMA and 30/360 US;
+  - a gilt through two ex-dividend periods;
+  - a 20-swap SOFR curve.
+  Every remaining break is listed with its reason and evidence, and a test holds the
+  set to exactly those.
+- **Curves from dated instruments** (`analytics/curve_building.py`):
+  - deposits and SOFR OIS with spot lags, calendars, modified-following rolls,
+    ACT/360 and payment lags;
+  - the curve's repricing errors, the Jacobian of zero rates to quotes, and bucketed
+    DV01 with hedge notionals.
+  It matches QuantLib's `PiecewiseLogLinearDiscount` to 2.4e-13.
+- **Monotone convex interpolation** (Hagan-West, `core/monotone_convex.py`), with the
+  positivity collar and closed-form integrals. Property tests cover repricing,
+  continuity, positivity and locality.
+- **The equinoxes computed** (`core/astronomy.py`, Meeus chapter 27), to decide
+  Japan's holidays where the references disagree.
+- **36 years of real rates, packaged** (`marketdata/rates_history.py`):
+  - the US Treasury daily par curve since 1990;
+  - the Gurkaynak-Sack-Wright curve.
+  Both are public domain, and `python -m meridian.devtools.fetch_rates` rebuilds them.
+- **Nelson-Siegel and Svensson fitting** (`analytics/parametric.py`), to par yields,
+  with a grid start and warm starts. The formula reproduces every published GSW yield
+  to within 0.034 bp.
+- **PCA of curve moves** (`analytics/curve_pca.py`), oriented to level, slope and
+  curvature: 79.4, 12.7 and 4.1 per cent of the Treasury's daily moves since 1990.
+- **UK gilts** (`FixedRateBond.gilt`): ACT/ACT ICMA, paid the next business day, seven
+  business days ex-dividend, negative accrued interest. They match QuantLib's
+  `exCouponPeriod` to 1e-13.
+- `meridian rates treasury DATE`: the real curve on any day since 1990, bootstrapped
+  and fitted.
+- **Fifteen charts** (one hundred and forty-seven in the gallery), a methodology note,
+  and ADRs 0046 to 0050.
+
+### Fixed
+
+- **Calendars that did not know their history.** v1.0.0 disagreed with QuantLib on
+  309 weekdays; 72 remain, all explained. Now fixed:
+  - rules applied before they existed (NYSE's Martin Luther King Jr. Day before 1998,
+    TARGET's Easter and Labour Day before 2000, Japan before the Happy Monday reforms,
+    Marine Day and Mountain Day before they began);
+  - Japan's substitute-holiday rule before 2007, and its citizens' holidays;
+  - special closures no rule predicts (9/11, Hurricane Sandy, five presidential days
+    of mourning, the moved bank holidays and jubilees, the royal funeral and
+    coronation, the enthronements);
+  - SIFMA's Good Friday early closes and Saturday Veterans Day;
+  - Xetra trading on Whit Monday.
+- **30/360 US** had no end-of-February rules; it now follows SIFMA. The ISDA
+  convention is kept as `30/360 Bond Basis`.
+- **Bonds on 30/360** are priced with DSC/E counted on 30/360 days, the street
+  convention, not calendar days. The largest Microsoft purchase the Day 6 hard limits
+  allow moves from $85,976 to $85,978.
+- **The par bootstrap** repeats its pass for non-local interpolators. Monotone cubic
+  curves had been left up to 0.86 bp off their quotes.
+- **Par yields between coupon dates** include the accrued interest of the short first
+  period. Without it, sampled par curves were a sawtooth.
+
+### Changed
+
+- Calendars separate the **scheduled** view (the rules) from the **actual** one
+  (scheduled, less special openings, plus special closures). The synthetic market and
+  the demonstration desk step through the scheduled view, so a closure recorded after
+  the fact no longer reshuffles every simulated price. Quotes are published only on
+  actual sessions; a closed day's move is priced at the next open.
+- Each vendor has its own random stream per instrument, so one series' missing day
+  cannot shift another's noise. The pricing run now records 16,735 observations, 207
+  findings, 5,606 golden prices and 140 challenges (from 16,758, 211, 5,613 and 143),
+  and every planted fault is still caught.
+- QuantLib joins the development dependencies.
+
+### Known
+
+- The demonstration Treasury (`US-T-2032`) carries a 30/360 day count; Treasuries
+  accrue ACT/ACT. Changing it changes the whole demonstration book, so it is left for
+  the Day 3 revisit.
+
 ## [1.0.0] - 2026-09-30
 
 Day 9: the platform. One web service over the eight modules, with the controls a
@@ -515,6 +602,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[1.1.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.1.0
 [1.0.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.0.0
 [0.9.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.9.0
 [0.8.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.8.0

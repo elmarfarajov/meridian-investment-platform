@@ -6,8 +6,9 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.0.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.0.0)
-[![Tests](https://img.shields.io/badge/tests-1127-2E7D5B)](tests)
+[![Release](https://img.shields.io/badge/release-v1.1.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.1.0)
+[![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
+[![Tests](https://img.shields.io/badge/tests-1246-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6A4C93)](docs/notes/the-web-platform.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
@@ -46,6 +47,66 @@ Prometheus and Grafana: the same stack CI builds and smoke-tests on every pull r
 
 ---
 
+## Validated against QuantLib and 36 years of real rates
+
+After the nine days, each module is being revisited in order and held to a stricter
+standard. Day 1 went first. Its rates engine had been tested against examples written by
+the same hand as the code. It is now reconciled against **QuantLib**, the reference
+library banks and vendors use, and against **the real US Treasury curve** and **the
+Federal Reserve's own fitted curve**, every business day since 1990.
+
+![Meridian against QuantLib](docs/images/quantlib-reconciliation.png)
+
+The comparison is run like a reconciliation. Every difference is either fixed, or
+explained in writing with the evidence for which side is right, and a test holds the set
+of breaks to exactly the documented ones.
+
+- **The calendars did not know their own history.** v1.0.0 disagreed with QuantLib on
+  309 weekdays between 1990 and 2060. It applied rules to years before they existed
+  (Martin Luther King Jr. Day before 1998, TARGET's Easter before 2000, Japan before its
+  Happy Monday reforms). It also knew nothing of the closures no rule predicts: 9/11,
+  Hurricane Sandy, five presidential days of mourning, the jubilees and the royal
+  funeral. 72 breaks remain, all explained, and on each the evidence favours Meridian.
+- **When the two references disagree, the astronomy decides.** Japan's equinox holidays
+  are now computed (Meeus, chapter 27), not approximated. QuantLib's formula puts them a
+  day early before 2000.
+- **30/360 US had no February rule**, and 30/360 bonds were priced on calendar days
+  rather than SIFMA's DSC/E. Both are fixed. Both day counts now match QuantLib on 19,884
+  date pairs, and bonds match to 1e-12.
+- **The fix exposed a design fault, and that was fixed too.** Adding one holiday
+  reshuffled every simulated price from Days 2 to 9. Markets now have a *scheduled*
+  calendar, which the simulation steps through, and an *actual* one, which settlement
+  uses. The simulated history keeps its random path; prices are published only on the
+  days the market actually opened, and every Day 2-9 result the tests check still holds.
+
+![What QuantLib found in the calendars](docs/images/calendar-breaks.png)
+
+**Curves from instruments on their real dates.** A SOFR curve is built from twenty
+overnight index swaps: spot lags, the SIFMA calendar, modified-following rolls, ACT/360
+and payment lags. It reprices every swap to 1e-10 bp and matches QuantLib to 2e-13 in
+discount factors. Hagan-West **monotone convex** interpolation gives continuous, positive
+forwards; the US Treasury has used it for its official curve since 2021. Risk is reported
+in the quoted instruments, as a Jacobian and bucketed DV01 with the hedge that flattens
+it.
+
+![Four interpolators, one set of quotes](docs/images/interpolation-forwards.png)
+
+**36 years of the real Treasury curve**, packaged so it runs offline:
+
+- Level, slope and curvature explain 79.4, 12.7 and 4.1 per cent of its daily moves
+  since 1990. That is Litterman and Scheinkman's result, reproduced.
+- Nelson-Siegel-Svensson fits each day's par curve to a few basis points.
+- The formula reproduces the Federal Reserve's published curve on all 9,171 days to
+  within 0.034 bp.
+
+![The Treasury curve since 1990](docs/images/treasury-history.png)
+
+![Nelson-Siegel and Svensson on real curves](docs/images/nss-fits.png)
+
+The full account is in [the rates engine, validated](docs/notes/the-rates-engine-validated.md).
+
+---
+
 ## What it does today
 
 ```bash
@@ -54,8 +115,16 @@ meridian rates curve --tenors 0.25,1,2,5,10,30 --par 4.25,4.18,3.95,3.90,4.15,4.
 # discount factors and forwards side by side.
 
 meridian rates bond 2034-05-15 --coupon 4 --issue 2024-05-15 --price 96.79
-# Yield to maturity 4.500272%, modified duration 6.407, convexity 48.61,
+# Yield to maturity 4.499894%, modified duration 6.408, convexity 48.62,
 # DV01 0.0629 per 100 of face, accrued 1.40 on 129/184 days.
+
+meridian rates treasury 2008-09-15
+# The real Treasury par curve on the day Lehman failed, bootstrapped with
+# monotone convex and fitted by Svensson (RMSE 2.4 bp) and Nelson-Siegel.
+
+meridian rates validate
+# 27 checks against QuantLib - six calendars over 106,451 weekdays, eight day
+# counts, bonds, gilts, a SOFR curve - with every remaining break explained.
 
 meridian calendar ladder 2026-12-23 --calendars XNYS,XLON,TARGET,XTKS
 # Where T+1 to T+3 land in each market, and in the joint calendar every leg
@@ -65,9 +134,9 @@ meridian security validate US0378331005 HWUPKR0MPOU8FGXBT394
 # ISIN and LEI, each against its own check-digit algorithm.
 
 meridian market price --persist
-# The end-of-day pricing run: three sources collected, 16,758 observations
-# recorded with the time they arrived, 211 quality findings, 5,613 golden
-# prices published, 143 price challenges raised.
+# The end-of-day pricing run: three sources collected, 16,735 observations
+# recorded with the time they arrived, 207 quality findings, 5,606 golden
+# prices published, 140 price challenges raised.
 
 meridian market history US-AAPL --known-at 2026-09-10
 # The series as it stood that evening - not as it has since been restated.
@@ -175,7 +244,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and thirty-two are in the
+Every module ships a visual, not only numbers. All one hundred and forty-seven are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -554,6 +623,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | Document | What it covers |
 | --- | --- |
 | [Fixed income mathematics](docs/notes/fixed-income-mathematics.md) | Discounting, bootstrapping, clean and dirty price, duration, convexity, key rate durations, and the numerical method behind them |
+| [The rates engine, validated](docs/notes/the-rates-engine-validated.md) | QuantLib as a reconciliation, calendars that know their history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, Nelson-Siegel-Svensson against the Fed, gilts ex-dividend |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
 | [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
@@ -575,8 +645,8 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Tax-aware rebalancing](docs/notes/tax-aware-rebalancing.md) | The rebalance as a conic programme over lots, rules that are not convex, orders, the frontier, and tax alpha measured honestly |
 | [Execution and transaction costs](docs/notes/execution-and-transaction-costs.md) | Orders in FIX states, a market with its counterfactual, five algorithms and Almgren-Chriss, allocation, the shortfall decomposed, calibration, the client report |
 | [The web platform](docs/notes/the-web-platform.md) | One API over the modules, seven layers of control, roles and entitlements, four eyes, the hash-chained audit log, idempotency, a measured working day, deployment |
-| [Chart gallery](docs/GALLERY.md) | All one hundred and thirty-two figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Forty-five records: what was decided, what the alternatives were, and what it costs |
+| [Chart gallery](docs/GALLERY.md) | All one hundred and forty-seven figures, with what each one argues |
+| [Architecture decisions](docs/adr) | Fifty records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -596,6 +666,8 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 7 | Tax-aware optimisation: a conic rebalance over tax lots, wash sales and an active-share floor in rounds, MILP rounding, the tracking-error / tax frontier, tax alpha over simulated years | ✅ Done |
 | 8 | Execution and reporting: orders in FIX states, a simulated intraday market, five algorithms and Almgren-Chriss, block allocation, implementation shortfall, a nine-page client report | ✅ Done |
 | 9 | Platform: a FastAPI service with JWT, roles and entitlements, a hash-chained audit log, idempotent writes, four-eyes orders, Prometheus and Grafana, Docker Compose; release v1.0.0 | ✅ Done |
+| 1+ | Day 1 revisited: reconciled against QuantLib, calendars with history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, NSS against the Fed, gilts; release v1.1.0 | ✅ Done |
+| 2+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
 
 ---
 

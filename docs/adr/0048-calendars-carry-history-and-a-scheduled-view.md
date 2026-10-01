@@ -39,9 +39,15 @@ and every number from Days 2 to 9 with it.
 - NYSE, SIFMA, LSE and TARGET match QuantLib on every weekday from 1990 (1999 for
   TARGET) to 2060. Xetra and Tokyo differ only on documented days, where the
   evidence favours Meridian.
-- The demonstration world is unchanged, bit for bit. A funeral closes the market,
-  but the simulation's random path is the same, as the world's is: news
-  accumulates, and the next open prices it.
+- The simulation's random path is unchanged. A funeral closes the market but not
+  the world: news accumulates, and the next open prices it. Quotes are published
+  only on actual sessions, so 9 January 2025 has no NYSE prices, and that day's move
+  is in the next day's return.
+- One more coupling had to go. The vendors' noise was one random stream across every
+  instrument, so a single missing quote shifted every vendor error after it. By
+  chance, it hid a planted spike behind a dropped day. Each vendor-instrument pair
+  now has its own stream. The pricing run's counts moved slightly (207 findings, not
+  211), and every planted fault is still caught.
 - Special closures must be added as they happen. Nothing can predict the next one.
   A production system would load them from a reference data feed; here they are
   code, reviewed like code.
