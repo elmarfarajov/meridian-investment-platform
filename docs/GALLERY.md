@@ -22,7 +22,10 @@ from a tax-alpha simulation on the factor model's universe. The execution figure
 that rebalance traded the next day through a simulated intraday market, and the reporting
 figures are pages of the client report assembled from all of it. The web platform figures
 are drawn from the application itself (its role matrix and OpenAPI document), from a
-working day driven over HTTP, from the source's import graph and from the release tags.
+working day driven over HTTP, from the source's import graph and from the release tags. The
+validation and rates figures come from QuantLib, from 36 years of the US Treasury's published
+par curve and the Federal Reserve's GSW curve, packaged with the code, and from illustrative
+SOFR quotes built on the Treasury curve.
 
 ---
 ### Calendars
@@ -65,6 +68,64 @@ working day driven over HTTP, from the source's import graph and from the releas
 
 ![Compounding conventions](images/compounding.png)
 
+**A SOFR curve from twenty swaps** - Zero and forward curves bootstrapped from dated OIS instruments, each repriced exactly.
+
+![A SOFR curve from twenty swaps](images/sofr-curve.png)
+
+**Four interpolators, one set of quotes** - What linear, log-linear, monotone cubic and monotone convex say about forwards.
+
+![Four interpolators, one set of quotes](images/interpolation-forwards.png)
+
+**Locality** - How far a one basis point bump in the 5-year quote travels along the forward curve.
+
+![Locality](images/interpolation-locality.png)
+
+**The Jacobian** - How each quote moves each point of the zero curve, local and non-local.
+
+![The Jacobian](images/curve-jacobian.png)
+
+**Bucketed DV01 and its hedge** - A swap book's risk in the quoted instruments, and the swaps that flatten it.
+
+![Bucketed DV01 and its hedge](images/bucketed-dv01.png)
+
+**The Treasury curve since 1990** - Every published par curve, 1990-2026, with the events that moved it.
+
+![The Treasury curve since 1990](images/treasury-history.png)
+
+**The yield curve as a landscape** - Month-end par yields since 1990 as a surface.
+
+![The yield curve as a landscape](images/treasury-surface.png)
+
+**Level, slope and curvature** - Principal components of 36 years of daily Treasury curve changes.
+
+![Level, slope and curvature](images/curve-pca.png)
+
+**The factors through time** - Rolling variance explained, and the cumulative level and slope factors.
+
+![The factors through time](images/curve-pca-history.png)
+
+**Nelson-Siegel and Svensson on real curves** - Four days of the Treasury curve, fitted, beside the Federal Reserve's own fit.
+
+![Nelson-Siegel and Svensson on real curves](images/nss-fits.png)
+
+**Our fit against the Fed's, since 1990** - Quarterly Svensson fits to the Treasury curve minus GSW, and how well six numbers fit.
+
+![Our fit against the Fed's, since 1990](images/nss-vs-gsw.png)
+
+### Validation
+
+**Meridian against QuantLib** - Every check of the rates engine against the reference library, with its tolerance.
+
+![Meridian against QuantLib](images/quantlib-reconciliation.png)
+
+**What QuantLib found in the calendars** - Every weekday 1990-2060 the two disagreed, before and after the calendars learnt history.
+
+![What QuantLib found in the calendars](images/calendar-breaks.png)
+
+**The astronomy decides** - The time of Japan's equinoxes, and the years QuantLib's formula names the wrong day.
+
+![The astronomy decides](images/equinox-arbiter.png)
+
 ### Cashflows
 
 **Payment schedule** - Accrual periods, the stub, and the payments moved by the business-day rule.
@@ -82,6 +143,10 @@ working day driven over HTTP, from the source's import graph and from the releas
 **Where a bond's value comes from** - Coupons against the return of principal, discounted on the curve.
 
 ![Where a bond's value comes from](images/value-composition.png)
+
+**A gilt goes ex-dividend** - Negative accrued interest and the cum-to-ex drop, priced by the DMO's formula.
+
+![A gilt goes ex-dividend](images/gilt-ex-dividend.png)
 
 ### Money
 
@@ -588,4 +653,3 @@ working day driven over HTTP, from the source's import graph and from the releas
 **The data model** - Every table, column and foreign key, drawn from the live SQLAlchemy metadata.
 
 ![The data model](images/data-model.png)
-
