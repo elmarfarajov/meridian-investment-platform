@@ -213,3 +213,42 @@ def xref(
     ]
     if rows:
         console.print(render_rows(table("History", ["Scheme", "Instrument", "From", "Until"]), rows))
+
+
+@app.command("fx-review")
+def fx_review(
+    show: Annotated[int, typer.Option("--show", help="How many open findings to list")] = 15,
+) -> None:
+    """Run the FX quality rules over 27 years of real ECB fixings, stage by stage, and list what is left."""
+    from ..services.fx_review import fx_quality_review, source_comparison
+
+    review = fx_quality_review()
+    rows = [
+        (stage.name, f"{len(stage.findings):,}", str(stage.explained or ""), f"{stage.open:,}")
+        for stage in review.stages
+    ]
+    console.print(
+        render_rows(
+            table(
+                f"{review.observations:,} ECB fixings of {len(review.pairs)} currencies, "
+                f"{review.first} to {review.last}",
+                ["Rules aware of", "Findings", "Explained by an event", "Open"],
+                caption="Source: European Central Bank, euro foreign exchange reference rates.",
+                numeric=[1, 2, 3],
+            ),
+            rows,
+        )
+    )
+    open_rows = [(f.key, f.day.isoformat(), f.rule, f.message[:80]) for f in review.open_findings[:show]]
+    console.print(render_rows(table("Open findings", ["Pair", "Day", "Rule", "Message"]), open_rows))
+    gaps = [(g.pair, f"{g.median_abs:.1f}", f"{g.lead_correlation:.2f}") for g in source_comparison()]
+    console.print(
+        render_rows(
+            table(
+                "ECB 14:15 Frankfurt against Fed noon New York",
+                ["Pair", "Median |gap| (bp)", "Corr. with next ECB move"],
+                numeric=[1, 2],
+            ),
+            gaps,
+        )
+    )
