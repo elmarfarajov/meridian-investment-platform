@@ -162,8 +162,10 @@ def attach_market_proxy(contexts: Sequence[SeriesContext], *, minimum: int = 3) 
         return
     by_day: dict[date, list[tuple[int, float]]] = defaultdict(list)
     for index, context in enumerate(contexts):
-        for day, value in context.adjusted_returns:
-            by_day[day].append((index, value))
+        for previous, day, value in context.adjusted_spans:
+            # a return over a gap is several days' move; it would distort one day's median
+            if context.is_one_session(previous, day):
+                by_day[day].append((index, value))
     for index, context in enumerate(contexts):
         proxy: dict[date, float] = {}
         for day, entries in by_day.items():

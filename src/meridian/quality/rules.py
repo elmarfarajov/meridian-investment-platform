@@ -367,10 +367,12 @@ class UnexplainedJump(Rule):
         points = [point for point in context.series if point.value > 0]
         for previous, current in itertools.pairwise(points):
             ratio = float(current.value / previous.value)
-            events = context.actions_by_date.get(current.day, [])
+            events = context.events_between(previous.day, current.day)
             capital = [event for event in events if event.action_type.is_capital_change]
             if capital:
-                findings.extend(self._check_event(context, current.day, previous.value, ratio, capital))
+                findings.extend(
+                    self._check_event(context, current.day, previous.value, ratio, capital, since=previous.day)
+                )
                 continue
             if abs(math.log(ratio)) < math.log(1 + self.minimum_move):
                 continue
@@ -391,9 +393,16 @@ class UnexplainedJump(Rule):
         return findings
 
     def _check_event(
-        self, context: SeriesContext, day: date, cum_price: Decimal, ratio: float, events: Sequence[object]
+        self,
+        context: SeriesContext,
+        day: date,
+        cum_price: Decimal,
+        ratio: float,
+        events: Sequence[object],
+        *,
+        since: date | None = None,
     ) -> list[Finding]:
-        factor = float(context.event_factor(day, cum_price))
+        factor = float(context.event_factor(day, cum_price, since=since))
         if factor == 1 or abs(ratio / factor - 1) <= max(self.tolerance, 0.25):
             return []
         return [

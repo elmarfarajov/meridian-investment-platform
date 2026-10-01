@@ -22,11 +22,13 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from statistics import NormalDist
 
 import numpy as np
 
-#: Makes the MAD a consistent estimator of the standard deviation for normal data (1 / Phi^-1(3/4)).
-MAD_SCALE = 1.4826
+#: Makes the MAD a consistent estimator of the standard deviation for normal data: 1 / Phi^-1(3/4),
+#: exactly as scipy.stats.median_abs_deviation(scale="normal") uses it, not the rounded 1.4826.
+MAD_SCALE = 1.0 / NormalDist().inv_cdf(0.75)
 
 
 def median(values: Sequence[float]) -> float:

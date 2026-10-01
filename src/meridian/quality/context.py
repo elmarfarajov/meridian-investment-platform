@@ -13,6 +13,7 @@ the worst print of the year.
 
 from __future__ import annotations
 
+import bisect
 import itertools
 import math
 from collections.abc import Mapping, Sequence
@@ -23,6 +24,7 @@ from functools import cached_property
 
 from ..core.calendars import TradingCalendar, get_calendar
 from ..domain.corporate_actions import AdjustmentMode, CorporateAction
+from ..marketdata.adjustments import in_price_units
 from ..marketdata.quotes import Quote
 from ..marketdata.series import TimeSeries
 
@@ -84,6 +86,12 @@ class SeriesContext:
     def days(self) -> tuple[date, ...]:
         return self.series.days
 
+    @property
+    def price_unit(self) -> str | None:
+        """The unit the prices are quoted in (GBX, ZAc, USD...), from the quotes themselves."""
+        units = {quote.currency for quote in self.quotes if quote.currency and quote.currency != "XXX"}
+        return units.pop() if len(units) == 1 else None
+
     @cached_property
     def actions_by_date(self) -> dict[date, list[CorporateAction]]:
         grouped: dict[date, list[CorporateAction]] = {}
@@ -91,13 +99,29 @@ class SeriesContext:
             grouped.setdefault(action.ex_date, []).append(action)
         return grouped
 
-    def event_factor(self, day: date, cum_price: Decimal) -> Decimal:
-        """Combined price factor of every event going ex on ``day``; 1 when nothing happens."""
+    def events_between(self, after: date, through: date) -> list[CorporateAction]:
+        """Every event going ex after one observation and on or before the next.
+
+        An ex-date can fall on a day the series has no print - a missing day, or a
+        market holiday in the feed's own calendar. The event still happened, and the
+        next observation's return has to be judged with it divided out.
+        """
+        return [
+            action
+            for day, actions in sorted(self.actions_by_date.items())
+            if after < day <= through
+            for action in actions
+        ]
+
+    def event_factor(self, day: date, cum_price: Decimal, *, since: date | None = None) -> Decimal:
+        """Combined price factor of every event going ex on ``day`` (or after ``since``); 1 when nothing happens."""
         factor = Decimal(1)
-        for action in self.actions_by_date.get(day, []):
+        events = self.events_between(since, day) if since is not None else self.actions_by_date.get(day, [])
+        for action in events:
             if action.applies_in(AdjustmentMode.TOTAL_RETURN) and cum_price > 0:
                 try:
-                    factor *= action.price_factor(cum_price)
+                    # a dividend in pounds set against a price in pence: same unit first
+                    factor *= in_price_units(action, self.price_unit).price_factor(cum_price)
                 except Exception:  # an event that cannot be sized is reported by its own rule
                     continue
         return factor
@@ -108,29 +132,47 @@ class SeriesContext:
         return self.series.returns(log=True)
 
     @cached_property
-    def adjusted_returns(self) -> list[tuple[date, float]]:
-        """Log returns with every corporate action on the ex-date divided out."""
+    def adjusted_spans(self) -> list[tuple[date, date, float]]:
+        """(previous day, day, log return) with every event in between divided out."""
         points = list(self.series)
-        results: list[tuple[date, float]] = []
+        results: list[tuple[date, date, float]] = []
         for previous, current in itertools.pairwise(points):
             if previous.value <= 0 or current.value <= 0:
                 continue
-            factor = self.event_factor(current.day, previous.value)
+            factor = self.event_factor(current.day, previous.value, since=previous.day)
             ratio = float(current.value) / (float(previous.value) * float(factor))
-            results.append((current.day, math.log(ratio)))
+            results.append((previous.day, current.day, math.log(ratio)))
         return results
 
     @cached_property
+    def adjusted_returns(self) -> list[tuple[date, float]]:
+        """Log returns with every corporate action since the previous observation divided out."""
+        return [(day, value) for _, day, value in self.adjusted_spans]
+
+    def is_one_session(self, previous: date, day: date) -> bool:
+        """True when ``previous`` is the business day immediately before ``day`` on this calendar."""
+        return self.calendar.add_business_days(day, -1) == previous
+
+    @cached_property
     def residual_returns(self) -> list[tuple[date, float]]:
-        """Adjusted returns less the market proxy for the same day, when there is one.
+        """Adjusted returns less the market's move over the same span, when there is a proxy.
 
         A 6% fall on a day the whole market fell 5% is a market move; a 6% fall on
         a flat day is a question. Scoring the residual is what lets the outlier
-        rule tell them apart.
+        rule tell them apart. A return that spans a gap - three days, after two
+        missing prints - is set against the market's move over all three, not the
+        last one.
         """
         if not self.market:
             return self.adjusted_returns
-        return [(day, value - self.market.get(day, 0.0)) for day, value in self.adjusted_returns]
+        market_days = sorted(self.market)
+        results: list[tuple[date, float]] = []
+        for previous, day, value in self.adjusted_spans:
+            low = bisect.bisect_right(market_days, previous)
+            high = bisect.bisect_right(market_days, day)
+            moved = sum(self.market[market_days[index]] for index in range(low, high))
+            results.append((day, value - moved))
+        return results
 
     @cached_property
     def expected_days(self) -> tuple[date, ...]:
