@@ -1,11 +1,16 @@
-"""Rebuild the packaged rates history from its public sources.
+"""Rebuild the packaged rates and FX history from its public sources.
 
-Two datasets ship with the package, both public-domain works of the US government:
+Four datasets ship with the package:
 
 - the **US Treasury daily par yield curve** (constant-maturity par yields, 1 month to 30
   years, from 1990), published by the Treasury's Office of Debt Management;
 - the **Gurkaynak-Sack-Wright Svensson curve** (Federal Reserve Board, FEDS 2006-28): the
-  daily fitted parameters and the zero-coupon yields they imply.
+  daily fitted parameters and the zero-coupon yields they imply;
+- the **ECB euro foreign exchange reference rates**: every currency the ECB has fixed
+  against the euro since 4 January 1999, at 14:15 CET (reuse permitted with the source
+  cited);
+- the **Federal Reserve H.10** noon buying rates in New York for the dollar against the
+  euro, sterling, the Swiss franc and the yen, via FRED (public domain).
 
 They are packaged, rather than fetched at run time, so that every chart and test is
 reproducible offline and the numbers in the documentation do not drift. This script
@@ -22,9 +27,11 @@ import csv
 import gzip
 import io
 import urllib.request
+import zipfile
 from datetime import date, datetime
 from pathlib import Path
 
+from ..marketdata.fx_reference import ECB_FILE, FED_FILE, FED_SERIES
 from ..marketdata.rates_history import GSW_FILE, GSW_TENORS, REFERENCE_DIR, TREASURY_FILE, TREASURY_TENORS
 
 TREASURY_URL = (
@@ -32,6 +39,8 @@ TREASURY_URL = (
     "{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv"
 )
 GSW_URL = "https://www.federalreserve.gov/data/yield-curve-tables/feds200628.csv"
+ECB_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.zip"
+FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
 FIRST_YEAR = 1990
 
 # The Treasury has renamed a column or two over the years; map every heading to a tenor label
@@ -88,6 +97,34 @@ def gsw_rows(text: str, first: date = date(FIRST_YEAR, 1, 1)) -> list[dict[str, 
     return rows
 
 
+def ecb_rows(text: str) -> list[dict[str, str]]:
+    """The ECB's wide file (newest first, "N/A" for no fixing) in date order, blanks for no fixing."""
+    reader = csv.reader(io.StringIO(text))
+    header = [name.strip() for name in next(reader) if name.strip()]
+    rows = []
+    for record in reader:
+        if not record or not record[0].strip():
+            continue
+        values = [value.strip() for value in record[: len(header)]]
+        row = {"date": values[0]}
+        row.update(
+            {name: ("" if value in {"N/A", ""} else value) for name, value in zip(header[1:], values[1:], strict=False)}
+        )
+        rows.append(row)
+    return sorted(rows, key=lambda row: row["date"])
+
+
+def fred_rows(texts: dict[str, str]) -> list[dict[str, str]]:
+    """FRED's one-series files, joined on the date; FRED marks a holiday with an empty value."""
+    joined: dict[str, dict[str, str]] = {}
+    for series, text in texts.items():
+        for record in csv.DictReader(io.StringIO(text)):
+            day = record.get("observation_date") or record.get("DATE") or ""
+            value = (record.get(series) or "").strip()
+            joined.setdefault(day, {})[series] = "" if value in {".", ""} else value
+    return [{"date": day, **{series: joined[day].get(series, "") for series in texts}} for day in sorted(joined)]
+
+
 def write_gzip_csv(path: Path, rows: list[dict[str, str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     buffer = io.StringIO()
@@ -113,9 +150,13 @@ def main(argv: list[str] | None = None) -> int:
             if (arguments.source / f"tsy_{year}.csv").exists()
         ]
         gsw = (arguments.source / "feds200628.csv").read_text(encoding="utf-8-sig")
+        ecb = (arguments.source / "eurofxref-hist.csv").read_text(encoding="utf-8-sig")
+        fred = {series: (arguments.source / f"{series}.csv").read_text(encoding="utf-8-sig") for series in FED_SERIES}
     else:
         texts = [_download(TREASURY_URL.format(year=year)) for year in years]
         gsw = _download(GSW_URL)
+        ecb = _ecb_download()
+        fred = {series: _download(FRED_URL.format(series=series)) for series in FED_SERIES}
 
     treasury = treasury_rows(texts)
     fitted = gsw_rows(gsw)
@@ -123,7 +164,20 @@ def main(argv: list[str] | None = None) -> int:
     write_gzip_csv(REFERENCE_DIR / GSW_FILE, fitted)
     print(f"Treasury par yields: {len(treasury)} days, {treasury[0]['date']} to {treasury[-1]['date']}")
     print(f"GSW Svensson curve: {len(fitted)} days, {fitted[0]['date']} to {fitted[-1]['date']}")
+    reference = ecb_rows(ecb)
+    noon = fred_rows(fred)
+    write_gzip_csv(REFERENCE_DIR / ECB_FILE, reference)
+    write_gzip_csv(REFERENCE_DIR / FED_FILE, noon)
+    print(f"ECB reference rates: {len(reference)} days, {reference[0]['date']} to {reference[-1]['date']}")
+    print(f"Federal Reserve H.10: {len(noon)} days, {noon[0]['date']} to {noon[-1]['date']}")
     return 0
+
+
+def _ecb_download() -> str:
+    request = urllib.request.Request(ECB_URL, headers={"User-Agent": "meridian-investment-platform"})
+    with urllib.request.urlopen(request, timeout=120) as response:
+        archive = zipfile.ZipFile(io.BytesIO(response.read()))
+    return archive.read(archive.namelist()[0]).decode("utf-8-sig")
 
 
 if __name__ == "__main__":  # pragma: no cover
