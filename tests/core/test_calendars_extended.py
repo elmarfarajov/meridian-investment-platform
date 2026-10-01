@@ -44,9 +44,12 @@ def test_the_bond_market_keeps_two_holidays_the_equity_market_does_not():
     assert equities.is_business_day(columbus) and not bonds.is_business_day(columbus)
     assert equities.is_business_day(veterans) and not bonds.is_business_day(veterans)
     assert bonds.holiday_name(columbus) == "Columbus Day"
-    # Good Friday closes both
+    # Good Friday closes both - unless the employment report is published that day, when
+    # SIFMA recommends an early close and the bond market stays open, as on 3 April 2026
+    assert not equities.is_business_day(date(2025, 4, 18))
+    assert not bonds.is_business_day(date(2025, 4, 18))
     assert not equities.is_business_day(date(2026, 4, 3))
-    assert not bonds.is_business_day(date(2026, 4, 3))
+    assert bonds.is_business_day(date(2026, 4, 3))
 
 
 def test_xetra_and_six_close_around_christmas_when_new_york_does_not():
@@ -59,8 +62,9 @@ def test_xetra_and_six_close_around_christmas_when_new_york_does_not():
 
 
 def test_whit_monday_is_fifty_days_after_easter():
-    # Easter Sunday 2026 is 5 April, so Whit Monday is 25 May
-    assert get_calendar("XETR").holiday_name(date(2026, 5, 25)) == "Whit Monday"
+    # Easter Sunday 2026 is 5 April, so Whit Monday is 25 May: SIX closes, Xetra trades
+    assert get_calendar("XSWX").holiday_name(date(2026, 5, 25)) == "Whit Monday"
+    assert get_calendar("XETR").is_business_day(date(2026, 5, 25))
     assert get_calendar("XSWX").holiday_name(date(2026, 5, 14)) == "Ascension Day"
 
 
@@ -81,7 +85,7 @@ def test_a_sunday_holiday_in_tokyo_moves_to_the_next_free_weekday():
     # Constitution Memorial Day 2026 falls on a Sunday; 4 and 5 May are already holidays,
     # so the substitute lands on the 6th
     assert tokyo.holiday_name(date(2026, 5, 3)) == "Constitution Memorial Day"
-    assert tokyo.holiday_name(date(2026, 5, 6)) == "Constitution Memorial Day (observed)"
+    assert tokyo.holiday_name(date(2026, 5, 6)) == "Constitution Memorial Day (substitute holiday)"
     assert not tokyo.is_business_day(date(2026, 5, 6))
 
 
@@ -135,4 +139,5 @@ def test_settlement_across_two_markets_is_never_earlier_than_either_alone():
 
 def test_holiday_counts_are_stable_for_2026():
     counts = {name: len(get_calendar(name).holidays(2026)) for name in ("XNYS", "SIFMA", "XLON", "TARGET", "XETR")}
-    assert counts == {"XNYS": 10, "SIFMA": 12, "XLON": 8, "TARGET": 6, "XETR": 9}
+    # SIFMA keeps Good Friday 2026 open (the employment report); Xetra trades on Whit Monday
+    assert counts == {"XNYS": 10, "SIFMA": 11, "XLON": 8, "TARGET": 6, "XETR": 8}

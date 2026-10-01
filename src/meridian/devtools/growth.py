@@ -35,6 +35,7 @@ DAYS = {
     "v0.8.0": "Optimisation",
     "v0.9.0": "Execution",
     "v1.0.0": "Platform",
+    "v1.1.0": "Rates revisited",
 }
 
 

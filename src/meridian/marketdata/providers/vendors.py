@@ -13,6 +13,7 @@ scored.
 
 from __future__ import annotations
 
+import zlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import ROUND_HALF_EVEN, Decimal
@@ -76,10 +77,12 @@ def vendor_panel(
     seed: int = 23,
 ) -> MarketDataset:
     """What each vendor would have sent for every instrument in ``reference``."""
-    rng = np.random.default_rng(seed)
     produced: list[Quote] = []
     for profile in profiles:
         for instrument_id in reference.instruments:
+            # one stream per vendor and instrument: what a vendor does to one series cannot
+            # depend on how many observations another series happens to have
+            rng = np.random.default_rng([seed, zlib.crc32(profile.name.encode()), zlib.crc32(instrument_id.encode())])
             previous: Quote | None = None
             for truth in reference.for_instrument(instrument_id):
                 if rng.random() > profile.coverage:

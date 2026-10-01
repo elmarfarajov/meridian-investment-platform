@@ -11,6 +11,7 @@ from meridian.gallery import build_gallery, gallery_items, gallery_markdown, ref
 GROUPS = {
     "calendars",
     "rates",
+    "validation",
     "cashflows",
     "money",
     "quality",

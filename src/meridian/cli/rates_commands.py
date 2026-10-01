@@ -281,3 +281,86 @@ def forward(
         f"[key]{tenor_label(near)} into {tenor_label(far - near)}[/key]: "
         f"[key]{rate * 100:.4f}%[/key] [muted](semi-annual)[/muted]"
     )
+
+
+@app.command("validate")
+def validate() -> None:
+    """Reconcile the rates engine against QuantLib: every check, and every explained break."""
+    try:
+        from ..devtools.reference import KNOWN_DIFFERENCES, reconciliation
+    except ImportError:  # pragma: no cover - QuantLib is a development dependency
+        fail("QuantLib is not installed; pip install -e '.[dev]'")
+    checks = reconciliation()
+    rows = [
+        (
+            check.area,
+            check.name,
+            f"{check.cases:,}",
+            "exact" if check.max_error == 0 else f"{check.max_error:.1e}",
+            str(check.explained or ""),
+            "pass" if check.passed else "FAIL",
+        )
+        for check in checks
+    ]
+    console.print(
+        render_rows(
+            table(
+                "Meridian against QuantLib",
+                ["Area", "Check", "Cases", "Largest difference", "Explained breaks", "Result"],
+                caption="Explained breaks are listed in meridian.devtools.reference.KNOWN_DIFFERENCES.",
+                numeric=[2, 3, 4],
+            ),
+            rows,
+        )
+    )
+    for difference in KNOWN_DIFFERENCES:
+        console.print(f"[bold]{difference.subject}[/bold]: {difference.reason}")
+    failed = [check for check in checks if not check.passed]
+    if failed:
+        fail(f"{len(failed)} of {len(checks)} checks failed")
+    success(f"{len(checks)} checks passed")
+
+
+@app.command("treasury")
+def treasury(
+    on: Annotated[datetime, typer.Argument(formats=["%Y-%m-%d"], help="A day since 1990")],
+) -> None:
+    """The real US Treasury par curve on a day, bootstrapped and fitted by Nelson-Siegel and Svensson."""
+    from ..analytics.parametric import fit_par_curve
+    from ..marketdata.rates_history import par_curve_on
+
+    try:
+        curve = par_curve_on(on.date())
+    except LookupError as error:
+        fail(str(error))
+    zeros = bootstrap_par_curve(curve.day, curve.tenors, curve.yields, interpolation="monotone_convex")
+    starting = [zeros.zero_rate(t) for t in curve.tenors]
+    svensson = fit_par_curve(curve.tenors, curve.yields, starting_zeros=starting)
+    nelson_siegel = fit_par_curve(curve.tenors, curve.yields, svensson=False, starting_zeros=starting)
+    rows = [
+        (
+            label,
+            f"{par * 100:.3f}%",
+            f"{zeros.zero_rate(t) * 100:.3f}%",
+            f"{fitted * 100:.3f}%",
+            f"{(par - fitted) * 1e4:+.1f}",
+        )
+        for label, t, par, fitted in zip(curve.labels, curve.tenors, curve.yields, svensson.fitted, strict=True)
+    ]
+    console.print(
+        render_rows(
+            table(
+                f"US Treasury par curve, {curve.day.isoformat()}",
+                ["Tenor", "Published par", "Zero (monotone convex)", "Svensson par", "Residual (bp)"],
+                caption=f"Svensson RMSE {svensson.rmse_bp:.2f} bp; Nelson-Siegel {nelson_siegel.rmse_bp:.2f} bp. "
+                "Source: US Treasury, public domain.",
+                numeric=[1, 2, 3, 4],
+            ),
+            rows,
+        )
+    )
+    model = svensson.model
+    console.print(
+        f"level {model.beta0 * 100:.2f}%  slope {model.beta1 * 100:+.2f}%  curvature {model.beta2 * 100:+.2f}% / "
+        f"{model.beta3 * 100:+.2f}%  decay {model.tau1:.2f}y / {model.tau2:.2f}y"
+    )

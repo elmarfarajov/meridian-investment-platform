@@ -31,6 +31,7 @@ from .optimisation_gallery import optimisation_items
 from .performance_gallery import performance_items
 from .platform_gallery import platform_items
 from .quality.engine import QualityReport
+from .rates_gallery import rates_engine_items
 from .refdata import build_security_master, demo_vendor_records
 from .refdata import demo_policy as demo_security_policy
 from .risk_gallery import risk_items
@@ -88,6 +89,7 @@ from .viz.refdata import plot_golden_record, plot_identifier_timeline
 GROUPS: tuple[str, ...] = (
     "calendars",
     "rates",
+    "validation",
     "cashflows",
     "money",
     "quality",
@@ -285,6 +287,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *optimisation_items(),
         *execution_items(),
         *platform_items(),
+        *rates_engine_items(),
     )
 
 

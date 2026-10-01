@@ -48,7 +48,7 @@ from ..accounting.tax import TaxYearSummary, tax_years
 from ..accounting.uk_matching import UkMatchingResult, match_disposals
 from ..accounting.valuation import PortfolioValuation, Valuator
 from ..analytics.bonds import FixedRateBond
-from ..core.calendars import JointCalendar, get_calendar
+from ..core.calendars import JointCalendar, TradingCalendar, get_calendar
 from ..core.currency import USD
 from ..core.enums import AccountType, LotSelectionMethod, TransactionType
 from ..domain.instruments import Bond, Instrument, instrument_price_scale
@@ -128,7 +128,7 @@ def treasury_prices(bond: Bond, start: date, end: date, *, seed: int = 29) -> Ti
         name=bond.instrument_id,
     )
     rng = random.Random(seed)
-    calendar = get_calendar("SIFMA")
+    calendar = get_calendar("SIFMA").scheduled()  # the simulation steps through scheduled sessions
     level = 0.0435
     points: list[tuple[date, Decimal]] = []
     for day in calendar.business_days(start, end):
@@ -337,7 +337,7 @@ class _Desk:
                 self.convert(day, currency, excess, to_usd=True)
 
 
-def _business_day(calendar: JointCalendar, day: date) -> date:
+def _business_day(calendar: TradingCalendar, day: date) -> date:
     return day if calendar.is_business_day(day) else calendar.adjust(day)
 
 
@@ -356,7 +356,7 @@ def demo_transactions(market: DemoMarket, prices: SeriesPrices, fx: FxHistory) -
     """The account's whole transaction history, generated deterministically from the market."""
     instruments = {item.instrument_id: item for item in demo_instruments()}
     desk = _Desk(market, instruments, prices, fx)
-    trading = JointCalendar(["XNYS", "XLON", "TARGET"], name="demo-trading")
+    trading = JointCalendar(["XNYS", "XLON", "TARGET"], name="demo-trading").scheduled()
 
     start = _business_day(trading, DEMO_START)
     desk.deposit(start, "5000000.00")
@@ -449,7 +449,7 @@ def demo_blotter(transactions: list[Transaction]) -> TradeBlotter:
                 hours=BOOKED_AT_HOUR
             )
             blotter.book(wrong if item.transaction_id == corrected.transaction_id else item, booked_at)
-        found = get_calendar("XNYS").add_business_days(corrected.trade_date, CORRECTION_LAG_BUSINESS_DAYS)
+        found = get_calendar("XNYS").scheduled().add_business_days(corrected.trade_date, CORRECTION_LAG_BUSINESS_DAYS)
         blotter.amend(
             corrected,
             datetime.combine(found, datetime.min.time(), timezone.utc) + timedelta(hours=9),

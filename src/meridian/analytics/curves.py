@@ -15,6 +15,9 @@ both. Quoting one where another is meant misprices everything.
 *Interpolation is a modelling choice.* The default here is log-linear on discount
 factors, which is equivalent to assuming a constant forward rate between pillars.
 It keeps discount factors positive and monotone by construction. See ADR 0007.
+Monotone convex (Hagan-West) gives continuous, positive forwards and is the method
+the US Treasury has used for its official par curve since December 2021. It is not
+local, so bootstrapping with it iterates until the pillars stop moving. See ADR 0047.
 
 Rates are floats, deliberately: a curve is analytics, not a ledger entry. Cash
 amounts are converted back to ``Decimal`` at the boundary. See ADR 0008.
@@ -22,6 +25,7 @@ amounts are converted back to ``Decimal`` at the boundary. See ADR 0008.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -31,9 +35,15 @@ from ..core.compounding import Compounding, discount_factor, forward_rate, zero_
 from ..core.daycount import DayCountConvention, year_fraction
 from ..core.exceptions import CurveError, ValidationError
 from ..core.interpolation import InterpolationMethod, make_interpolator
+from ..core.monotone_convex import MonotoneConvex
 from .solvers import solve
 
 DEFAULT_DAY_COUNT = DayCountConvention.ACT_365F
+
+# Interpolators for which the curve up to a pillar depends only on the pillars up to it
+_LOCAL_METHODS = frozenset(
+    {InterpolationMethod.LOG_LINEAR, InterpolationMethod.FLAT_FORWARD, InterpolationMethod.LINEAR}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,15 +105,27 @@ class YieldCurve:
         self._pillar_factors = tuple(
             discount_factor(rate, years_, self.compounding) for years_, rate in zip(self.years, self.rates, strict=True)
         )
-        if self.interpolation in {InterpolationMethod.LOG_LINEAR, InterpolationMethod.FLAT_FORWARD}:
+        self._convex: MonotoneConvex | None = None
+        self._interpolates_factors = False
+        if self.interpolation is InterpolationMethod.MONOTONE_CONVEX:
+            continuous = [
+                zero_rate(factor, years_, Compounding.CONTINUOUS)
+                for years_, factor in zip(self.years, self._pillar_factors, strict=True)
+            ]
+            self._convex = MonotoneConvex(self.years, continuous)
+        elif self.interpolation in {InterpolationMethod.LOG_LINEAR, InterpolationMethod.FLAT_FORWARD}:
             # Anchor at t=0, DF=1, so the short end extrapolates towards par rather than flat
             self._interpolator = make_interpolator(
                 (0.0, *self.years), (1.0, *self._pillar_factors), InterpolationMethod.LOG_LINEAR
             )
             self._interpolates_factors = True
+        elif len(self.years) == 1:
+            # one pillar is a flat curve whatever the method; the first step of a bootstrap needs it
+            self._interpolator = make_interpolator(
+                (self.years[0], self.years[0] + 1.0), (self.rates[0], self.rates[0]), InterpolationMethod.LINEAR
+            )
         else:
             self._interpolator = make_interpolator(self.years, self.rates, self.interpolation)
-            self._interpolates_factors = False
 
     # ------------------------------------------------------------------ lookups
 
@@ -117,6 +139,8 @@ class YieldCurve:
         years = self.time_to(when)
         if years <= 0:
             return 1.0
+        if self._convex is not None:
+            return math.exp(-self._convex.integral(years))
         if self._interpolates_factors:
             return self._interpolator(years)
         return discount_factor(self._interpolator(years), years, self.compounding)
@@ -148,6 +172,8 @@ class YieldCurve:
     def instantaneous_forward(self, when: date | float, bump: float = 1e-4) -> float:
         """The limit of the forward rate as the window shrinks - the shape the curve really has."""
         years = max(self.time_to(when), 0.0)
+        if self._convex is not None:
+            return self._convex.forward(years)
         return self.forward_rate(years, years + bump, Compounding.CONTINUOUS)
 
     def par_rate(self, tenor: float, frequency: int = 2) -> float:
@@ -156,6 +182,11 @@ class YieldCurve:
         Inside the first coupon period there is no coupon to pay, so the quote is a
         money-market rate on a simple basis - which is how the short end is quoted,
         and what keeps this consistent with the deposits used to bootstrap it.
+
+        Between coupon dates (a 0.8-year bond, say) the first period is short and part
+        of it has already accrued, so a bond priced at par *clean* satisfies
+        ``c/f * (sum of DF - a) + DF(T) = 1``, where ``a`` is the elapsed share of that
+        period. Leaving ``a`` out draws a sawtooth between coupon dates.
         """
         if tenor <= 1.0 / frequency + 1e-9:
             factor = self.discount_factor(tenor)
@@ -164,7 +195,8 @@ class YieldCurve:
         if not times:
             raise CurveError(f"A {tenor}y par rate needs at least one coupon date")
         factors = [self.discount_factor(time) for time in times]
-        annuity = sum(factors) / frequency
+        elapsed = max(0.0, 1.0 - times[0] * frequency)  # the accrued share of a short first period
+        annuity = (sum(factors) - elapsed) / frequency
         if annuity <= 0:
             raise CurveError("Degenerate annuity; the curve cannot produce a par rate here")
         return (1.0 - factors[-1]) / annuity
@@ -272,32 +304,46 @@ def bootstrap_par_curve(
     times: list[float] = []
     rates: list[float] = []
     period = 1.0 / frequency
+    method = InterpolationMethod(interpolation) if not isinstance(interpolation, InterpolationMethod) else interpolation
 
-    for tenor, par in zip(tenors, par_rates, strict=True):
-        tenor = float(tenor)
-        par = float(par)
-        if times and tenor <= times[-1]:
-            raise CurveError("Bootstrapping instruments must be in increasing maturity order")
-
+    def solve_node(index: int, tenor: float, par: float, nodes: list[float], values: list[float]) -> float:
+        """The zero rate at node ``index`` that prices a par bond of this tenor to 100."""
         if tenor <= period + 1e-9:  # a single payment: price it as a deposit
-            factor = 1.0 / (1.0 + par * tenor)
-            rates.append(zero_rate(factor, tenor, compounding))
-            times.append(tenor)
-            continue
+            return zero_rate(1.0 / (1.0 + par * tenor), tenor, compounding)
 
-        def objective(candidate: float, tenor: float = tenor, par: float = par) -> float:
+        def objective(candidate: float) -> float:
             trial = YieldCurve(
                 valuation_date,
-                [*times, tenor],
-                [*rates, candidate],
+                nodes,
+                [*values[:index], candidate, *values[index + 1 :]],
                 compounding=compounding,
-                interpolation=interpolation,
+                interpolation=method,
             )
             return trial.par_rate(tenor, frequency) - par
 
-        guess = rates[-1] if rates else par
-        rates.append(solve(objective, guess, bracket=(-0.5, 1.5), label=f"{tenor_label(tenor)} bootstrap"))
+        guess = values[index - 1] if index else par
+        return solve(objective, guess, bracket=(-0.5, 1.5), tolerance=1e-14, label=f"{tenor_label(tenor)} bootstrap")
+
+    for tenor, par in zip(tenors, par_rates, strict=True):
+        tenor = float(tenor)
+        if times and tenor <= times[-1]:
+            raise CurveError("Bootstrapping instruments must be in increasing maturity order")
         times.append(tenor)
+        rates.append(par)
+        rates[-1] = solve_node(len(times) - 1, tenor, float(par), list(times), rates)
+
+    if method not in _LOCAL_METHODS:
+        # A non-local interpolator lets a later pillar move the curve before it, so one
+        # sequential pass leaves the earlier instruments slightly off. Repeat the pass,
+        # each node solved with all the others in place, until nothing moves.
+        for _ in range(50):
+            previous = list(rates)
+            for index, (tenor, par) in enumerate(zip(tenors, par_rates, strict=True)):
+                rates[index] = solve_node(index, float(tenor), float(par), times, rates)
+            if max(abs(new - old) for new, old in zip(rates, previous, strict=True)) < 1e-13:
+                break
+        else:  # pragma: no cover - the iteration is a contraction on any sane curve
+            raise CurveError("The bootstrap did not converge")
 
     return YieldCurve(
         valuation_date,

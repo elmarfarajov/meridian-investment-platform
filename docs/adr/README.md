@@ -51,3 +51,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0043](0043-the-audit-log-is-a-hash-chain.md) | The audit log is a hash chain, verified by the readiness probe | Accepted |
 | [0044](0044-writes-are-idempotent-and-orders-need-four-eyes.md) | Writes are idempotent by key; orders are checked pre-trade and need four eyes above a threshold | Accepted |
 | [0045](0045-one-command-deployment-with-its-own-observability.md) | One-command deployment, with its own observability, tested in CI | Accepted |
+| [0046](0046-the-rates-engine-is-reconciled-against-quantlib.md) | The rates engine is reconciled against QuantLib, and every break is explained | Accepted |
+| [0047](0047-curves-are-built-from-dated-instruments-with-monotone-convex-forwards.md) | Curves are built from dated instruments, with monotone convex forwards and an iterative bootstrap | Accepted |
+| [0048](0048-calendars-carry-history-and-a-scheduled-view.md) | Calendars carry history, and a simulation steps through the scheduled view | Accepted |
+| [0049](0049-real-rates-history-is-packaged-and-reproducible.md) | Real rates history is packaged, public domain, and rebuilt by a script | Accepted |
+| [0050](0050-parametric-curves-are-fitted-to-par-yields-and-checked-against-the-fed.md) | Parametric curves are fitted to par yields and checked against the Federal Reserve's | Accepted |

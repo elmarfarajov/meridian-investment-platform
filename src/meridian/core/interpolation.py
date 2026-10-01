@@ -38,6 +38,7 @@ class InterpolationMethod(str, Enum):
     MONOTONE_CUBIC = "monotone_cubic"
     FLAT_FORWARD = "flat_forward"
     PREVIOUS = "previous"
+    MONOTONE_CONVEX = "monotone_convex"  # Hagan-West, on forwards; see core.monotone_convex
 
 
 def _validate(xs: Sequence[float], ys: Sequence[float]) -> None:
@@ -198,6 +199,8 @@ def make_interpolator(
     method: InterpolationMethod | str = InterpolationMethod.LINEAR,
 ) -> Interpolator:
     method = InterpolationMethod(method) if not isinstance(method, InterpolationMethod) else method
+    if method not in _INTERPOLATORS:
+        raise ValidationError(f"{method.value} interpolates forwards on a curve, not arbitrary points")
     return _INTERPOLATORS[method](xs, ys)
 
 
