@@ -187,31 +187,64 @@ class StaleMark(Rule):
     probability that a stock moving 1.5% a day closes on the same cent three
     times running is of the order of one in a million - so ``min_repeats``
     defaults to two.
+
+    How likely an unchanged print is depends on the data, so a run is also held to
+    a probability. With daily volatility sigma and a quote resolution of one tick,
+    the chance of a print landing on the same tick is about
+    ``erf(tick / (2 sqrt(2) sigma))``. A run is flagged only if that chance, raised to
+    the run's length, is below ``improbable``. A share moving 1.5% a day is flagged
+    after two repeats as before. A rate quoted to one decimal is not, and a pegged
+    rate whose volatility is its rounding never is: unchanged is what it is
+    supposed to be.
     """
 
     min_repeats: int = 2
     error_after: int = 4
+    improbable: float = 1e-3
+    resolution_aware: bool = True  # False counts repeats alone, as v1.1.0 did
     name = "stale_mark"
     dimension = Dimension.TIMELINESS
     description = "Close unchanged across consecutive days"
 
     def check(self, context: SeriesContext) -> list[Finding]:
         points = [point for point in context.series if point.value > 0]
+        spans = [day for _, day, _ in context.adjusted_spans]
+        volatility = dict(zip(spans, context.recent_volatility(), strict=True))
+        ticks = dict(zip(spans, context.tick_returns, strict=True))
         findings: list[Finding] = []
         run: list[date] = []
         for previous, current in itertools.pairwise(points):
             if current.value == previous.value:
                 run.append(current.day)
                 continue
-            findings.extend(self._close_run(context, run, previous.value))
+            findings.extend(self._close_run(context, run, previous.value, volatility, ticks))
             run = []
         if points:
-            findings.extend(self._close_run(context, run, points[-1].value))
+            findings.extend(self._close_run(context, run, points[-1].value, volatility, ticks))
         return findings
 
-    def _close_run(self, context: SeriesContext, run: list[date], value: Decimal) -> list[Finding]:
+    def chance_unchanged(self, sigma: float | None, tick: float) -> float:
+        """The probability that one print lands on the same tick as the last."""
+        if sigma is None or tick <= 0:
+            return 0.0  # no basis to excuse a repeat
+        if sigma <= 0:
+            return 1.0
+        return math.erf(tick / (2 * math.sqrt(2) * sigma))
+
+    def _close_run(
+        self,
+        context: SeriesContext,
+        run: list[date],
+        value: Decimal,
+        volatility: dict[date, float | None],
+        ticks: dict[date, float],
+    ) -> list[Finding]:
         if len(run) < self.min_repeats:
             return []
+        if self.resolution_aware:
+            chance = self.chance_unchanged(volatility.get(run[0]), ticks.get(run[0], context.tick_return))
+            if chance ** len(run) >= self.improbable or run[0] in context.managed:
+                return []
         severity = Severity.ERROR if len(run) >= self.error_after else Severity.WARNING
         return [
             self.finding(
@@ -269,16 +302,22 @@ class RobustOutlier(Rule):
     threshold: float = 9.0
     window: int = 60
     min_periods: int = 20
+    resolution_aware: bool = True  # floor the scale at one tick of the quote; False is v1.1.0
     name = "robust_outlier"
     dimension = Dimension.ACCURACY
     description = "Return far outside the trailing robust range"
 
     def check(self, context: SeriesContext) -> list[Finding]:
         returns = context.residual_returns
-        scores = rolling_robust_z([value for _, value in returns], self.window, min_periods=self.min_periods)
+        scores = rolling_robust_z(
+            [value for _, value in returns],
+            self.window,
+            min_periods=self.min_periods,
+            min_scale=context.tick_returns if self.resolution_aware else 0.0,
+        )
         findings: list[Finding] = []
         for (day, value), score in zip(returns, scores, strict=True):
-            if score is None or abs(score) < self.threshold:
+            if score is None or abs(score) < self.threshold or day in context.managed:
                 continue
             findings.append(
                 self.finding(
@@ -306,6 +345,7 @@ class SpikeReversal(Rule):
     reversal: float = 0.6
     window: int = 60
     min_periods: int = 20
+    resolution_aware: bool = True
     name = "spike_reversal"
     dimension = Dimension.ACCURACY
     description = "Large move reversed the next day"
@@ -313,11 +353,12 @@ class SpikeReversal(Rule):
     def check(self, context: SeriesContext) -> list[Finding]:
         returns = context.residual_returns
         values = [value for _, value in returns]
-        scores = rolling_robust_z(values, self.window, min_periods=self.min_periods)
+        floor = context.tick_returns if self.resolution_aware else 0.0
+        scores = rolling_robust_z(values, self.window, min_periods=self.min_periods, min_scale=floor)
         findings: list[Finding] = []
         for index in range(len(returns) - 1):
             score = scores[index]
-            if score is None or abs(score) < self.threshold:
+            if score is None or abs(score) < self.threshold or returns[index][0] in context.managed:
                 continue
             move, following = values[index], values[index + 1]
             if move * following >= 0 or abs(following) < self.reversal * abs(move):

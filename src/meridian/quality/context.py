@@ -40,6 +40,10 @@ class SeriesContext:
     source: str = ""
     actions: Sequence[CorporateAction] = ()
     market: Mapping[date, float] = field(default_factory=dict)
+    # periods with no price to expect: a currency after the euro, a suspended fixing
+    inactive: Sequence[tuple[date, date | None]] = ()
+    # days under a managed exchange-rate regime, judged against its band, not by statistics
+    managed: frozenset[date] = frozenset()
 
     @classmethod
     def build(
@@ -52,6 +56,8 @@ class SeriesContext:
         source: str = "",
         actions: Sequence[CorporateAction] = (),
         market: Mapping[date, float] | None = None,
+        inactive: Sequence[tuple[date, date | None]] = (),
+        managed: frozenset[date] = frozenset(),
     ) -> SeriesContext:
         ordered = sorted(quotes, key=lambda quote: quote.day)
         resolved_as_of = as_of or (ordered[-1].day if ordered else date.today())
@@ -63,15 +69,24 @@ class SeriesContext:
             source=source,
             actions=[action for action in actions if action.instrument_id == key],
             market=dict(market or {}),
+            inactive=tuple(inactive),
+            managed=managed,
         )
 
     @classmethod
     def from_series(
-        cls, key: str, series: TimeSeries, calendar: TradingCalendar | str = "WEEKEND", *, as_of: date | None = None
+        cls,
+        key: str,
+        series: TimeSeries,
+        calendar: TradingCalendar | str = "WEEKEND",
+        *,
+        as_of: date | None = None,
+        inactive: Sequence[tuple[date, date | None]] = (),
+        managed: frozenset[date] = frozenset(),
     ) -> SeriesContext:
         """A context over a bare series (an FX rate, an index level) with no bid, ask or currency."""
         quotes = [Quote(instrument_id=key, day=point.day, close=point.value, currency="XXX") for point in series]
-        return cls.build(key, quotes, calendar, as_of=as_of)
+        return cls.build(key, quotes, calendar, as_of=as_of, inactive=inactive, managed=managed)
 
     # ------------------------------------------------------------------ derived data
     @cached_property
@@ -139,6 +154,8 @@ class SeriesContext:
         for previous, current in itertools.pairwise(points):
             if previous.value <= 0 or current.value <= 0:
                 continue
+            if any(previous.day <= after < current.day for after, _ in self.inactive):
+                continue  # nine years of a suspended fixing are not one day's return
             factor = self.event_factor(current.day, previous.value, since=previous.day)
             ratio = float(current.value) / (float(previous.value) * float(factor))
             results.append((previous.day, current.day, math.log(ratio)))
@@ -183,7 +200,61 @@ class SeriesContext:
         start = self.series.first.day
         if end < start:
             return ()
-        return tuple(self.calendar.business_days(start, end))
+        return tuple(
+            day
+            for day in self.calendar.business_days(start, end)
+            if not any(after < day and (until is None or day < until) for after, until in self.inactive)
+        )
+
+    @cached_property
+    def tick_returns(self) -> list[float]:
+        """For each return, one tick of the quotes just before it: the resolution, measured locally.
+
+        Sources change how they quote. The ECB fixed the Icelandic krona to two
+        decimals in 1999 and to one decimal later, so a single resolution for the
+        whole history would be wrong at one end or the other. The finest step among
+        the twenty prints before each return is used.
+        """
+        closes = [point for point in self.series if point.value > 0]
+        index = {point.day: position for position, point in enumerate(closes)}
+        exponents = [int(point.value.normalize().as_tuple().exponent) for point in closes]
+        result = []
+        for previous, _, _ in self.adjusted_spans:
+            position = index[previous]
+            finest = min(exponents[max(0, position - 19) : position + 1])
+            result.append(10.0**finest / float(closes[position].value))
+        return result
+
+    @cached_property
+    def tick_return(self) -> float:
+        """One tick of the finest quote in the series, as a return: the resolution of the data.
+
+        A rate fixed to four decimals near 1.96 cannot move by less than 0.5 bp; an
+        ISK rate quoted to one decimal near 140, by less than 7 bp. Statistics that
+        ignore this mistake rounding for information.
+        """
+        closes = [quote.close for quote in self.quotes if quote.close > 0]
+        if not closes:
+            return 0.0
+        # the finest step any print shows: 1.9558 resolves 0.0001, 1,202,000 resolves 1,000
+        finest = min(int(close.normalize().as_tuple().exponent) for close in closes)
+        typical = sorted(float(close) for close in closes)[len(closes) // 2]
+        return 10.0**finest / typical
+
+    def recent_volatility(self, window: int = 60) -> list[float | None]:
+        """For each return, the robust daily volatility of the ``window`` returns before it."""
+        values = [value for _, value in self.adjusted_returns]
+        result: list[float | None] = []
+        for index in range(len(values)):
+            history = values[max(0, index - window) : index]
+            if len(history) < 20:
+                result.append(None)
+                continue
+            ordered = sorted(history)
+            centre = ordered[len(ordered) // 2]
+            deviations = sorted(abs(value - centre) for value in history)
+            result.append(deviations[len(deviations) // 2] * 1.482602218505602)
+        return result
 
     @property
     def has_quotes(self) -> bool:

@@ -18,6 +18,17 @@ the firm has to make explicitly:
     Take the median of the in-tolerance values. More robust to any one source,
     but the published number may be a value no vendor sent.
 
+Sources are only comparable if they price the same moment. The ECB fixes the
+euro at 14:15 Frankfurt time; the Federal Reserve's noon rate is taken in New
+York three and three-quarter hours later. Over 27 years the two disagree by a median of 18 bp,
+and by 2.8% the day the ECB announced its 2016 easing, which came between them.
+Neither is wrong. So a policy can name each source's *fixing time*, and sources
+fixed more than ``max_fixing_gap`` from the anchor (the highest-ranked source
+present) are set aside with that reason. They are not counted as disagreeing,
+because they are answering a different question. The gap is measured in UTC on
+the day, so it is 3h45 most of the year and 2h45 in the weeks when US and
+European daylight saving disagree.
+
 One failure mode needs handling before either policy runs: *stale consensus*.
 Two vendors that both resent yesterday's close agree with each other perfectly
 and outvote the one vendor that has today's price. So a source whose value is
@@ -31,9 +42,10 @@ import statistics
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from enum import Enum
+from zoneinfo import ZoneInfo
 
 from ..core.exceptions import ValidationError
 from .quotes import MarketDataset, Quote
@@ -46,6 +58,21 @@ class GoldenMethod(str, Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class FixingTime:
+    """When, and where, a source takes its price: 14:15 in Frankfurt, 12:00 in New York."""
+
+    at: time
+    zone: str
+
+    def on(self, day: date) -> datetime:
+        """The fixing as an instant in UTC on a day - daylight saving included."""
+        return datetime.combine(day, self.at, ZoneInfo(self.zone)).astimezone(ZoneInfo("UTC"))
+
+    def __str__(self) -> str:
+        return f"{self.at:%H:%M} {self.zone.split('/')[-1].replace('_', ' ')}"
+
+
+@dataclass(frozen=True, slots=True)
 class PricingPolicy:
     """How to turn several sources' values into one."""
 
@@ -53,6 +80,11 @@ class PricingPolicy:
     tolerance_bps: float = 25.0
     method: GoldenMethod = GoldenMethod.PRIORITY
     min_sources: int = 1
+    fixing_times: tuple[tuple[str, FixingTime], ...] = ()
+    max_fixing_gap: timedelta = timedelta(hours=1)
+
+    def fixing_time(self, source: str) -> FixingTime | None:
+        return dict(self.fixing_times).get(source)
 
     def __post_init__(self) -> None:
         if not self.ranking:
@@ -147,6 +179,19 @@ def choose_price(
             excluded += [
                 (quote.source, "unchanged from its last close while other sources moved") for quote in unchanged
             ]
+    asynchronous: list[Quote] = []
+    if policy.fixing_times and usable:
+        anchor = min(usable, key=lambda quote: (policy.rank(quote.source), quote.source))
+        anchor_time = policy.fixing_time(anchor.source)
+        if anchor_time is not None:
+            moment = anchor_time.on(day)
+            for quote in usable:
+                fixing = policy.fixing_time(quote.source)
+                if fixing is not None and abs(fixing.on(day) - moment) > policy.max_fixing_gap:
+                    asynchronous.append(quote)
+                    gap = (fixing.on(day) - moment).total_seconds() / 3600
+                    excluded.append((quote.source, f"fixed at {fixing}, {gap:+.2f}h from {anchor.source}'s fix"))
+            usable = [quote for quote in usable if quote not in asynchronous]
     if len(usable) < policy.min_sources:
         return (instrument_id, day, f"{len(usable)} usable source(s), policy needs {policy.min_sources}")
 
@@ -168,7 +213,8 @@ def choose_price(
         best = min(inside, key=lambda quote: (policy.rank(quote.source), quote.source))
         value, source = best.close, best.source
 
-    challenged = bool(outside) or (len(usable) == 1 and len(quotes) > 1)
+    # a source set aside for fixing at another time is not a missing second opinion
+    challenged = bool(outside) or (len(usable) == 1 and len(quotes) - len(asynchronous) > 1)
     reason = ""
     if outside:
         reason = "; ".join(f"{quote.source} {_bps(quote.close, consensus):+.0f} bp" for quote in outside)

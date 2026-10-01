@@ -176,9 +176,14 @@ def attach_market_proxy(contexts: Sequence[SeriesContext], *, minimum: int = 3) 
         context.__dict__.pop("residual_returns", None)  # drop a cached value computed without the proxy
 
 
-def fx_series_rules() -> list[Rule]:
+def fx_series_rules(*, resolution_aware: bool = True) -> list[Rule]:
     """The subset of series rules that make sense for an FX rate: no bid, no ask, no corporate actions."""
-    return [MissingDays(), StaleMark(min_repeats=2), RobustOutlier(threshold=10.0), SpikeReversal(threshold=6.0)]
+    return [
+        MissingDays(),
+        StaleMark(min_repeats=2, resolution_aware=resolution_aware),
+        RobustOutlier(threshold=10.0, resolution_aware=resolution_aware),
+        SpikeReversal(threshold=6.0, resolution_aware=resolution_aware),
+    ]
 
 
 class QualityEngine:
