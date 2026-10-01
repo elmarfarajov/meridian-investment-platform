@@ -89,3 +89,47 @@ def register_currency(currency: Currency) -> Currency:
 
 def all_currencies() -> tuple[Currency, ...]:
     return tuple(sorted(_REGISTRY.values(), key=lambda currency: currency.code))
+
+
+# ---------------------------------------------------------------------------- quotation units
+@dataclass(frozen=True, slots=True)
+class QuoteUnit:
+    """The unit a price is quoted in, which is not always a currency.
+
+    London quotes most shares in pence, Johannesburg in cents and Tel Aviv in
+    agorot - a hundredth of the currency in which dividends, trades and the
+    portfolio's books are kept. Exchanges and vendors give these their own codes
+    (GBX, ZAc, ILA). The trap is the factor of a hundred: a dividend of GBP 0.10
+    set against a price of 520 *pence* is a 0.02% payout, not 19%.
+    """
+
+    code: str
+    currency: str
+    divisor: int = 1
+
+    def to_currency(self, amount: Decimal) -> Decimal:
+        """An amount in this unit, in its currency: 520 GBX is 5.20 GBP."""
+        return amount / self.divisor
+
+    def from_currency(self, amount: Decimal) -> Decimal:
+        """An amount of the currency, in this unit: 0.10 GBP is 10 GBX."""
+        return amount * self.divisor
+
+
+_SUBUNITS: dict[str, QuoteUnit] = {
+    unit.code.upper(): unit
+    for unit in (
+        QuoteUnit("GBX", "GBP", 100),  # pence; vendors also write GBp
+        QuoteUnit("ZAC", "ZAR", 100),  # South African cents; written ZAc
+        QuoteUnit("ILA", "ILS", 100),  # agorot
+        QuoteUnit("USX", "USD", 100),  # US cents, used for some commodity futures
+    )
+}
+
+
+def quote_unit(code: str) -> QuoteUnit:
+    """The quotation unit for a code: a sub-unit (GBX, GBp, ZAc, ILA) or a plain currency at par."""
+    key = code.strip().upper()
+    if key in _SUBUNITS:
+        return _SUBUNITS[key]
+    return QuoteUnit(key, key, 1)

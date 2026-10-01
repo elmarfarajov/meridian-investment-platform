@@ -22,11 +22,13 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from statistics import NormalDist
 
 import numpy as np
 
-#: Makes the MAD a consistent estimator of the standard deviation for normal data (1 / Phi^-1(3/4)).
-MAD_SCALE = 1.4826
+#: Makes the MAD a consistent estimator of the standard deviation for normal data: 1 / Phi^-1(3/4),
+#: exactly as scipy.stats.median_abs_deviation(scale="normal") uses it, not the rounded 1.4826.
+MAD_SCALE = 1.0 / NormalDist().inv_cdf(0.75)
 
 
 def median(values: Sequence[float]) -> float:
@@ -67,16 +69,22 @@ def classical_zscores(values: Sequence[float]) -> list[float]:
     return [float(value) for value in ((data - data.mean()) / deviation).tolist()]
 
 
-def rolling_robust_z(values: Sequence[float], window: int = 60, *, min_periods: int = 20) -> list[float | None]:
+def rolling_robust_z(
+    values: Sequence[float], window: int = 60, *, min_periods: int = 20, min_scale: float | Sequence[float] = 0.0
+) -> list[float | None]:
     """Backward-looking robust z-score: day ``t`` is scored against days ``t-window .. t-1``.
 
-    ``None`` means there was not yet enough history to judge. A zero MAD - a
-    window of identical values, which is itself a staleness symptom - scores any
-    departure as infinitely far away rather than dividing by zero.
+    ``None`` means there was not yet enough history to judge. ``min_scale`` is the
+    smallest spread the data can resolve - for prices, one tick of the quote as a
+    return. Without it a pegged rate, whose window is identical fixings, has a MAD
+    of zero, and a one-tick wobble of the rounding scores as infinitely far away.
+    With no floor a zero MAD still scores any departure as infinite rather than
+    dividing by zero.
     """
     if window < 3 or min_periods < 3:
         raise ValueError("a robust window needs at least three observations")
     data = np.asarray(values, dtype=float)
+    floors = [float(min_scale)] * data.size if isinstance(min_scale, int | float) else [float(v) for v in min_scale]
     scores: list[float | None] = []
     for index in range(data.size):
         history = data[max(0, index - window) : index]
@@ -84,7 +92,7 @@ def rolling_robust_z(values: Sequence[float], window: int = 60, *, min_periods: 
             scores.append(None)
             continue
         centre = float(np.median(history))
-        scale = float(np.median(np.abs(history - centre))) * MAD_SCALE
+        scale = max(float(np.median(np.abs(history - centre))) * MAD_SCALE, floors[index])
         difference = float(data[index]) - centre
         if scale == 0:
             scores.append(0.0 if difference == 0 else math.copysign(math.inf, difference))

@@ -68,3 +68,9 @@ def test_xref_resolves_by_date():
     assert "DEMO-OLDCO" in reused.stdout
     nothing = runner.invoke(app, ["market", "xref", "MRDN", "--on", "2022-01-03"])
     assert "identified nothing" in nothing.stdout
+
+
+def test_the_fx_review_runs_on_real_ecb_data():
+    result = runner.invoke(app, ["market", "fx-review", "--show", "5"], env={"COLUMNS": "200"})
+    assert result.exit_code == 0, result.output
+    assert "1,282" in result.output and "Open findings" in result.output and "EURUSD" in result.output

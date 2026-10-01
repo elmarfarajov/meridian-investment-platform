@@ -25,6 +25,7 @@ from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
 from .execution_gallery import execution_items
+from .fx_gallery import fx_reference_items
 from .marketdata.fx_history import FxHistory
 from .marketdata.golden import compare_to_reference
 from .optimisation_gallery import optimisation_items
@@ -288,6 +289,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *execution_items(),
         *platform_items(),
         *rates_engine_items(),
+        *fx_reference_items(),
     )
 
 

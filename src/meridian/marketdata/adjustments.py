@@ -22,6 +22,13 @@ Two adjusted views are produced, because they answer different questions:
     Cash dividends taken out as well, which is equivalent to reinvesting them on
     the ex-date. This is the series performance measurement and risk models use.
 
+A cash dividend is sized against the price, so the two must be in the same unit.
+A London share quoted in pence (GBX) pays its dividend in pounds, and some pay in
+dollars. ``price_unit`` names the price's quotation unit, and every dividend is
+converted into it before its factor is taken - by the factor of a hundred where
+the currencies match, and through ``fx`` where they do not. Without that, a
+GBP 0.10 dividend on a 520p share reads as a 19% payout.
+
 Adjustment is never stored over the raw data (ADR 0011). It is a view, derived
 on demand from the raw history and the event list, so an event loaded late or
 corrected changes every adjusted number consistently.
@@ -29,16 +36,42 @@ corrected changes every adjusted number consistently.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from decimal import Decimal, localcontext
 
+from ..core.currency import quote_unit
 from ..core.exceptions import ValidationError
-from ..domain.corporate_actions import AdjustmentMode, CorporateAction
+from ..domain.corporate_actions import AdjustmentMode, CashDividend, CorporateAction
 from .series import TimeSeries
 
 ADJUSTED_PLACES = Decimal("0.00000001")
+
+#: Units of ``quote`` for one unit of ``base`` on a day, or None when there is no rate.
+FxLookup = Callable[[str, str, date], Decimal | None]
+
+
+def in_price_units(action: CorporateAction, price_unit: str | None, fx: FxLookup | None = None) -> CorporateAction:
+    """The action with any cash amount restated in the unit the price is quoted in.
+
+    Only cash dividends carry an amount that is set against the price. Splits,
+    spin-offs and rights are ratios and need nothing.
+    """
+    if price_unit is None or not isinstance(action, CashDividend):
+        return action
+    target = quote_unit(price_unit)
+    declared = quote_unit(action.currency)
+    amount = declared.to_currency(action.amount)  # a dividend declared in pence becomes pounds
+    if declared.currency != target.currency:
+        rate = fx(declared.currency, target.currency, action.ex_date) if fx is not None else None
+        if rate is None:
+            raise ValidationError(
+                f"{action.action_id}: a {declared.currency} dividend on a price quoted in {target.code} "
+                "needs an exchange rate"
+            )
+        amount *= rate
+    return replace(action, amount=target.from_currency(amount), currency=target.code)
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +96,8 @@ def adjustment_factors(
     mode: AdjustmentMode = AdjustmentMode.TOTAL_RETURN,
     *,
     instrument_id: str | None = None,
+    price_unit: str | None = None,
+    fx: FxLookup | None = None,
 ) -> list[AdjustmentFactor]:
     """The factor of every event that falls inside the series and applies in ``mode``.
 
@@ -84,6 +119,7 @@ def adjustment_factors(
             continue
         cum = series.as_of(action.ex_date - timedelta(days=1))
         cum_price = cum.value if cum is not None else None
+        action = in_price_units(action, price_unit, fx)
         factors.append(
             AdjustmentFactor(
                 action_id=action.action_id,
@@ -113,9 +149,11 @@ def adjust_history(
     mode: AdjustmentMode = AdjustmentMode.TOTAL_RETURN,
     *,
     instrument_id: str | None = None,
+    price_unit: str | None = None,
+    fx: FxLookup | None = None,
 ) -> TimeSeries:
     """The history back-adjusted for every event in ``mode``, ending at the unadjusted latest price."""
-    factors = adjustment_factors(series, actions, mode, instrument_id=instrument_id)
+    factors = adjustment_factors(series, actions, mode, instrument_id=instrument_id, price_unit=price_unit, fx=fx)
     if not factors:
         return series.with_name(f"{series.name} ({mode.value})")
     points: list[tuple[date, Decimal]] = []
@@ -175,11 +213,17 @@ class AdjustedHistory:
 
 
 def adjusted_history(
-    series: TimeSeries, actions: Sequence[CorporateAction], *, instrument_id: str | None = None
+    series: TimeSeries,
+    actions: Sequence[CorporateAction],
+    *,
+    instrument_id: str | None = None,
+    price_unit: str | None = None,
+    fx: FxLookup | None = None,
 ) -> AdjustedHistory:
+    options = {"instrument_id": instrument_id, "price_unit": price_unit, "fx": fx}
     return AdjustedHistory(
         raw=series,
-        capital=adjust_history(series, actions, AdjustmentMode.CAPITAL, instrument_id=instrument_id),
-        total_return=adjust_history(series, actions, AdjustmentMode.TOTAL_RETURN, instrument_id=instrument_id),
-        factors=tuple(adjustment_factors(series, actions, AdjustmentMode.TOTAL_RETURN, instrument_id=instrument_id)),
+        capital=adjust_history(series, actions, AdjustmentMode.CAPITAL, **options),  # type: ignore[arg-type]
+        total_return=adjust_history(series, actions, AdjustmentMode.TOTAL_RETURN, **options),  # type: ignore[arg-type]
+        factors=tuple(adjustment_factors(series, actions, AdjustmentMode.TOTAL_RETURN, **options)),  # type: ignore[arg-type]
     )

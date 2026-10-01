@@ -162,8 +162,10 @@ def attach_market_proxy(contexts: Sequence[SeriesContext], *, minimum: int = 3) 
         return
     by_day: dict[date, list[tuple[int, float]]] = defaultdict(list)
     for index, context in enumerate(contexts):
-        for day, value in context.adjusted_returns:
-            by_day[day].append((index, value))
+        for previous, day, value in context.adjusted_spans:
+            # a return over a gap is several days' move; it would distort one day's median
+            if context.is_one_session(previous, day):
+                by_day[day].append((index, value))
     for index, context in enumerate(contexts):
         proxy: dict[date, float] = {}
         for day, entries in by_day.items():
@@ -174,9 +176,14 @@ def attach_market_proxy(contexts: Sequence[SeriesContext], *, minimum: int = 3) 
         context.__dict__.pop("residual_returns", None)  # drop a cached value computed without the proxy
 
 
-def fx_series_rules() -> list[Rule]:
+def fx_series_rules(*, resolution_aware: bool = True) -> list[Rule]:
     """The subset of series rules that make sense for an FX rate: no bid, no ask, no corporate actions."""
-    return [MissingDays(), StaleMark(min_repeats=2), RobustOutlier(threshold=10.0), SpikeReversal(threshold=6.0)]
+    return [
+        MissingDays(),
+        StaleMark(min_repeats=2, resolution_aware=resolution_aware),
+        RobustOutlier(threshold=10.0, resolution_aware=resolution_aware),
+        SpikeReversal(threshold=6.0, resolution_aware=resolution_aware),
+    ]
 
 
 class QualityEngine:

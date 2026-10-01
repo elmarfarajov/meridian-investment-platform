@@ -56,3 +56,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0048](0048-calendars-carry-history-and-a-scheduled-view.md) | Calendars carry history, and a simulation steps through the scheduled view | Accepted |
 | [0049](0049-real-rates-history-is-packaged-and-reproducible.md) | Real rates history is packaged, public domain, and rebuilt by a script | Accepted |
 | [0050](0050-parametric-curves-are-fitted-to-par-yields-and-checked-against-the-fed.md) | Parametric curves are fitted to par yields and checked against the Federal Reserve's | Accepted |
+| [0051](0051-prices-carry-a-quotation-unit.md) | Prices carry a quotation unit, and cash is restated in it before it meets a price | Accepted |
+| [0052](0052-statistics-respect-the-resolution-of-the-data.md) | Quality statistics respect the resolution of the data | Accepted |
+| [0053](0053-currency-regimes-and-lifecycles-are-reference-data.md) | Currency regimes and lifecycles are reference data, and statistics stand aside under management | Accepted |
+| [0054](0054-findings-on-documented-events-are-explained-not-suppressed.md) | Findings on documented market events are explained, not suppressed | Accepted |
+| [0055](0055-a-golden-copy-compares-sources-only-at-the-same-moment.md) | A golden copy compares sources only at the same moment | Accepted |

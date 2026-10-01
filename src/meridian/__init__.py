@@ -30,4 +30,4 @@ The package is layered so that each concern can be tested on its own:
     visual result rather than only numbers.
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"

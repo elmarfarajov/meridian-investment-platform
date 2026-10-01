@@ -4,6 +4,57 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-02
+
+Day 2 revisited: market data on real FX. The quality engine ran over 27 years of ECB
+fixings and the Federal Reserve's noon rates. A second reading of the code found four
+faults, and the real data found what the synthetic market could not.
+
+### Added
+
+- **27 years of real exchange rates** (`marketdata/fx_reference.py`):
+  - the ECB's euro reference rates for 41 currencies since 1999;
+  - the Federal Reserve's H.10 noon rates.
+  Both are packaged, and rebuilt by `fetch_rates`.
+- **Currency regimes and lifecycles** (`refdata/currency_regimes.py`):
+  - currency boards, ERM II bands, unilateral and crawling pegs, and floors;
+  - the nine euro adoptions with their conversion rates;
+  - two redenominations and two suspensions.
+  All are checked against the real data.
+- **Regime-aware FX quality** (`quality/fx_regimes.py`):
+  - `PegBand` checks a managed rate against its band;
+  - statistics stand aside under management and for 60 fixings after;
+  - a register of 31 documented market events explains the findings on their days.
+- **The real-FX review** (`services/fx_review.py`, `meridian market fx-review`). It
+  runs the rules stage by stage, 1,282 -> 560 -> 546 -> 135 findings, of which 82 are
+  explained and 53 left for a person, including the ECB's krona frozen at 305 for 19
+  days in October 2008. It also compares the ECB's fix with the Fed's: 18 bp apart at
+  the median, 3h45 apart in UTC.
+- **Fixing times in the golden copy.** A source fixed hours from the anchor is set
+  aside with the reason, not counted as disagreeing, with daylight saving respected.
+- **Quotation units** (`core.currency.QuoteUnit`): GBX, ZAc, ILA and USX.
+- **Eleven charts** (one hundred and fifty-eight in the gallery), a methodology note,
+  and ADRs 0051 to 0055.
+
+### Fixed
+
+- **The pence trap.** A sterling dividend on a share quoted in pence was set against
+  the price unconverted, so a 1.02% payout read as 0.01%. Dividends are now restated
+  in the price's unit, through a required exchange rate when the currencies differ.
+- **Events on days without a print.** An ex-date the feed had no price for was never
+  divided out, so a routine split scored as a bad tick. Every event between two
+  observations now counts.
+- **Gaps against the market.** A return spanning missing prints is set against the
+  market's move over the whole span, and the market proxy uses one-session returns
+  only.
+- **The MAD scale** is 1/Phi^-1(3/4), as scipy uses, not 1.4826.
+
+### Changed
+
+- **The robust scale is floored at one tick of the quote**, measured locally.
+  **Staleness** is the probability of repeating a tick given recent volatility, not a
+  count. On the synthetic market nothing changes: every planted fault is still caught.
+
 ## [1.1.0] - 2026-10-01
 
 Day 1 revisited: the rates engine, validated. It is reconciled against QuantLib and
@@ -602,6 +653,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[1.2.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.2.0
 [1.1.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.1.0
 [1.0.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.0.0
 [0.9.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v0.9.0
