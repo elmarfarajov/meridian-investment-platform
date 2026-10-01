@@ -6,9 +6,9 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.1.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.1.0)
+[![Release](https://img.shields.io/badge/release-v1.2.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.2.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
-[![Tests](https://img.shields.io/badge/tests-1246-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-1308-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6A4C93)](docs/notes/the-web-platform.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
@@ -105,6 +105,31 @@ it.
 
 The full account is in [the rates engine, validated](docs/notes/the-rates-engine-validated.md).
 
+**Day 2 revisited: the quality engine on 27 years of real FX.** Day 2's quality
+rules were measured against a synthetic market with planted faults. Run over every
+euro reference rate the ECB has fixed since 1999 - 41 currencies, 221,093 fixings -
+they raised 1,282 findings. Most were facts about currencies the rules had never been
+told:
+
+- a pegged rate is *meant* to look stale;
+- a currency that joined the euro is meant to stop;
+- a price cannot move by less than one tick of its quote.
+
+Taught resolution, lifecycles, regimes and a register of real market events, the
+rules leave 53 findings for a person. Among them is a genuine fault in the ECB's own
+history: the krona frozen at 305 for 19 days as Iceland's banks failed.
+
+![The quality engine on real data](docs/images/fx-quality-waterfall.png)
+
+![Forty-one currencies against the euro](docs/images/currency-lifecycles.png)
+
+The ECB and the Federal Reserve fix the same rates 3h45 apart, and differ by a median
+of 18 bp: not an error, but a different moment. The golden copy now compares sources
+only when they price the same one. The full account is in
+[market data on real FX](docs/notes/market-data-on-real-fx.md).
+
+![Two central banks, one exchange rate](docs/images/ecb-vs-fed.png)
+
 ---
 
 ## What it does today
@@ -135,8 +160,8 @@ meridian security validate US0378331005 HWUPKR0MPOU8FGXBT394
 
 meridian market price --persist
 # The end-of-day pricing run: three sources collected, 16,735 observations
-# recorded with the time they arrived, 207 quality findings, 5,606 golden
-# prices published, 140 price challenges raised.
+# recorded with the time they arrived, 211 quality findings, 5,606 golden
+# prices published, 141 price challenges raised.
 
 meridian market history US-AAPL --known-at 2026-09-10
 # The series as it stood that evening - not as it has since been restated.
@@ -244,7 +269,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and forty-seven are in the
+Every module ships a visual, not only numbers. All one hundred and fifty-eight are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -624,6 +649,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | --- | --- |
 | [Fixed income mathematics](docs/notes/fixed-income-mathematics.md) | Discounting, bootstrapping, clean and dirty price, duration, convexity, key rate durations, and the numerical method behind them |
 | [The rates engine, validated](docs/notes/the-rates-engine-validated.md) | QuantLib as a reconciliation, calendars that know their history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, Nelson-Siegel-Svensson against the Fed, gilts ex-dividend |
+| [Market data on real FX](docs/notes/market-data-on-real-fx.md) | The pence trap, the quality engine on 27 years of ECB fixings, currency regimes and lifecycles, the events register, the ECB against the Fed, fixing times |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
 | [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
@@ -645,8 +671,8 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Tax-aware rebalancing](docs/notes/tax-aware-rebalancing.md) | The rebalance as a conic programme over lots, rules that are not convex, orders, the frontier, and tax alpha measured honestly |
 | [Execution and transaction costs](docs/notes/execution-and-transaction-costs.md) | Orders in FIX states, a market with its counterfactual, five algorithms and Almgren-Chriss, allocation, the shortfall decomposed, calibration, the client report |
 | [The web platform](docs/notes/the-web-platform.md) | One API over the modules, seven layers of control, roles and entitlements, four eyes, the hash-chained audit log, idempotency, a measured working day, deployment |
-| [Chart gallery](docs/GALLERY.md) | All one hundred and forty-seven figures, with what each one argues |
-| [Architecture decisions](docs/adr) | Fifty records: what was decided, what the alternatives were, and what it costs |
+| [Chart gallery](docs/GALLERY.md) | All one hundred and fifty-eight figures, with what each one argues |
+| [Architecture decisions](docs/adr) | Fifty-five records: what was decided, what the alternatives were, and what it costs |
 | [Roadmap](docs/ROADMAP.md) | The nine modules, and the reasoning behind each |
 
 ---
@@ -667,7 +693,8 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 8 | Execution and reporting: orders in FIX states, a simulated intraday market, five algorithms and Almgren-Chriss, block allocation, implementation shortfall, a nine-page client report | ✅ Done |
 | 9 | Platform: a FastAPI service with JWT, roles and entitlements, a hash-chained audit log, idempotent writes, four-eyes orders, Prometheus and Grafana, Docker Compose; release v1.0.0 | ✅ Done |
 | 1+ | Day 1 revisited: reconciled against QuantLib, calendars with history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, NSS against the Fed, gilts; release v1.1.0 | ✅ Done |
-| 2+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
+| 2+ | Day 2 revisited: the pence trap and three more faults; the quality engine on 27 years of real FX from the ECB and the Fed, currency regimes and lifecycles, an events register, fixing times in the golden copy; release v1.2.0 | ✅ Done |
+| 3+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
 
 ---
 

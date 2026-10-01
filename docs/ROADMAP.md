@@ -357,7 +357,39 @@ release, like the days themselves.
 
 **Notes:** [the rates engine, validated](notes/the-rates-engine-validated.md).
 
-### Days 2 to 9, revisited - next
+### Day 2, revisited - market data on real FX ✅
+
+**Issue #22, release v1.2.0.**
+
+- **Four faults found by reading the code again:**
+  - the pence trap;
+  - events on ex-dates with no print;
+  - gaps measured against one day of market;
+  - the rounded MAD constant.
+- **27 years of real FX:** the ECB's 41 euro reference rates and the Federal
+  Reserve's noon rates, packaged.
+- **The quality engine on real data.** 1,282 findings, cut to 53 by teaching the rules:
+  - the resolution of a quote;
+  - each currency's lifecycle;
+  - each currency's regime;
+  - a register of 31 market events.
+  The 53 open ones include a genuine fault in the ECB's own history.
+- **Two central banks, one rate:** the ECB and the Fed fix 18 bp apart. The golden
+  copy now compares sources only at the same moment.
+
+**Charts:** eleven, including:
+
+- the waterfall from 1,282 findings to 53;
+- the lifecycles of 41 currencies;
+- pegs and bands;
+- the staleness model against the data;
+- six real events;
+- the ECB against the Fed;
+- the world's fixes on one clock.
+
+**Notes:** [market data on real FX](notes/market-data-on-real-fx.md).
+
+### Days 3 to 9, revisited - next
 
 ---
 
