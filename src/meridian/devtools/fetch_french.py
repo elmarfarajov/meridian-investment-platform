@@ -3,6 +3,9 @@
     python -m meridian.devtools.fetch_french             # download and rebuild
     python -m meridian.devtools.fetch_french --from DIR  # rebuild from the library's CSV files already downloaded
 
+Monthly and daily tables are kept: the monthly ones for performance (Day 4), the daily
+value-weighted industry returns and factors for risk (Day 5).
+
 The library publishes each table as a zipped CSV of several sections, each a title,
 a header row and one row per month (``192607``) or year (``  1927``). Only the
 monthly sections are kept: the value- and equal-weighted returns, the number of
@@ -19,11 +22,13 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from ..marketdata.french import FACTOR_FILE, INDUSTRY_FILE, REFERENCE_DIR
+from ..marketdata.french import DAILY_FACTOR_FILE, DAILY_INDUSTRY_FILE, FACTOR_FILE, INDUSTRY_FILE, REFERENCE_DIR
 
 BASE_URL = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/"
 INDUSTRY_ZIP = "12_Industry_Portfolios_CSV.zip"
 FACTOR_ZIP = "F-F_Research_Data_Factors_CSV.zip"
+DAILY_INDUSTRY_ZIP = "12_Industry_Portfolios_daily_CSV.zip"
+DAILY_FACTOR_ZIP = "F-F_Research_Data_Factors_daily_CSV.zip"
 MISSING = {"-99.99", "-999"}
 
 INDUSTRY_SECTIONS = {
@@ -108,20 +113,63 @@ def _download(name: str) -> str:
         return _read_zip(response.read())
 
 
+def daily_rows(table: tuple[list[str], list[tuple[str, list[str]]]]) -> list[tuple[str, list[str]]]:
+    return [(key, values) for key, values in table[1] if len(key) == 8]
+
+
+def daily_industry_rows(text: str) -> list[dict[str, str]]:
+    """The value-weighted daily returns, one row per day, one column per industry (wide, to stay small)."""
+    parsed = sections(text)
+    title = "Average Value Weighted Returns -- Daily"
+    if title not in parsed:
+        raise ValueError(f"the daily industry file has no section {title!r}")
+    header = parsed[title][0]
+    rows = []
+    for day, values in daily_rows(parsed[title]):
+        missing = [industry for industry, value in zip(header, values, strict=True) if value in MISSING]
+        if missing:
+            raise ValueError(f"{missing[0]} has no return on {day}")
+        rows.append({"day": day, **dict(zip(header, values, strict=True))})
+    return rows
+
+
+def daily_factor_rows(text: str) -> list[dict[str, str]]:
+    parsed = sections(text)
+    table = next(table for table in parsed.values() if daily_rows(table))
+    names = {"Mkt-RF": "mkt_rf", "SMB": "smb", "HML": "hml", "RF": "rf"}
+    return [
+        {"day": day, **{names[name]: value for name, value in zip(table[0], values, strict=True)}}
+        for day, values in daily_rows(table)
+    ]
+
+
+SOURCES = {
+    INDUSTRY_ZIP: "12_Industry_Portfolios.csv",
+    FACTOR_ZIP: "F-F_Research_Data_Factors.csv",
+    DAILY_INDUSTRY_ZIP: "12_Industry_Portfolios_Daily.csv",
+    DAILY_FACTOR_ZIP: "F-F_Research_Data_Factors_daily.csv",
+}
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--from", dest="source", type=Path, help="a directory holding the two library CSV files")
+    parser.add_argument("--from", dest="source", type=Path, help="a directory holding the four library CSV files")
     args = parser.parse_args(argv)
-    if args.source:
-        industries = (args.source / "12_Industry_Portfolios.csv").read_text(encoding="utf-8", errors="replace")
-        factors = (args.source / "F-F_Research_Data_Factors.csv").read_text(encoding="utf-8", errors="replace")
-    else:
-        industries, factors = _download(INDUSTRY_ZIP), _download(FACTOR_ZIP)
-    rows = industry_rows(industries)
-    _write(INDUSTRY_FILE, rows)
-    factor_table = factor_rows(factors)
-    _write(FACTOR_FILE, factor_table)
-    print(f"{INDUSTRY_FILE}: {len(rows):,} rows; {FACTOR_FILE}: {len(factor_table):,} months")
+    texts = {
+        archive: (args.source / name).read_text(encoding="utf-8", errors="replace")
+        if args.source
+        else _download(archive)
+        for archive, name in SOURCES.items()
+    }
+    builds = (
+        (INDUSTRY_FILE, industry_rows(texts[INDUSTRY_ZIP])),
+        (FACTOR_FILE, factor_rows(texts[FACTOR_ZIP])),
+        (DAILY_INDUSTRY_FILE, daily_industry_rows(texts[DAILY_INDUSTRY_ZIP])),
+        (DAILY_FACTOR_FILE, daily_factor_rows(texts[DAILY_FACTOR_ZIP])),
+    )
+    for name, rows in builds:
+        _write(name, rows)
+        print(f"{name}: {len(rows):,} rows")
 
 
 if __name__ == "__main__":  # pragma: no cover

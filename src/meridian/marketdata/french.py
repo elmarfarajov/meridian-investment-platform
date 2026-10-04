@@ -28,11 +28,15 @@ from datetime import date, timedelta
 from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
+
 from ..core.exceptions import ValidationError
 
 REFERENCE_DIR = Path(__file__).with_name("reference")
 INDUSTRY_FILE = "french_12_industries.csv.gz"
 FACTOR_FILE = "french_ff3_factors.csv.gz"
+DAILY_INDUSTRY_FILE = "french_12_industries_daily.csv.gz"
+DAILY_FACTOR_FILE = "french_ff3_factors_daily.csv.gz"
 SOURCE = "Kenneth R. French Data Library (CRSP), 12 industry portfolios and Fama-French factors"
 
 #: The library's industry codes and what they hold (its SIC definitions).
@@ -159,3 +163,50 @@ def french_history() -> FrenchHistory:
     if incomplete:
         raise ValidationError(f"the industry table is incomplete in {incomplete[0]:%Y-%m}")
     return FrenchHistory(months, tuple(industries), data, factors)
+
+
+@dataclass(frozen=True)
+class FrenchDaily:
+    """Every trading day since 1 July 1926: the industries' value-weighted returns and the factors (fractions)."""
+
+    days: tuple[date, ...]
+    industries: tuple[str, ...]
+    returns: np.ndarray  # T x 12
+    market_excess: np.ndarray  # T
+    risk_free: np.ndarray  # T
+    smb: np.ndarray
+    hml: np.ndarray
+
+    @property
+    def market(self) -> np.ndarray:
+        """The market's total daily return: its excess return plus the bill's daily rate."""
+        return self.market_excess + self.risk_free
+
+    def industry(self, name: str) -> np.ndarray:
+        return self.returns[:, self.industries.index(name)]
+
+    def index_of(self, day: date) -> int:
+        """The position of the first trading day on or after ``day``."""
+        return int(np.searchsorted(np.array([d.toordinal() for d in self.days]), day.toordinal()))
+
+
+def _day(text: str) -> date:
+    return date(int(text[:4]), int(text[4:6]), int(text[6:]))
+
+
+@lru_cache(maxsize=1)
+def french_daily() -> FrenchDaily:
+    """The packaged daily tables, aligned day by day."""
+    industry_rows = _open(DAILY_INDUSTRY_FILE)
+    factor_rows = {row["day"]: row for row in _open(DAILY_FACTOR_FILE)}
+    industries = tuple(key for key in industry_rows[0] if key != "day")
+    shared = [row for row in industry_rows if row["day"] in factor_rows]
+    if len(shared) != len(industry_rows):
+        raise ValidationError("the daily industry and factor tables cover different days")
+    days = tuple(_day(row["day"]) for row in shared)
+    returns = np.array([[float(row[name]) for name in industries] for row in shared]) / 100.0
+    factors = (
+        np.array([[float(factor_rows[row["day"]][key]) for key in ("mkt_rf", "rf", "smb", "hml")] for row in shared])
+        / 100.0
+    )
+    return FrenchDaily(days, industries, returns, factors[:, 0], factors[:, 1], factors[:, 2], factors[:, 3])
