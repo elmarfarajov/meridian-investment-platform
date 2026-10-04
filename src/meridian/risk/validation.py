@@ -151,8 +151,12 @@ def conditional_coverage(hits: np.ndarray, coverage: float = 0.99) -> CoverageTe
     return CoverageTest("Christoffersen conditional coverage", statistic, float(stats.chi2.sf(statistic, 2)))
 
 
-#: Basel Committee (1996) backtesting framework: exceptions in 250 days of a 99% VaR -> zone, plus factor.
+#: Basel Committee (1996) backtesting framework: exceptions in 250 days of a 99% VaR -> plus factor.
 BASEL_PLUS_FACTOR = {5: 0.40, 6: 0.50, 7: 0.65, 8: 0.75, 9: 0.85}
+BASEL_OBSERVATIONS = 250
+#: The zone boundaries are cumulative binomial probabilities: green below 95%, red from 99.99%.
+GREEN_BELOW = 0.95
+RED_FROM = 0.9999
 
 
 @dataclass(frozen=True)
@@ -160,14 +164,58 @@ class TrafficLight:
     exceptions: int
     zone: str  # green, yellow or red
     multiplier: float  # the capital multiplier, 3 plus the plus factor
+    cumulative: float = math.nan  # P(X <= exceptions) for a correct model
+    observations: int = BASEL_OBSERVATIONS
 
 
-def traffic_light(exceptions: int) -> TrafficLight:
-    if exceptions <= 4:
-        return TrafficLight(exceptions, "green", 3.0)
-    if exceptions <= 9:
-        return TrafficLight(exceptions, "yellow", 3.0 + BASEL_PLUS_FACTOR[exceptions])
-    return TrafficLight(exceptions, "red", 4.0)
+def cumulative_probability(exceptions: int, observations: int = BASEL_OBSERVATIONS, coverage: float = 0.99) -> float:
+    """The probability that a correct VaR model is exceeded ``exceptions`` times or fewer."""
+    return float(stats.binom.cdf(exceptions, observations, 1.0 - coverage))
+
+
+def traffic_light(exceptions: int, observations: int = BASEL_OBSERVATIONS, coverage: float = 0.99) -> TrafficLight:
+    """The Basel zone of a backtest, from the binomial probability of seeing this few exceptions.
+
+    The Basel Committee (1996, Table 2) defines the zones by the cumulative
+    probability of the number of exceptions under a correct model: green while
+    it is below 95%, red from 99.99%, yellow between. For 250 days of a 99% VaR
+    that is green to four exceptions and red from ten - the familiar table, which
+    this reproduces - and the same rule gives the zones for any other window.
+    The plus factor of the yellow zone is the Committee's, defined for 250 days;
+    for another window it is taken from the 250-day count with the same
+    cumulative probability.
+    """
+    if observations <= 0 or not 0 <= exceptions <= observations:
+        raise ValidationError("exceptions must lie between zero and the number of observations")
+    probability = cumulative_probability(exceptions, observations, coverage)
+    if probability < GREEN_BELOW:
+        return TrafficLight(exceptions, "green", 3.0, probability, observations)
+    if probability >= RED_FROM:
+        return TrafficLight(exceptions, "red", 4.0, probability, observations)
+    equivalent = next(
+        count for count in range(BASEL_OBSERVATIONS + 1)
+        if cumulative_probability(count, BASEL_OBSERVATIONS, coverage) >= probability
+    )  # fmt: skip
+    plus = BASEL_PLUS_FACTOR.get(min(max(equivalent, 5), 9), 0.85)
+    return TrafficLight(exceptions, "yellow", 3.0 + plus, probability, observations)
+
+
+def qlike(returns: np.ndarray, volatility: np.ndarray) -> float:
+    """The QLIKE loss of variance forecasts against squared returns: mean of r2/h - ln(r2/h) - 1.
+
+    A squared daily return is a noisy measure of that day's variance. Patton
+    (2011) shows QLIKE, like squared error, ranks forecasts correctly however
+    noisy the proxy - and, unlike squared error, it is not dominated by a few
+    crash days. Lower is better; zero only for a perfect forecast of a perfect
+    proxy. Days with a zero return are skipped, where the logarithm is undefined.
+    """
+    squared = np.asarray(returns, dtype=float) ** 2
+    forecast = np.asarray(volatility, dtype=float) ** 2
+    valid = np.isfinite(squared) & np.isfinite(forecast) & (squared > 0) & (forecast > 0)
+    if not valid.any():
+        raise ValidationError("QLIKE needs at least one day with a return and a forecast")
+    ratio = squared[valid] / forecast[valid]
+    return float(np.mean(ratio - np.log(ratio) - 1.0))
 
 
 def exceptions(returns: np.ndarray, var: np.ndarray) -> np.ndarray:

@@ -72,7 +72,7 @@ def check(risk: DemoRisk) -> None:
         if not (math.isfinite(item.volatility) and item.volatility > 0 and math.isfinite(item.tracking_error)):
             raise ValidationError(f"the forecast for {item.day} is not a positive number; nothing written")
     hits = [item.exception for item in risk.book_forecasts[-250:]]
-    if traffic_light(sum(hits)).zone == "red":
+    if traffic_light(sum(hits), len(hits)).zone == "red":
         raise ValidationError("the VaR backtest is in the Basel red zone; nothing written")
 
 
@@ -91,7 +91,7 @@ def run_demo_risk(risk: DemoRisk, unit_of_work: UnitOfWork | None = None) -> Ris
         active_bias=summarise_bias("active", np.array([item.active / item.tracking_error for item in forecasts])).bias,
         exceptions=sum(hits),
         scored_days=len(forecasts),
-        zone=traffic_light(sum(hits[-250:])).zone,
+        zone=traffic_light(sum(hits[-250:]), len(hits[-250:])).zone,
     )
     _ = kupiec(outcome.exceptions, outcome.scored_days)  # computable, or the counts are inconsistent
     if unit_of_work is None:

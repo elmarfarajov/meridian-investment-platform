@@ -129,12 +129,16 @@ On 18 September 2026, with the account's positions and a NAV of 5.03 million dol
 
 | | Portfolio | Benchmark | Active |
 | --- | ---: | ---: | ---: |
-| World | 8.11% | 8.71% | 0.00% |
+| World | 8.10% | 8.69% | 0.00% |
 | Industry | 0.77% | 0.48% | 0.48% |
-| Style | 0.04% | 0.47% | 0.08% |
+| Style | 0.07% | 0.52% | 0.08% |
 | Currency | 0.03% | 0.05% | 0.07% |
 | Specific | 3.27% | 1.85% | 5.19% |
-| **Total** | **12.22%** | **11.56%** | **5.81%** |
+| **Total** | **12.24%** | **11.59%** | **5.82%** |
+
+(Since the Day 5 revisit, holdings outside the estimation universe get exactly the
+exposure a universe stock with the same descriptor gets; the style column moved by
+three hundredths of a point. See [risk against the references](risk-against-the-references.md).)
 
 Each column is an Euler decomposition, so its parts add up to its total exactly. The
 account's volatility is mostly the market: its world exposure of 0.81 matches the

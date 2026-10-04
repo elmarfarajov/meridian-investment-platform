@@ -58,6 +58,25 @@ def fit_garch(returns: np.ndarray) -> GarchFit:
     )
 
 
+def garch_filter(
+    returns: np.ndarray, fit: GarchFit, initial_variance: float, initial_square: float | None = None
+) -> np.ndarray:
+    """Conditional volatilities ``s_t`` for each day: ``s2_t = omega + alpha r2_(t-1) + beta s2_(t-1)``.
+
+    ``initial_variance`` is the variance before the first return and
+    ``initial_square`` the squared return before it, by default the same: then
+    ``s2_0 = omega + (alpha + beta) * initial_variance``, the convention ``arch``
+    uses with its backcast, which lets the two be compared to the last digit.
+    """
+    variance = np.empty(len(returns))
+    previous_variance = initial_variance
+    previous_square = initial_variance if initial_square is None else initial_square
+    for day in range(len(returns)):
+        variance[day] = fit.omega + fit.alpha * previous_square + fit.beta * previous_variance
+        previous_square, previous_variance = returns[day] ** 2, variance[day]
+    return np.sqrt(variance)
+
+
 def garch_forecasts(
     returns: np.ndarray, *, start: int = FIT_WINDOW, refit_every: int = REFIT_EVERY
 ) -> tuple[np.ndarray, list[GarchFit]]:

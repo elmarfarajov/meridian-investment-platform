@@ -86,6 +86,9 @@ class RollingForecaster:
         self.history = history
         self.estimated = estimated
         self.factors: FactorSet = estimated.factors
+        self.vol_half_life = vol_half_life
+        self.correlation_half_life = correlation_half_life
+        self.specific_half_life = specific_half_life
         self.currency = history.currency_matrix()
         self.ewma = EwmaState.start(len(self.factors), vol_half_life, correlation_half_life)
         self.sample = SampleState(SAMPLE_WINDOW)
@@ -119,7 +122,10 @@ class RollingForecaster:
             factor_covariance=covariance,
             exposures={stock: exposures[row] for row, stock in enumerate(stock_ids)},
             specific_variance={stock: float(specific[row]) for row, stock in enumerate(stock_ids)},
-            description=f"{method}: vol half-life {VOL_HALF_LIFE}d, correlation {CORRELATION_HALF_LIFE}d",
+            description=(
+                f"{method}: vol half-life {self.vol_half_life:g}d, correlation {self.correlation_half_life:g}d, "
+                f"specific {self.specific_half_life:g}d"
+            ),
         )
 
     def factor_covariance(self, position: int, method: str = "ewma") -> np.ndarray:
@@ -178,8 +184,12 @@ class RollingForecaster:
         return tracks
 
     def factor_z_scores(self, *, start: int = WARM_UP, method: str = "ewma") -> dict[str, np.ndarray]:
-        """Each factor's return over its own forecast volatility, day by day."""
-        state = EwmaState.start(len(self.factors), VOL_HALF_LIFE, CORRELATION_HALF_LIFE) if method == "ewma" else None
+        """Each factor's return over its own forecast volatility, day by day, on this forecaster's half-lives."""
+        state = (
+            EwmaState.start(len(self.factors), self.vol_half_life, self.correlation_half_life)
+            if method == "ewma"
+            else None
+        )
         sample = SampleState(SAMPLE_WINDOW)
         rows: list[np.ndarray] = []
         for position, row in enumerate(self.estimated.returns):
@@ -194,7 +204,7 @@ class RollingForecaster:
 
     def specific_z_scores(self, *, start: int = WARM_UP, shrink: bool = False) -> np.ndarray:
         """Every stock's specific return over its forecast specific volatility (T x N)."""
-        risk = SpecificRisk(len(self.history.stocks))
+        risk = SpecificRisk(len(self.history.stocks), self.specific_half_life)
         rows: list[np.ndarray] = []
         for position, row in enumerate(self.estimated.specific):
             if position >= start:
