@@ -59,6 +59,8 @@ dev = [
     "scikit-learn>=1.4",
     "httpx>=0.27",
     "QuantLib>=1.35",  # the independent reference the rates engine is validated against
+    "empyrical-reloaded>=0.5.12",  # the reference the performance statistics are reconciled against
+    "pytz",  # empyrical imports it without declaring it
 ]
 
 [project.scripts]
@@ -117,7 +119,7 @@ follow_imports = "skip"
 follow_imports_for_stubs = true
 
 [[tool.mypy.overrides]]
-module = ["matplotlib.*", "pandas.*", "structlog.*", "scipy.*", "arch.*", "sklearn.*", "cvxpy", "cvxpy.*", "QuantLib", "QuantLib.*", "mpl_toolkits.*"]
+module = ["matplotlib.*", "pandas.*", "structlog.*", "scipy.*", "arch.*", "sklearn.*", "cvxpy", "cvxpy.*", "QuantLib", "QuantLib.*", "empyrical", "empyrical.*", "mpl_toolkits.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]
