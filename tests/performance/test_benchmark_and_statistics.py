@@ -124,3 +124,46 @@ def test_rolling_and_calendar_and_summary():
     assert set(table[2025]) >= {1, 2, 13}
     rows = dict((name, (mine, theirs)) for name, mine, theirs in summary_rows(s, b))
     assert "Information ratio" in rows and rows["Beta"][1] == "1.00"
+
+
+# ---------------------------------------------------------------------------- Day 4 revisited
+def test_capture_is_morningstar_s_ratio_of_annualised_returns():
+    import numpy as np
+
+    from meridian.performance.statistics import capture_ratio
+
+    up_b = np.array([0.02] * 10)
+    up_p = np.array([0.03] * 10)
+    expected = (1.03**252 - 1) / (1.02**252 - 1)  # annualised by the count of up days, both sides
+    assert capture_ratio(up_p, up_b, 252) == pytest.approx(expected)
+    s = returns([0.01, -0.01, 0.02, -0.015] * 30)
+    double = ReturnSeries(s.days, tuple(2 * value for value in s.rates))
+    rel = relative(double, s)
+    assert rel.up_capture > 2.0  # leverage compounds faster than it adds
+    assert rel.down_capture == pytest.approx(capture_ratio(np.array(double.rates)[1::2], np.array(s.rates)[1::2], 252))
+
+
+def test_ratios_on_a_short_series_compare_annual_rates_with_annual_rates():
+    quarter = returns([0.0004] * 63)
+    measures = risk_return(quarter, risk_free=0.04)
+    assert measures.annual_return == pytest.approx(1.0004**63 - 1)  # presented unannualised, per GIPS
+    rate = (1.0004**63) ** (365.25 / 63) - 1
+    assert measures.sharpe == pytest.approx((rate - 0.04) / measures.volatility)
+
+
+def test_relative_measures_cover_only_the_shared_period():
+    long = returns([0.001] * 400, start=D(2024, 1, 1))
+    short = ReturnSeries(long.days[300:], long.rates[300:], "late", origin=long.days[299])
+    rel = relative(long, short)
+    assert rel.active_return == pytest.approx(0.0, abs=1e-12)  # same returns over the same days
+    with pytest.raises(ValidationError, match="different frequencies"):
+        relative(long, ReturnSeries(long.days, long.rates, "monthly", periods_per_year=12))
+
+
+def test_monthly_series_annualise_with_twelve_periods():
+    days = tuple(date(2020 + (m // 12), m % 12 + 1, 28) for m in range(36))
+    monthly = ReturnSeries(days, tuple([0.01, -0.005] * 18), "m", periods_per_year=12)
+    measures = risk_return(monthly, risk_free=0.0)
+    import numpy as np
+
+    assert measures.volatility == pytest.approx(float(np.std(monthly.rates, ddof=1)) * 12**0.5)
