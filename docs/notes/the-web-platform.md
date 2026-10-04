@@ -35,7 +35,7 @@ The API computes nothing. Every endpoint:
 The facade asks the module that owns the answer. So a number served over HTTP is the
 number the command line prints and the client report shows. The API's tests check this
 directly: the valuation served equals the Day 3 book's NAV, and a pre-trade check of a
-$100,000 Microsoft purchase comes back blocked with a largest allowed order of $85,978,
+$100,000 Microsoft purchase comes back blocked with a largest allowed order of $85,976,
 the Day 6 answer.
 
 The facade is a `Protocol`. The web layer is therefore tested twice:

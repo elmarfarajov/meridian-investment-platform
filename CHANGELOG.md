@@ -4,6 +4,57 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-04
+
+Day 3 revisited: the book of record held to the tax authorities' own worked examples,
+and to properties that must hold for any history of trades. Between them they found
+three gaps in UK matching, two engine bugs and one arithmetic slip in HMRC's manual.
+
+### Added
+
+- **The published examples** (`devtools/tax_reference.py`): 12 cases and 42 figures.
+  - IRS Publication 550's wash-sale examples, which agree to the cent. They include
+    replacements bought before the sale, and a loss that may not reduce gains on other
+    blocks.
+  - HMRC's CG51560, CG51590 and HS284 examples, which agree to the pound. They cover
+    same day, bed and breakfast, the pool, two rights issues, a 1982 rebasing and the
+    thirty-first day.
+  - CG51590 Example 2 prints a pool cost of £4,236 where HMRC's own arithmetic gives
+    £4,235. It is recorded in `KNOWN_ERRATA`, and the engine is not bent to match it.
+- **Property tests of the book** (`tests/accounting/test_book_invariants.py`).
+  Hypothesis writes histories in two currencies under three relief methods. Each must
+  satisfy:
+  - a zero trial balance;
+  - the sub-ledger tied to the lots at historical cost;
+  - quantities that reconcile;
+  - every disallowed loss carried in a replacement basis.
+- **`builders.rights_take_up`**: a purchase marked as rights taken up.
+- **Six charts** (one hundred and sixty-four in the gallery), a methodology note, and
+  ADRs 0056 to 0059.
+
+### Fixed
+
+- **Shares sold together replaced each other.** Under HIFO, the loss on the first lot
+  a sale closed could be matched to shares of another lot the same sale closed. The
+  disallowed loss then landed on no open lot and vanished from the tax basis.
+- **An intraday round trip was refused.** Sales are booked before purchases within a
+  day, so a sale of shares bought that day found nothing held. A sale of more than the
+  day's opening holding is now booked after the day's purchases.
+- **UK matching, against the statute:**
+  - disposals (and acquisitions) on one day are one transaction, TCGA 1992 s105(1);
+    two sales on a day used to be matched in turn;
+  - rights taken up join the section 104 pool and are never matched under the 30-day
+    rule (s127);
+  - a disposal the pool cannot cover is matched with later acquisitions (HS284), not
+    refused.
+
+### Changed
+
+- **The demonstration Treasury (`US-T-2032`) accrues actual/actual (ICMA)**, as US
+  Treasuries do, not 30/360. Accrued interest on the test purchase is $1,588.40
+  rather than $1,557.29. The largest Microsoft purchase the Day 6 hard limits allow
+  returns to $85,976.
+
 ## [1.2.0] - 2026-10-02
 
 Day 2 revisited: market data on real FX. The quality engine ran over 27 years of ECB
@@ -653,6 +704,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[1.3.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.3.0
 [1.2.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.2.0
 [1.1.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.1.0
 [1.0.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.0.0

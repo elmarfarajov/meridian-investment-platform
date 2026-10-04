@@ -36,7 +36,7 @@ it would take the tracking error past 6%.
 **The largest order that fits** is found by bisection on the order's size: forty
 halvings find it to a fraction of a dollar. A $100,000 Microsoft purchase is blocked,
 because it would take the direct holding from 10.29% to 12.28% against a 12% hard
-limit. The largest Microsoft purchase the hard limits allow is **$85,978**.
+limit. The largest Microsoft purchase the hard limits allow is **$85,976**.
 
 ![Pre-trade decisions](../images/pretrade-decisions.png)
 

@@ -334,7 +334,7 @@ class _Run:
                 self.corporate_action(action)
             for bond, per_unit in self.coupons.get(today, []):
                 self.coupon(bond, per_unit, today)
-            for transaction in by_day.get(today, []):
+            for transaction in self.in_day_order(by_day.get(today, [])):
                 self.transaction(transaction)
             for due in self.settlements.pop(today, []):
                 self.settle(due, today)
@@ -358,6 +358,28 @@ class _Run:
             corporate_actions=self.records,
             as_of=last,
         )
+
+    def in_day_order(self, transactions: Sequence[Transaction]) -> list[Transaction]:
+        """The day's transactions in the order they are booked.
+
+        Sales come before purchases, so a day's sale proceeds are there for its
+        purchases - except a sale of more than was held at the start of the day.
+        That is an intraday round trip, bought and sold the same day, and it is
+        booked after the day's other transactions instead of being refused.
+        """
+        sold: dict[str, Decimal] = defaultdict(Decimal)
+        first: list[Transaction] = []
+        after: list[Transaction] = []
+        for transaction in transactions:
+            instrument_id = transaction.instrument_id
+            if transaction.transaction_type is TransactionType.SELL and instrument_id:
+                opening = self.lots.quantity(instrument_id) - sold[instrument_id]
+                if transaction.quantity > opening:
+                    after.append(transaction)
+                    continue
+                sold[instrument_id] += transaction.quantity
+            first.append(transaction)
+        return first + after
 
     def snapshot(self, today: date) -> None:
         self.snapshots.append(
@@ -533,8 +555,11 @@ class _Run:
         receivable = net + accrued
         postings = [debit(Accounts.SALES_RECEIVABLE, receivable, currency, rate, instrument_id=instrument_id)]
         realised: list[RealisedLot] = []
-        for lot, lot_proceeds in zip(sold, proceeds, strict=True):
+        # every share this sale closes is gone before any of its losses is matched:
+        # shares being sold cannot replace each other, whichever lot is closed first
+        for lot in sold:
             self.tracker.consume_sold(lot.transaction_id, lot.quantity)
+        for lot, lot_proceeds in zip(sold, proceeds, strict=True):
             record = RealisedLot(
                 portfolio_id=self.portfolio_id,
                 instrument_id=instrument_id,

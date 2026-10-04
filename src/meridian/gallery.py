@@ -48,6 +48,7 @@ from .services import (
     demo_vendor_dataset,
     run_demo_pricing,
 )
+from .tax_reference_gallery import tax_reference_items
 from .viz import (
     plot_accrual_path,
     plot_allocation,
@@ -290,6 +291,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *platform_items(),
         *rates_engine_items(),
         *fx_reference_items(),
+        *tax_reference_items(),
     )
 
 

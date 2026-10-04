@@ -29,7 +29,7 @@ portfolio raises two further questions:
 ## Consequences
 
 - A $100,000 Microsoft purchase is blocked with the reason (single issuer, 10.29% →
-  12.28%) and the size that would pass ($85,978). A decision a trader can act on, not
+  12.28%) and the size that would pass ($85,976). A decision a trader can act on, not
   just a refusal.
 - Replaying the book's 43 historical orders, one at a time gives 7 blocked and 6
   overrides. As 12 daily baskets it gives 3 blocked and 3 overrides. Checking orders
