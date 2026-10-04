@@ -14,14 +14,17 @@ from meridian.core import ValidationError
 from meridian.performance.returns import (
     DailyReturn,
     ReturnSeries,
+    annual_rate,
     annualise,
     daily_returns,
     flows_of,
     link,
     modified_dietz,
     money_weighted_return,
+    one_year_before,
     standard_periods,
     xirr,
+    xnpv,
 )
 
 D = date
@@ -136,3 +139,57 @@ def test_without_flows_every_method_agrees(rates):
     s = series(rates)
     closing = 1000 * (1 + s.total())
     assert modified_dietz(1000, closing, [], s.start, s.days[-1]) == pytest.approx(s.total(), abs=1e-12)
+
+
+# ---------------------------------------------------------------------------- Day 4 revisited
+MICROSOFT_FLOWS = [(D(2008, 1, 1), -10000), (D(2008, 3, 1), 2750), (D(2008, 10, 30), 4250),
+                   (D(2009, 2, 15), 3250), (D(2009, 4, 1), 2750)]  # fmt: skip
+
+
+def test_xirr_and_xnpv_reproduce_microsoft_s_published_examples():
+    # support.microsoft.com, XIRR function: 0.373362535; XNPV function at 9%: 2,086.647602.
+    # Excel iterates XIRR to 0.000001%, so its printed rate is 1.5e-9 from the exact root this solver finds.
+    assert xirr(MICROSOFT_FLOWS) == pytest.approx(0.373362535, abs=2e-9)
+    assert xnpv(0.09, MICROSOFT_FLOWS) == pytest.approx(2086.647602, abs=5e-7)
+    assert xnpv(xirr(MICROSOFT_FLOWS), MICROSOFT_FLOWS) == pytest.approx(0.0, abs=1e-6)
+    with pytest.raises(ValidationError, match="earliest"):
+        xirr([(D(2009, 1, 1), -1), (D(2008, 1, 1), 2)])
+    with pytest.raises(ValidationError, match="above -100%"):
+        xnpv(-1.0, MICROSOFT_FLOWS)
+
+
+def test_the_trailing_year_starts_a_year_before_and_a_month_end_maps_to_a_month_end():
+    assert one_year_before(D(2025, 3, 31)) == D(2024, 3, 31)  # was the 28th: three days too long
+    assert one_year_before(D(2025, 2, 28)) == D(2024, 2, 29)
+    assert one_year_before(D(2024, 2, 29)) == D(2023, 2, 28)
+    assert one_year_before(D(2025, 12, 31)) == D(2024, 12, 31)
+    assert one_year_before(D(2025, 6, 15)) == D(2024, 6, 15)
+    s = series([0.001] * 500, start=D(2024, 1, 1))
+    periods = {item.label: item for item in standard_periods(s, as_of=D(2025, 3, 31))}
+    assert periods["1 year"].start == D(2024, 3, 31)
+    assert periods["1 year"].total == pytest.approx(1.001**365 - 1)
+
+
+def test_a_modified_dietz_flow_must_fall_inside_the_period():
+    with pytest.raises(ValidationError, match="outside the period"):
+        modified_dietz(1000, 1100, [(D(2025, 3, 31), 50)], D(2025, 3, 31), D(2025, 4, 30))
+    with pytest.raises(ValidationError, match="outside the period"):
+        modified_dietz(1000, 1100, [(D(2025, 5, 1), 50)], D(2025, 3, 31), D(2025, 4, 30))
+
+
+def test_a_series_knows_the_valuation_it_starts_from():
+    monday = D(2025, 1, 6)
+    s = ReturnSeries((monday, D(2025, 1, 7)), (0.01, 0.02), "p", origin=D(2025, 1, 3))
+    assert s.start == D(2025, 1, 3)  # the Friday, not the Sunday
+    assert s.between(monday, D(2025, 1, 7)).start == monday
+    assert s.between(D(2025, 1, 1), D(2025, 1, 6)).start == D(2025, 1, 3)
+    assert series([0.01]).start == D(2025, 1, 1)
+    with pytest.raises(ValidationError, match="must precede"):
+        ReturnSeries((monday,), (0.01,), "p", origin=monday)
+
+
+def test_an_annual_rate_is_annual_however_short_the_period():
+    assert annual_rate(0.01, D(2025, 1, 1), D(2025, 4, 2)) == pytest.approx(1.01 ** (365.25 / 91) - 1)
+    assert annualise(0.01, D(2025, 1, 1), D(2025, 4, 2)) == 0.01  # presentation: not annualised under a year
+    with pytest.raises(ValidationError, match="positive length"):
+        annual_rate(0.01, D(2025, 1, 1), D(2025, 1, 1))

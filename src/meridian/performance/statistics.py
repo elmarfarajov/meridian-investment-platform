@@ -29,7 +29,7 @@ from datetime import date
 import numpy as np
 
 from ..core.exceptions import ValidationError
-from .returns import TRADING_DAYS, ReturnSeries, annualise, link
+from .returns import ReturnSeries, annual_rate, annualise, link
 
 DEFAULT_RISK_FREE = 0.04
 
@@ -83,6 +83,37 @@ def _aligned(portfolio: ReturnSeries, benchmark: ReturnSeries) -> tuple[np.ndarr
     return np.array([p[day] for day in common]), np.array([b[day] for day in common])
 
 
+def _common_span(portfolio: ReturnSeries, benchmark: ReturnSeries) -> tuple[date, date]:
+    """The period the shared returns cover: from the later of the two openings to the last shared day."""
+    common = sorted(set(portfolio.days) & set(benchmark.days))
+
+    def opening(series: ReturnSeries) -> date:
+        index = series.days.index(common[0])
+        return series.days[index - 1] if index else series.start
+
+    return max(opening(portfolio), opening(benchmark)), common[-1]
+
+
+def annualised_over(rates: np.ndarray, periods_per_year: int) -> float:
+    """Compound annual rate of a run of returns, by their count: (prod(1 + r))^(periods per year / n) - 1."""
+    if len(rates) == 0:
+        return 0.0
+    growth = float(np.prod(1.0 + rates))
+    return float(growth ** (periods_per_year / len(rates)) - 1.0)
+
+
+def capture_ratio(portfolio: np.ndarray, benchmark: np.ndarray, periods_per_year: int) -> float:
+    """Morningstar's capture ratio: the portfolio's annualised return over the benchmark's, in the same periods.
+
+    The returns passed in are those of the up periods (or the down periods) only.
+    Annualising both by the number of those periods, rather than dividing their
+    compounded totals, is what Morningstar and empyrical compute; a ratio of totals
+    overstates the capture of a portfolio that compounds faster.
+    """
+    reference = annualised_over(benchmark, periods_per_year)
+    return annualised_over(portfolio, periods_per_year) / reference if reference else 0.0
+
+
 @dataclass(frozen=True)
 class RiskReturn:
     """Absolute measures of one return series."""
@@ -104,15 +135,23 @@ class RiskReturn:
 
 
 def risk_return(series: ReturnSeries, *, risk_free: float = DEFAULT_RISK_FREE) -> RiskReturn:
+    """Absolute measures, annualised with the series' own frequency (252 a year for daily returns).
+
+    ``annual_return`` follows the GIPS presentation rule and is not annualised for
+    a period under a year. The Sharpe and Sortino ratios set a return against an
+    annual rate and an annualised risk, so they always use the annual rate.
+    """
     rates = _array(series)
     if len(rates) < 2:
         raise ValidationError("risk measures need at least two returns")
+    per_year = series.periods_per_year
     total = link(rates.tolist())
     annual = annualise(total, series.start, series.days[-1])
-    volatility = float(rates.std(ddof=1) * math.sqrt(TRADING_DAYS))
-    daily_rf = (1.0 + risk_free) ** (1.0 / TRADING_DAYS) - 1.0
-    downside = rates[rates < daily_rf] - daily_rf
-    downside_deviation = float(math.sqrt((downside**2).sum() / len(rates)) * math.sqrt(TRADING_DAYS))
+    rate_per_year = annual_rate(total, series.start, series.days[-1])
+    volatility = float(rates.std(ddof=1) * math.sqrt(per_year))
+    period_rf = (1.0 + risk_free) ** (1.0 / per_year) - 1.0
+    downside = rates[rates < period_rf] - period_rf
+    downside_deviation = float(math.sqrt((downside**2).sum() / len(rates)) * math.sqrt(per_year))
     var_95 = float(np.quantile(rates, 0.05))
     tail = rates[rates <= var_95]
     standardised = (rates - rates.mean()) / rates.std(ddof=0)
@@ -121,8 +160,8 @@ def risk_return(series: ReturnSeries, *, risk_free: float = DEFAULT_RISK_FREE) -
         annual_return=annual,
         volatility=volatility,
         downside_deviation=downside_deviation,
-        sharpe=(annual - risk_free) / volatility if volatility else 0.0,
-        sortino=(annual - risk_free) / downside_deviation if downside_deviation else 0.0,
+        sharpe=(rate_per_year - risk_free) / volatility if volatility else 0.0,
+        sortino=(rate_per_year - risk_free) / downside_deviation if downside_deviation else 0.0,
         max_drawdown=min(value for _, value in series.drawdowns()),
         var_95=var_95,
         expected_shortfall_95=float(tail.mean()) if len(tail) else var_95,
@@ -150,24 +189,31 @@ class Relative:
 
 
 def relative(portfolio: ReturnSeries, benchmark: ReturnSeries, *, risk_free: float = DEFAULT_RISK_FREE) -> Relative:
+    """Measures against the benchmark, on the days the two series share and over the period those days cover.
+
+    ``active_return`` follows the GIPS presentation rule (not annualised under a
+    year); the information ratio and alpha always use annual rates.
+    """
     p, b = _aligned(portfolio, benchmark)
-    start = min(portfolio.start, benchmark.start)
-    end = max(portfolio.days[-1], benchmark.days[-1])
-    annual_p = annualise(link(p.tolist()), start, end)
-    annual_b = annualise(link(b.tolist()), start, end)
+    per_year = portfolio.periods_per_year
+    if benchmark.periods_per_year != per_year:
+        raise ValidationError("the portfolio and benchmark are measured at different frequencies")
+    start, end = _common_span(portfolio, benchmark)
+    total_p, total_b = link(p.tolist()), link(b.tolist())
+    rate_p, rate_b = annual_rate(total_p, start, end), annual_rate(total_b, start, end)
     active = p - b
-    tracking_error = float(active.std(ddof=1) * math.sqrt(TRADING_DAYS))
+    tracking_error = float(active.std(ddof=1) * math.sqrt(per_year))
     variance_b = float(b.var(ddof=1))
     beta = float(np.cov(p, b, ddof=1)[0, 1] / variance_b) if variance_b else 0.0
     up, down = b > 0, b < 0
-    up_capture = (link(p[up].tolist()) / link(b[up].tolist())) if up.any() else 0.0
-    down_capture = (link(p[down].tolist()) / link(b[down].tolist())) if down.any() else 0.0
+    up_capture = capture_ratio(p[up], b[up], per_year) if up.any() else 0.0
+    down_capture = capture_ratio(p[down], b[down], per_year) if down.any() else 0.0
     return Relative(
-        active_return=annual_p - annual_b,
+        active_return=annualise(total_p, start, end) - annualise(total_b, start, end),
         tracking_error=tracking_error,
-        information_ratio=(annual_p - annual_b) / tracking_error if tracking_error else 0.0,
+        information_ratio=(rate_p - rate_b) / tracking_error if tracking_error else 0.0,
         beta=beta,
-        alpha=annual_p - (risk_free + beta * (annual_b - risk_free)),
+        alpha=rate_p - (risk_free + beta * (rate_b - risk_free)),
         correlation=float(np.corrcoef(p, b)[0, 1]),
         up_capture=up_capture,
         down_capture=down_capture,
@@ -186,21 +232,22 @@ class RollingPoint:
 
 
 def rolling(portfolio: ReturnSeries, benchmark: ReturnSeries, window: int = 63) -> list[RollingPoint]:
-    """Rolling annualised measures over ``window`` trading days (63 is a quarter)."""
+    """Rolling annualised measures over ``window`` periods (63 trading days is a quarter)."""
     p, b = _aligned(portfolio, benchmark)
+    per_year = portfolio.periods_per_year
     days = sorted(set(portfolio.days) & set(benchmark.days))
     points: list[RollingPoint] = []
     for end in range(window, len(days) + 1):
         pw, bw = p[end - window : end], b[end - window : end]
         active = pw - bw
-        te = float(active.std(ddof=1) * math.sqrt(TRADING_DAYS))
-        annual_active = float(active.mean() * TRADING_DAYS)
+        te = float(active.std(ddof=1) * math.sqrt(per_year))
+        annual_active = float(active.mean() * per_year)
         variance = float(bw.var(ddof=1))
         points.append(
             RollingPoint(
                 days[end - 1],
-                float(pw.std(ddof=1) * math.sqrt(TRADING_DAYS)),
-                float(bw.std(ddof=1) * math.sqrt(TRADING_DAYS)),
+                float(pw.std(ddof=1) * math.sqrt(per_year)),
+                float(bw.std(ddof=1) * math.sqrt(per_year)),
                 te,
                 annual_active / te if te else 0.0,
                 float(np.cov(pw, bw, ddof=1)[0, 1] / variance) if variance else 0.0,

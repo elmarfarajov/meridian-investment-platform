@@ -6,9 +6,9 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.3.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.3.0)
+[![Release](https://img.shields.io/badge/release-v1.4.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.4.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
-[![Tests](https://img.shields.io/badge/tests-1340-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-1378-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6A4C93)](docs/notes/the-web-platform.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
@@ -47,7 +47,7 @@ Prometheus and Grafana: the same stack CI builds and smoke-tests on every pull r
 
 ---
 
-## Validated against QuantLib, real markets and the tax authorities
+## Validated against QuantLib, empyrical, real markets and the tax authorities
 
 After the nine days, each module is being revisited in order and held to a stricter
 standard. Day 1 went first. Its rates engine had been tested against examples written by
@@ -157,6 +157,37 @@ The full account is in
 [the book against the tax authorities](docs/notes/the-book-against-the-tax-authorities.md).
 
 ![Property-testing the book](docs/images/book-invariants.png)
+
+**Day 4 revisited: performance against the references, and on a century of real
+returns.** A second reading found six faults, among them:
+
+- a trailing year three days too long;
+- Sharpe ratios of short periods mixing units;
+- XIRR on years of 365.25 days.
+
+The statistics are now reconciled against **empyrical**, the library behind pyfolio:
+
+- 22 of 30 measures agree to 1e-10;
+- the other 8 differ by four conventions, and each is recombined to land exactly on
+  empyrical's figure.
+
+**Kenneth French's data library** brings a century of real US returns:
+
+- the market rebuilt from its twelve industries tracks the published market to 11 bp
+  a month;
+- a Brinson attribution of the equal-weighted market against the cap-weighted runs
+  over 1,202 months;
+- four linking methods, all exact, move up to a fifth of the answer between effects
+  over a century.
+
+![Every measure against empyrical](docs/images/empyrical-reconciliation.png)
+
+![The US market rebuilt from twelve industries](docs/images/market-rebuilt.png)
+
+The full account is in
+[performance against the references](docs/notes/performance-against-the-references.md).
+
+![Four linking methods, one total](docs/images/linking-methods.png)
 
 ---
 
@@ -297,7 +328,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and sixty-four are in the
+Every module ships a visual, not only numbers. All one hundred and seventy-two are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -679,6 +710,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [The rates engine, validated](docs/notes/the-rates-engine-validated.md) | QuantLib as a reconciliation, calendars that know their history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, Nelson-Siegel-Svensson against the Fed, gilts ex-dividend |
 | [Market data on real FX](docs/notes/market-data-on-real-fx.md) | The pence trap, the quality engine on 27 years of ECB fixings, currency regimes and lifecycles, the events register, the ECB against the Fed, fixing times |
 | [The book against the tax authorities](docs/notes/the-book-against-the-tax-authorities.md) | The IRS's and HMRC's worked examples reproduced, an HMRC erratum, UK matching per the statute, the book property-tested, the Treasury day count |
+| [Performance against the references](docs/notes/performance-against-the-references.md) | Six faults, every measure against empyrical, Microsoft's XIRR, four linking methods, a century of Kenneth French's data |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
 | [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
@@ -724,7 +756,8 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 1+ | Day 1 revisited: reconciled against QuantLib, calendars with history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, NSS against the Fed, gilts; release v1.1.0 | ✅ Done |
 | 2+ | Day 2 revisited: the pence trap and three more faults; the quality engine on 27 years of real FX from the ECB and the Fed, currency regimes and lifecycles, an events register, fixing times in the golden copy; release v1.2.0 | ✅ Done |
 | 3+ | Day 3 revisited: the IRS's and HMRC's worked examples reproduced (one HMRC erratum), UK matching per s105 and s127, the book property-tested (two bugs fixed), the Treasury on actual/actual; release v1.3.0 | ✅ Done |
-| 4+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
+| 4+ | Day 4 revisited: six faults fixed, every measure reconciled against empyrical, Microsoft's XIRR examples, four linking methods, a century of Kenneth French's industry data; release v1.4.0 | ✅ Done |
+| 5+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
 
 ---
 

@@ -4,6 +4,58 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-05
+
+Day 4 revisited: performance against independent references and a century of real
+returns. A second reading found six faults; empyrical, Microsoft's XIRR examples and
+Kenneth French's data library check what is left.
+
+### Added
+
+- **Reconciliation against empyrical and scipy** (`devtools/performance_reference.py`).
+  Fifteen measures on the demonstration account (daily) and the equal-weighted US
+  market (monthly since 1926):
+  - 22 of 30 agree to 1e-10;
+  - 8 differ by a convention, and each is recombined from Meridian's blocks to land on
+    empyrical's figure to 1e-10.
+- **Four linking methods** (`performance/linking.py`): Cariño, Menchero, GRAP and
+  Frongello. Each is exact; the method is chosen per attribution and recorded on the
+  result.
+- **A century of US equity returns** (`marketdata/french.py`, `devtools/fetch_french.py`):
+  - Kenneth French's 12 industry portfolios, with firm counts and sizes;
+  - the Fama-French factors, monthly from July 1926.
+  `services/century_review.py` uses them to:
+  - rebuild the market from its industries (11 bp a month from the published market);
+  - attribute equal weight against cap weight by decade and over the century;
+  - measure drawdowns and Sharpe ratios since 1926.
+- **`xnpv`**, and `brinson_fachler_day` for data that arrives already segmented.
+- **Eight charts** (one hundred and seventy-two in the gallery), a methodology note,
+  and ADRs 0060 to 0063.
+
+### Fixed
+
+- **The trailing year** started on `min(day, 28)` of the month a year back, three days
+  early at a month end. It now starts on the same date a year earlier, and a month end
+  on a month end.
+- **Short-period Sharpe and Sortino ratios** set an unannualised return against an
+  annual risk-free rate. Ratios now always use the annual rate; the presented return
+  still follows GIPS.
+- **Relative measures** were annualised over the union of both series' spans. They now
+  cover the shared period.
+- **XIRR** counted years of 365.25 days. It now counts actual/365, as Excel does, and
+  Microsoft's published examples are reproduced.
+- **Capture ratios** divided compounded totals. They are now Morningstar's ratio of
+  returns annualised over the up or down periods, as empyrical computes it.
+- **Modified Dietz** weighted a flow on the opening date above one. Flows outside the
+  period are refused.
+
+### Changed
+
+- **Return series carry an origin and a frequency.** The demonstration series start
+  from their first valuation, the Friday rather than the Sunday before, and monthly
+  series annualise with twelve periods.
+- empyrical-reloaded (with pytz) is a development dependency.
+
 ## [1.3.0] - 2026-10-04
 
 Day 3 revisited: the book of record held to the tax authorities' own worked examples,
@@ -704,6 +756,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[1.4.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.4.0
 [1.3.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.3.0
 [1.2.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.2.0
 [1.1.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.1.0

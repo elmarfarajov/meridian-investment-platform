@@ -111,8 +111,9 @@ rate. The since-inception figures, portfolio against the policy benchmark:
 | Maximum drawdown | -23.0% | -22.6% |
 | Daily VaR / ES 95% | -1.08% / -1.41% | -1.21% / -1.54% |
 
-Against the benchmark, the tracking error is 5.66% and the information ratio 0.23. Beta
-is 0.85, up capture 72% and down capture 93%, and the portfolio beat the benchmark on
+Against the benchmark, the tracking error is 5.67% and the information ratio 0.23. Beta
+is 0.85, up capture 75% and down capture 91% (Morningstar's definition since the Day 4
+revisit), and the portfolio beat the benchmark on
 51% of days. Rolling 63-day windows show how these moved. Beta peaked above 1.0 in the
 summer of 2025 and has been below 0.9 since.
 

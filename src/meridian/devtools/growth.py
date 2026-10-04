@@ -38,6 +38,7 @@ DAYS = {
     "v1.1.0": "Rates revisited",
     "v1.2.0": "Market data revisited",
     "v1.3.0": "Accounting revisited",
+    "v1.4.0": "Performance revisited",
 }
 
 

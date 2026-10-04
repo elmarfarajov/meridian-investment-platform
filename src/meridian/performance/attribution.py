@@ -46,6 +46,10 @@ from ..core.exceptions import ValidationError
 from ..domain.instruments import Bond, Equity, Fund, Instrument
 from .benchmark import CASH, FIXED_INCOME, BenchmarkDay, region_of
 from .contributions import Exposure, PortfolioDay
+from .linking import LinkMethod, carino_factor, link_lines
+
+__all__ = ["EFFECTS", "AttributionDay", "AttributionResult", "SegmentDay", "SegmentResult", "attribute",
+           "attribute_day", "brinson_fachler_day", "carino_factor", "link_attribution", "monthly"]  # fmt: skip
 
 EFFECTS = ("allocation", "selection", "interaction")
 LookThrough = Callable[[str, BenchmarkDay, str], dict[str, float]]
@@ -175,6 +179,37 @@ class AttributionDay:
         return float(sum(getattr(item, name) for item in self.segments.values()))
 
 
+def brinson_fachler_day(
+    day: date,
+    portfolio: Mapping[str, tuple[float, float]],
+    benchmark: Mapping[str, tuple[float, float]],
+) -> AttributionDay:
+    """One period's Brinson-Fachler effects from segment weights and returns: ``{segment: (weight, return)}``.
+
+    For data that arrives already segmented - index sectors, industry portfolios,
+    a manager's sleeves - rather than as holdings. The weights on each side must
+    sum to one; the effects then sum exactly to the active return.
+    """
+    for side, given in (("portfolio", portfolio), ("benchmark", benchmark)):
+        total = sum(weight for weight, _ in given.values())
+        if abs(total - 1.0) > 1e-9:
+            raise ValidationError(f"{day}: the {side} weights sum to {total:.6f}, not 1")
+    rate_p = sum(weight * value for weight, value in portfolio.values())
+    rate_b = sum(weight * value for weight, value in benchmark.values())
+    segments: dict[str, SegmentDay] = {}
+    for name in sorted(set(portfolio) | set(benchmark)):
+        wp, rp = portfolio.get(name, (0.0, 0.0))
+        wb, rb = benchmark.get(name, (0.0, 0.0))
+        reference = rb if wb > 0 else rate_b  # a segment the benchmark lacks is judged against the whole
+        allocation = (wp - wb) * (reference - rate_b)
+        selection = wb * (rp - reference) if wp > 0 else 0.0
+        interaction = (wp - wb) * (rp - reference) if wp > 0 else 0.0
+        segments[name] = SegmentDay(
+            name, wp, wb, rp if wp > 0 else None, rb if wb > 0 else None, allocation, selection, interaction
+        )
+    return AttributionDay(day, rate_p, rate_b, segments, {}, 0.0)
+
+
 def attribute_day(
     day: PortfolioDay,
     benchmark: BenchmarkDay,
@@ -225,13 +260,6 @@ def attribute_day(
 
 
 # ---------------------------------------------------------------------------- linking
-def carino_factor(portfolio: float, benchmark: float) -> float:
-    """ln(1+R) - ln(1+B) over R - B; its limit 1/(1+R) where the two are equal."""
-    if abs(portfolio - benchmark) < 1e-15:
-        return 1.0 / (1.0 + portfolio)
-    return (math.log1p(portfolio) - math.log1p(benchmark)) / (portfolio - benchmark)
-
-
 @dataclass(frozen=True)
 class SegmentResult:
     segment: str
@@ -260,6 +288,7 @@ class AttributionResult:
     costs: float
     unlinked_total: float  # the plain sum of daily effects, for comparison
     days: tuple[AttributionDay, ...] = field(default_factory=tuple, repr=False)
+    method: LinkMethod = "carino"
 
     @property
     def active(self) -> float:
@@ -289,25 +318,27 @@ class AttributionResult:
         return next(item for item in self.segments if item.segment == name)
 
 
-def link_attribution(days: Sequence[AttributionDay], dimension: str) -> AttributionResult:
-    """Link daily effects over the period with Cariño's factors; the linked effects sum to R - B exactly."""
+def link_attribution(
+    days: Sequence[AttributionDay], dimension: str, method: LinkMethod = "carino"
+) -> AttributionResult:
+    """Link daily effects over the period (Cariño by default); the linked effects sum to R - B exactly."""
     if not days:
         raise ValidationError("attribution needs at least one day")
-    total_p = math.prod(1.0 + item.portfolio for item in days) - 1.0
-    total_b = math.prod(1.0 + item.benchmark for item in days) - 1.0
-    big_k = carino_factor(total_p, total_b)
-    scaled: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
-    currency: dict[str, float] = defaultdict(float)
-    costs = 0.0
-    unlinked = 0.0
+    portfolio = [item.portfolio for item in days]
+    benchmark = [item.benchmark for item in days]
+    total_p = math.prod(1.0 + value for value in portfolio) - 1.0
+    total_b = math.prod(1.0 + value for value in benchmark) - 1.0
+    count = len(days)
+    # one line per effect: (segment, effect), ("currency", code) or ("costs", "")
+    lines: dict[tuple[str, str, str], list[float]] = defaultdict(lambda: [0.0] * count)
     weights: dict[str, list[float]] = defaultdict(lambda: [0.0, 0.0])
     growth_p: dict[str, float] = defaultdict(lambda: 1.0)
     growth_b: dict[str, float] = defaultdict(lambda: 1.0)
-    for item in days:
-        factor = carino_factor(item.portfolio, item.benchmark) / big_k
+    unlinked = 0.0
+    for index, item in enumerate(days):
         for name, segment in item.segments.items():
             for effect in EFFECTS:
-                scaled[name][effect] += getattr(segment, effect) * factor
+                lines[("segment", name, effect)][index] = getattr(segment, effect)
             weights[name][0] += segment.wp
             weights[name][1] += segment.wb
             if segment.rp is not None:
@@ -315,10 +346,20 @@ def link_attribution(days: Sequence[AttributionDay], dimension: str) -> Attribut
             if segment.rb is not None:
                 growth_b[name] *= 1.0 + segment.rb
         for code, value in item.currency.items():
-            currency[code] += value * factor
-        costs += item.costs * factor
+            lines[("currency", code, "")][index] = value
+        lines[("costs", "", "")][index] = item.costs
         unlinked += item.explained
-    count = len(days)
+    linked = link_lines(dict(lines), portfolio, benchmark, method)
+    scaled: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    currency: dict[str, float] = {}
+    costs = 0.0
+    for (kind, name, effect), value in linked.items():
+        if kind == "segment":
+            scaled[name][effect] = value
+        elif kind == "currency":
+            currency[name] = value
+        else:
+            costs = value
     segments = tuple(
         SegmentResult(
             name,
@@ -339,10 +380,11 @@ def link_attribution(days: Sequence[AttributionDay], dimension: str) -> Attribut
         total_p,
         total_b,
         segments,
-        dict(currency),
+        dict(sorted(currency.items())),
         costs,
         unlinked,
         tuple(days),
+        method,
     )
 
 
@@ -355,8 +397,9 @@ def attribute(
     look_through: LookThrough,
     start: date | None = None,
     end: date | None = None,
+    method: LinkMethod = "carino",
 ) -> AttributionResult:
-    """Attribute the active return over ``(start, end]`` by sector or by region."""
+    """Attribute the active return over ``(start, end]`` by sector or by region, linked by ``method``."""
     if dimension not in {"sector", "region"}:
         raise ValidationError("attribution is by sector or by region")
     bench = {item.day: item for item in benchmark}
@@ -368,7 +411,7 @@ def attribute(
         attribute_day(item, bench[item.day], instruments, dimension=dimension, look_through=look_through)
         for item in chosen
     ]
-    return link_attribution(days, dimension)
+    return link_attribution(days, dimension, method)
 
 
 def monthly(result: AttributionResult) -> list[AttributionResult]:
@@ -376,4 +419,4 @@ def monthly(result: AttributionResult) -> list[AttributionResult]:
     months: dict[tuple[int, int], list[AttributionDay]] = defaultdict(list)
     for item in result.days:
         months[(item.day.year, item.day.month)].append(item)
-    return [link_attribution(items, result.dimension) for _, items in sorted(months.items())]
+    return [link_attribution(items, result.dimension, result.method) for _, items in sorted(months.items())]

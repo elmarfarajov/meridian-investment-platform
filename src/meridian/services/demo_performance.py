@@ -276,12 +276,18 @@ class DemoPerformance:
 
     @cached_property
     def portfolio_returns(self) -> ReturnSeries:
-        return ReturnSeries.from_daily(daily_returns(self.accounting.daily_bridges), "Global Equity Core")
+        bridges = self.accounting.daily_bridges
+        return ReturnSeries.from_daily(daily_returns(bridges), "Global Equity Core", origin=bridges[0].start)
 
     @cached_property
     def benchmark_returns(self) -> ReturnSeries:
         days = self.benchmark_days
-        return ReturnSeries(tuple(item.day for item in days), tuple(item.rate for item in days), "Policy benchmark")
+        return ReturnSeries(
+            tuple(item.day for item in days),
+            tuple(item.rate for item in days),
+            "Policy benchmark",
+            self.accounting.valuation_days[0],
+        )
 
     @cached_property
     def equity_returns(self) -> ReturnSeries:
@@ -290,6 +296,7 @@ class DemoPerformance:
             tuple(day for day, _ in rows),
             tuple(sum(weight * (local + move) for _, weight, local, move in items) for _, items in rows),
             "Meridian World Equity",
+            self.accounting.valuation_days[0],
         )
 
     def attribution(self, dimension: str = "sector", start=None, end=None) -> AttributionResult:  # type: ignore[no-untyped-def]

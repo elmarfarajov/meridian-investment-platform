@@ -40,6 +40,8 @@ from ..core.exceptions import ValidationError
 
 DAYS_PER_YEAR = 365.25
 TRADING_DAYS = 252
+#: The day basis of XIRR and XNPV: actual/365, as Excel and every system a client checks against use.
+XIRR_DAY_BASIS = 365.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,10 +87,24 @@ def link(returns: Iterable[float]) -> float:
 
 
 def annualise(total: float, start: date, end: date) -> float:
-    """Annualised equivalent of a return earned between two dates; periods under a year are not annualised."""
+    """Annualised equivalent of a return earned between two dates; periods under a year are not annualised.
+
+    This is the GIPS rule for *presenting* a return: a three-month return is not
+    shown as an annual one. A ratio that sets a return against an annual risk-free
+    rate or an annualised volatility needs the rate per year whatever the period,
+    and uses :func:`annual_rate`.
+    """
     years = (end - start).days / DAYS_PER_YEAR
     if years < 1.0:
         return total
+    return float((1.0 + total) ** (1.0 / years) - 1.0)
+
+
+def annual_rate(total: float, start: date, end: date) -> float:
+    """The compound annual rate equivalent to ``total`` over the period, however short."""
+    years = (end - start).days / DAYS_PER_YEAR
+    if years <= 0:
+        raise ValidationError("an annual rate needs a period of positive length")
     return float((1.0 + total) ** (1.0 / years) - 1.0)
 
 
@@ -99,29 +115,51 @@ class ReturnSeries:
     days: tuple[date, ...]
     rates: tuple[float, ...]
     name: str = "portfolio"
+    origin: date | None = None  # the valuation date the first return is measured from
+    periods_per_year: int = TRADING_DAYS  # 252 for daily returns, 12 for monthly
 
     def __post_init__(self) -> None:
         if len(self.days) != len(self.rates):
             raise ValidationError("a return series needs one rate per day")
         if any(later <= earlier for earlier, later in zip(self.days, self.days[1:], strict=False)):
             raise ValidationError("return series days must be strictly increasing")
+        if self.origin is not None and self.days and self.origin >= self.days[0]:
+            raise ValidationError("a return series' origin must precede its first return")
+        if self.periods_per_year <= 0:
+            raise ValidationError("periods per year must be positive")
 
     @classmethod
-    def from_daily(cls, items: Sequence[DailyReturn], name: str = "portfolio") -> ReturnSeries:
-        return cls(tuple(item.day for item in items), tuple(item.rate for item in items), name)
+    def from_daily(
+        cls, items: Sequence[DailyReturn], name: str = "portfolio", *, origin: date | None = None
+    ) -> ReturnSeries:
+        return cls(tuple(item.day for item in items), tuple(item.rate for item in items), name, origin)
 
     def __len__(self) -> int:
         return len(self.days)
 
     @property
     def start(self) -> date:
-        """The valuation date the first return is measured from (the day before the first return day)."""
-        return self.days[0] - timedelta(days=1)
+        """The valuation date the first return is measured from.
+
+        That is the series' ``origin`` when it is known - the Friday before a
+        Monday's return, or the last day of the month before a monthly one - and
+        otherwise the calendar day before the first return.
+        """
+        return self.origin if self.origin is not None else self.days[0] - timedelta(days=1)
 
     def between(self, start: date, end: date) -> ReturnSeries:
         """Returns for days in ``(start, end]``: from the close of ``start`` to the close of ``end``."""
         pairs = [(day, rate) for day, rate in zip(self.days, self.rates, strict=True) if start < day <= end]
-        return ReturnSeries(tuple(day for day, _ in pairs), tuple(rate for _, rate in pairs), self.name)
+        # the period opens at the last valuation on or before ``start``, or at the series' own origin
+        before = [day for day in self.days if day <= start]
+        origin = before[-1] if before else self.start
+        return ReturnSeries(
+            tuple(day for day, _ in pairs),
+            tuple(rate for _, rate in pairs),
+            self.name,
+            origin if pairs else None,
+            self.periods_per_year,
+        )
 
     def total(self, start: date | None = None, end: date | None = None) -> float:
         series = self if start is None and end is None else self.between(start or date.min, end or date.max)
@@ -175,6 +213,22 @@ class PeriodReturn:
         return (self.end - self.start).days >= DAYS_PER_YEAR
 
 
+def one_year_before(end: date) -> date:
+    """The start of the trailing year ending on ``end``.
+
+    The same date a year earlier, and a month end for a month end: the year to
+    28 February 2025 starts on 29 February 2024, and the year to 31 March starts on
+    31 March, not on the 28th.
+    """
+    if (end + timedelta(days=1)).month != end.month:  # a month end: the same month end a year earlier
+        following = date(end.year - 1 + (end.month == 12), end.month % 12 + 1, 1)
+        return following - timedelta(days=1)
+    try:
+        return end.replace(year=end.year - 1)
+    except ValueError:  # 29 February in a year that has none
+        return date(end.year - 1, 2, 28)
+
+
 def standard_periods(series: ReturnSeries, as_of: date | None = None) -> list[PeriodReturn]:
     """Month, quarter and year to date, one year, and since inception, the way a factsheet shows them."""
     end = as_of or series.days[-1]
@@ -184,7 +238,7 @@ def standard_periods(series: ReturnSeries, as_of: date | None = None) -> list[Pe
         ("MTD", date(end.year, end.month, 1) - timedelta(days=1)),
         ("QTD", date(end.year, quarter_month, 1) - timedelta(days=1)),
         ("YTD", date(end.year, 1, 1) - timedelta(days=1)),
-        ("1 year", date(end.year - 1, end.month, min(end.day, 28))),
+        ("1 year", one_year_before(end)),
         ("Since inception", inception),
     ]
     return [
@@ -207,6 +261,10 @@ def modified_dietz(
     length = (end - start).days
     if length <= 0:
         raise ValidationError("a Modified Dietz period needs end after start")
+    outside = [day for day, _ in flows if not start < day <= end]
+    if outside:
+        # a flow on the opening date belongs in the opening value; one outside the period, nowhere
+        raise ValidationError(f"a Modified Dietz flow on {outside[0]} is outside the period ({start}, {end}]")
     net = sum(amount for _, amount in flows)
     weighted = sum(amount * (length - ((day - start).days - 1)) / length for day, amount in flows)
     denominator = opening + weighted
@@ -215,18 +273,37 @@ def modified_dietz(
     return (closing - opening - net) / denominator
 
 
+def _year_fractions(cash_flows: Sequence[tuple[date, float]]) -> list[tuple[float, float]]:
+    """Each flow's time in years from the first flow's date, actual/365 as XIRR counts it."""
+    origin = cash_flows[0][0]
+    return [((day - origin).days / XIRR_DAY_BASIS, amount) for day, amount in cash_flows]
+
+
+def xnpv(rate: float, cash_flows: Sequence[tuple[date, float]]) -> float:
+    """The present value at the first flow's date of dated flows, discounted actual/365 (Excel's XNPV)."""
+    if not cash_flows:
+        raise ValidationError("a present value needs at least one cash flow")
+    if rate <= -1.0:
+        raise ValidationError("a discount rate must be above -100%")
+    return float(sum(amount / (1.0 + rate) ** years for years, amount in _year_fractions(cash_flows)))
+
+
 def xirr(cash_flows: Sequence[tuple[date, float]], *, guess: float = 0.05) -> float:
     """The annual rate at which the flows' present value is zero (investor's view: money in negative).
 
-    Solved by safeguarded Newton inside a bracket (``analytics.solvers``), so a
-    stream with no root raises rather than returning a plausible wrong number.
+    Times are actual/365 from the first flow, as in Excel's XIRR, so the result
+    agrees with the spreadsheet a client checks it in - Microsoft's own example
+    returns 37.3362535%. Solved by safeguarded Newton inside a bracket
+    (``analytics.solvers``), so a stream with no root raises rather than returning
+    a plausible wrong number.
     """
     if len(cash_flows) < 2:
         raise ValidationError("an internal rate of return needs at least two cash flows")
     if not (any(amount < 0 for _, amount in cash_flows) and any(amount > 0 for _, amount in cash_flows)):
         raise ValidationError("an internal rate of return needs flows of both signs")
-    origin = min(day for day, _ in cash_flows)
-    times = [((day - origin).days / DAYS_PER_YEAR, amount) for day, amount in cash_flows]
+    if any(day < cash_flows[0][0] for day, _ in cash_flows):
+        raise ValidationError("XIRR measures time from the first cash flow, so it must be the earliest")
+    times = _year_fractions(cash_flows)
 
     def value(rate: float) -> float:
         return float(sum(amount / (1.0 + rate) ** years for years, amount in times))
@@ -246,7 +323,7 @@ class MoneyWeightedReturn:
     @property
     def period(self) -> float:
         """The IRR expressed over the period rather than per year."""
-        years = (self.end - self.start).days / DAYS_PER_YEAR
+        years = (self.end - self.start).days / XIRR_DAY_BASIS  # the basis the annual rate was solved on
         return float((1.0 + self.annual) ** years - 1.0)
 
 

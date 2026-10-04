@@ -728,7 +728,7 @@ def plot_deployment() -> Figure:
         0.22,
         0.36,
         "api",
-        ["meridian-platform:1.3.0", "uvicorn, 2 workers", "non-root, read-only code", "HEALTHCHECK /health", ":8000"],
+        ["meridian-platform:1.4.0", "uvicorn, 2 workers", "non-root, read-only code", "HEALTHCHECK /health", ":8000"],
         colour=NAVY,
         size=10,
     )

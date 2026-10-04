@@ -85,6 +85,10 @@ the linked effects sum to `R - B` exactly. (When `R_t = B_t`, the limit
 `k = 1 / (1 + R_t)` is used.) The scale `k_t / K` ranged between 0.91 and 0.96 over the
 619 days. The residual after linking is -1.1e-15, the rounding of a float.
 
+Cariño is one of four exact methods Meridian implements; Menchero, GRAP and Frongello share the
+same total out differently, and the choice is recorded on every result. See
+[performance against the references](performance-against-the-references.md#5-four-linking-methods).
+
 ![Linking](../images/attribution-linking.png)
 
 The same method links the holding contributions (against a zero benchmark) and the
