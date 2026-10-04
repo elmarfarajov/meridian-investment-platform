@@ -20,6 +20,7 @@ from matplotlib.figure import Figure
 from .analytics.bonds import FixedRateBond
 from .analytics.curves import YieldCurve, bootstrap_par_curve
 from .book_gallery import accounting_items
+from .century_gallery import century_items
 from .compliance_gallery import compliance_items
 from .core.enums import Frequency
 from .core.money import Money
@@ -292,6 +293,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *rates_engine_items(),
         *fx_reference_items(),
         *tax_reference_items(),
+        *century_items(),
     )
 
 

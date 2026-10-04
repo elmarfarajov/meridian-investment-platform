@@ -27,7 +27,9 @@ validation and rates figures come from QuantLib, from 36 years of the US Treasur
 par curve and the Federal Reserve's GSW curve, packaged with the code, and from illustrative
 SOFR quotes built on the Treasury curve. The real-FX figures come from 27 years of the ECB's
 euro reference rates and the Federal Reserve's noon rates, packaged with the code. The
-published-example figures run the IRS's and HMRC's own worked examples through the engine.
+published-example figures run the IRS's and HMRC's own worked examples through the engine. The century
+figures come from Kenneth French's data library: twelve US industry portfolios and the Fama-French factors
+since July 1926, packaged with the code.
 
 ---
 ### Calendars
@@ -127,6 +129,10 @@ published-example figures run the IRS's and HMRC's own worked examples through t
 **The astronomy decides** - The time of Japan's equinoxes, and the years QuantLib's formula names the wrong day.
 
 ![The astronomy decides](images/equinox-arbiter.png)
+
+**Every measure against empyrical** - Thirty measures on two datasets: agreeing to 1e-10, or differing by a convention that accounts for every digit.
+
+![Every measure against empyrical](images/empyrical-reconciliation.png)
 
 ### Cashflows
 
@@ -421,6 +427,34 @@ published-example figures run the IRS's and HMRC's own worked examples through t
 **The performance report** - The one page a client reads: returns by period, risk, attribution and contributions.
 
 ![The performance report](images/factsheet.png)
+
+**The US market rebuilt from twelve industries** - A cap-weighted index of its industries since 1926, against the market Fama and French publish.
+
+![The US market rebuilt from twelve industries](images/market-rebuilt.png)
+
+**A century of the market's composition** - Each industry's share of the US market's value, every month since July 1926.
+
+![A century of the market's composition](images/industry-weights.png)
+
+**Equal weight against cap weight, decade by decade** - Brinson-Fachler by industry on a century of real returns.
+
+![Equal weight against cap weight, decade by decade](images/equal-weight-attribution.png)
+
+**Four linking methods, one total** - Cariño, Menchero, GRAP and Frongello over a year and over a century.
+
+![Four linking methods, one total](images/linking-methods.png)
+
+**A century of drawdowns** - How far below its last peak the US market was, every month since 1926.
+
+![A century of drawdowns](images/century-drawdowns.png)
+
+**Ten years at a time** - The rolling ten-year Sharpe ratio of the US market, and by decade.
+
+![Ten years at a time](images/rolling-sharpe.png)
+
+**A second reading of Day 4** - Four faults, each figure before and after the fix.
+
+![A second reading of Day 4](images/performance-review.png)
 
 ### Risk
 
