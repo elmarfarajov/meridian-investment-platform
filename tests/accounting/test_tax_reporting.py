@@ -305,7 +305,7 @@ def test_transfers_join_the_pool_and_overselling_is_refused():
     )
     result = match_disposals([transfer, uk_sell("S1", D(2025, 9, 1), 50, "600")], INSTRUMENTS, GBP)
     assert result.disposals[0].cost == Decimal(250)
-    with pytest.raises(ValidationError, match="in the pool"):
+    with pytest.raises(ValidationError, match="than was ever acquired"):
         match_disposals([uk_sell("S1", D(2025, 9, 1), 50, "600")], INSTRUMENTS, GBP)
     with pytest.raises(ValidationError, match="security master"):
         match_disposals(

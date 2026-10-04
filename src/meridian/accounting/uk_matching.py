@@ -11,6 +11,18 @@ order (TCGA 1992 ss. 104-106A):
    measured against the new shares' cost.
 3. **The section 104 pool** - every other share held, at their average cost.
    Acquisitions join the pool; disposals take cost out of it pro rata.
+4. **Later acquisitions** - if the pool cannot cover a disposal, the rest is matched
+   with acquisitions after it, earliest first (HMRC HS284, section 2).
+
+Everything acquired on one day is one acquisition, and everything disposed of on
+one day is one disposal (s105(1)). The results are split back to the transactions
+pro rata. Rights taken up are not an acquisition at all: under s127 the new shares
+and the old are one asset, so the take-up joins the pool at its cost and is never
+matched by the same-day or 30-day rules. A purchase is marked as one by naming the
+rights issue in its metadata (``REORGANISATION``).
+
+The engine reproduces HMRC's published worked examples (CG51560, CG51590 and HS284)
+to the penny. HMRC rounds its figures to whole pounds.
 
 Gains are measured in sterling: cost at the rate on the day of acquisition,
 proceeds at the rate on the day of disposal. Shares transferred in join the
@@ -45,6 +57,8 @@ from ..domain.transactions import Transaction
 from .sources import FxSource
 
 BED_AND_BREAKFAST_DAYS = 30
+#: Transaction metadata naming the reorganisation a purchase belongs to - the rights issue taken up
+REORGANISATION = "reorganisation"
 RATE_CHANGE = date(2024, 10, 30)
 
 
@@ -52,6 +66,7 @@ class MatchRule(str, Enum):
     SAME_DAY = "same day"
     BED_AND_BREAKFAST = "30 days"
     SECTION_104 = "s104 pool"
+    LATER_ACQUISITION = "later acquisition"
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,11 +200,16 @@ def annual_exempt_amount(tax_year: str) -> Decimal:
 
 @dataclass
 class _Event:
-    transaction_id: str
+    transaction_ids: list[str]
     day: date
     quantity: Decimal  # in post-split units
     amount: Decimal  # GBP: cost for an acquisition, net proceeds for a disposal
     remaining: Decimal = Decimal(0)
+    reorganisation: bool = False  # rights taken up: part of the original holding, never matched as new shares
+
+    @property
+    def transaction_id(self) -> str:
+        return "+".join(self.transaction_ids)
 
 
 def _split_factor(actions: Sequence[CorporateAction], instrument_id: str, day: date) -> Decimal:
@@ -205,6 +225,27 @@ def _split_factor(actions: Sequence[CorporateAction], instrument_id: str, day: d
     return factor
 
 
+def _same_day(events: list[_Event]) -> list[_Event]:
+    """TCGA 1992 s105(1): everything acquired (or disposed of) on one day is one transaction.
+
+    A take-up of rights stays apart: it is not an acquisition at all but part of the
+    holding it was offered on (s127), so it must never be merged into one that is.
+    """
+    merged: dict[tuple[date, bool], _Event] = {}
+    for event in events:
+        key = (event.day, event.reorganisation)
+        if key not in merged:
+            merged[key] = _Event(list(event.transaction_ids), event.day, Decimal(0), Decimal(0), Decimal(0),
+                                 event.reorganisation)  # fmt: skip
+        target = merged[key]
+        if event.transaction_ids[0] not in target.transaction_ids:
+            target.transaction_ids.extend(event.transaction_ids)
+        target.quantity += event.quantity
+        target.amount += event.amount
+        target.remaining += event.remaining
+    return sorted(merged.values(), key=lambda item: (item.day, item.reorganisation, item.transaction_id))
+
+
 def match_disposals(
     transactions: Iterable[Transaction],
     instruments: Mapping[str, Instrument],
@@ -213,9 +254,10 @@ def match_disposals(
     actions: Sequence[CorporateAction] = (),
     currency: str = "GBP",
 ) -> UkMatchingResult:
-    """Apply the same-day, 30-day and section 104 rules to every disposal in ``transactions``."""
+    """Apply the same-day, 30-day, section 104 and later-acquisition rules to every disposal in ``transactions``."""
     acquisitions: dict[str, list[_Event]] = defaultdict(list)
     disposals: dict[str, list[_Event]] = defaultdict(list)
+    quantities: dict[str, Decimal] = {}
     for transaction in sorted(transactions, key=lambda item: (item.trade_date, item.transaction_id)):
         kind = transaction.transaction_type
         if kind not in {TransactionType.BUY, TransactionType.SELL, TransactionType.TRANSFER_IN}:
@@ -227,6 +269,7 @@ def match_disposals(
         rate = fx.rate(transaction.currency.code, currency, transaction.trade_date)
         factor = _split_factor(actions, instrument_id, transaction.trade_date)
         quantity = transaction.quantity * factor
+        quantities[transaction.transaction_id] = quantity
         gross = (
             transaction.gross_amount
             if transaction.gross_amount is not None
@@ -235,16 +278,26 @@ def match_disposals(
         costs = transaction.fees + transaction.taxes
         if kind is TransactionType.SELL:
             disposals[instrument_id].append(
-                _Event(transaction.transaction_id, transaction.trade_date, quantity, (gross - costs) * rate, quantity)
+                _Event([transaction.transaction_id], transaction.trade_date, quantity, (gross - costs) * rate, quantity)
             )
         else:
             acquisitions[instrument_id].append(
-                _Event(transaction.transaction_id, transaction.trade_date, quantity, (gross + costs) * rate, quantity)
+                _Event(
+                    [transaction.transaction_id],
+                    transaction.trade_date,
+                    quantity,
+                    (gross + costs) * rate,
+                    quantity,
+                    reorganisation=REORGANISATION in transaction.metadata,
+                )
             )
+
+    acquisitions = defaultdict(list, {key: _same_day(items) for key, items in acquisitions.items()})
+    disposals = defaultdict(list, {key: _same_day(items) for key, items in disposals.items()})
 
     matches: dict[str, list[UkMatch]] = defaultdict(list)
     for instrument_id, sold in disposals.items():
-        bought = acquisitions.get(instrument_id, [])
+        bought = [item for item in acquisitions.get(instrument_id, []) if not item.reorganisation]
         # 1. same day, for every disposal before any 30-day matching
         for disposal in sold:
             for acquisition in bought:
@@ -261,8 +314,8 @@ def match_disposals(
                 ):
                     matches[disposal.transaction_id].append(_take(acquisition, disposal, MatchRule.BED_AND_BREAKFAST))
 
-    # 3. the pool, chronologically, with whatever the first two rules left
-    results: list[UkDisposal] = []
+    # 3. the pool, chronologically, with whatever the first two rules left; 4. then later acquisitions
+    merged_results: list[UkDisposal] = []
     pools: dict[str, list[PoolState]] = {}
     for instrument_id in sorted(set(acquisitions) | set(disposals)):
         events = sorted(
@@ -270,6 +323,7 @@ def match_disposals(
             + [(item.day, 1, item) for item in disposals.get(instrument_id, [])],
             key=lambda entry: (entry[0], entry[1], entry[2].transaction_id),
         )
+        later = [item for item in acquisitions.get(instrument_id, []) if not item.reorganisation]
         pool_quantity = pool_cost = Decimal(0)
         history: list[PoolState] = []
         for day, is_disposal, event in events:
@@ -277,30 +331,70 @@ def match_disposals(
                 if event.remaining > 0:
                     pool_cost += event.amount * event.remaining / event.quantity
                     pool_quantity += event.remaining
+                    label = "rights " if event.reorganisation else "acquire "
                     history.append(
-                        PoolState(instrument_id, day, pool_quantity, pool_cost, "acquire " + event.transaction_id)
+                        PoolState(instrument_id, day, pool_quantity, pool_cost, label + event.transaction_id)
                     )
                 continue
             found = matches.get(event.transaction_id, [])
-            if event.remaining > 0:
-                if event.remaining > pool_quantity:
-                    raise ValidationError(
-                        f"{event.transaction_id}: disposes of {event.remaining} {instrument_id} "
-                        f"with {pool_quantity} in the pool"
-                    )
-                cost = pool_cost * event.remaining / pool_quantity
-                found.append(UkMatch(MatchRule.SECTION_104, event.remaining, cost))
+            if event.remaining > 0 and pool_quantity > 0:
+                taken = min(event.remaining, pool_quantity)
+                cost = pool_cost * taken / pool_quantity
+                found.append(UkMatch(MatchRule.SECTION_104, taken, cost))
                 pool_cost -= cost
-                pool_quantity -= event.remaining
+                pool_quantity -= taken
+                event.remaining -= taken
                 history.append(
                     PoolState(instrument_id, day, pool_quantity, pool_cost, "dispose " + event.transaction_id)
                 )
-            results.append(
+            # 4. what the pool could not cover is matched with later acquisitions, earliest first
+            for acquisition in later:
+                if event.remaining <= 0:
+                    break
+                if acquisition.day > day and acquisition.remaining > 0:
+                    found.append(_take(acquisition, event, MatchRule.LATER_ACQUISITION))
+            if event.remaining > 0:
+                raise ValidationError(
+                    f"{event.transaction_id}: disposes of {event.remaining} more {instrument_id} than was ever acquired"
+                )
+            merged_results.append(
                 UkDisposal(event.transaction_id, instrument_id, day, event.quantity, event.amount, tuple(found))
             )
         pools[instrument_id] = history
+
+    results = [part for merged in merged_results for part in _apportion(merged, quantities)]
     results.sort(key=lambda item: (item.day, item.disposal_id))
     return UkMatchingResult(results, pools)
+
+
+def _apportion(disposal: UkDisposal, quantities: Mapping[str, Decimal]) -> list[UkDisposal]:
+    """Split a same-day disposal back into its transactions, each taking its share of every match."""
+    ids = disposal.disposal_id.split("+")
+    if len(ids) == 1:
+        return [disposal]
+    parts = []
+    for transaction_id in ids:
+        share = quantities[transaction_id] / disposal.quantity
+        parts.append(
+            UkDisposal(
+                transaction_id,
+                disposal.instrument_id,
+                disposal.day,
+                quantities[transaction_id],
+                disposal.proceeds * share,
+                tuple(
+                    UkMatch(
+                        match.rule,
+                        match.quantity * share,
+                        match.cost * share,
+                        match.acquisition_date,
+                        match.acquisition_id,
+                    )
+                    for match in disposal.matches
+                ),
+            )
+        )
+    return parts
 
 
 def _take(acquisition: _Event, disposal: _Event, rule: MatchRule) -> UkMatch:

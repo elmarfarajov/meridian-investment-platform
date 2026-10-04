@@ -11,6 +11,7 @@ events the same way.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -175,3 +176,38 @@ def sale(
         notes=notes,
         metadata=metadata,
     )
+
+
+def rights_take_up(
+    *,
+    transaction_id: str,
+    portfolio_id: str,
+    instrument_id: str,
+    day: date,
+    quantity: Decimal | str | int,
+    price: Decimal | str,
+    currency: str,
+    rights_issue_id: str,
+    fees: Decimal | str = "0",
+) -> Transaction:
+    """New shares paid for under a rights issue.
+
+    In the book and in US tax it is a purchase at the subscription price. In UK tax
+    it is not an acquisition at all: under TCGA 1992 s127 the new shares are the same
+    asset as the old, so the take-up joins the section 104 pool and is never matched
+    by the same-day or 30-day rules. The metadata records which rights issue it was.
+    """
+    from .uk_matching import REORGANISATION
+
+    taken = purchase(
+        transaction_id=transaction_id,
+        portfolio_id=portfolio_id,
+        instrument_id=instrument_id,
+        day=day,
+        quantity=quantity,
+        price=price,
+        currency=currency,
+        fees=fees,
+        notes=f"rights taken up under {rights_issue_id}",
+    )
+    return replace(taken, metadata={**taken.metadata, REORGANISATION: rights_issue_id})
