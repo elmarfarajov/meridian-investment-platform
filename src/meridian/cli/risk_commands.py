@@ -241,7 +241,7 @@ def backtest() -> None:
     )
     hits = np.array([item.exception for item in forecasts], dtype=int)
     tests = [kupiec(int(hits.sum()), len(hits)), christoffersen(hits)]
-    light = traffic_light(int(hits[-250:].sum()))
+    light = traffic_light(int(hits[-250:].sum()), len(hits[-250:]))
     console.print(
         render_rows(
             table("99% VaR backtest", ["Test", "Statistic", "p-value", "Result"], numeric=[1, 2]),

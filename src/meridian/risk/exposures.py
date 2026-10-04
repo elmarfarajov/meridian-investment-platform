@@ -47,15 +47,42 @@ def standardise(values: np.ndarray, caps: np.ndarray, limit: float = 3.0) -> np.
     before and re-centring after keeps one extreme stock from setting the scale
     for all the others.
     """
-    weights = caps / caps.sum()
-    centred = values - float(weights @ values)
-    scale = float(centred.std())
-    if scale == 0.0 or not math.isfinite(scale):
-        return np.zeros_like(values)
-    scores = np.clip(centred / scale, -limit, limit)
-    scores = scores - float(weights @ scores)
-    spread = float(scores.std())
-    return scores / spread if spread > 0 else scores
+    return Standardisation.fit(values, caps, limit).apply(values)
+
+
+@dataclass(frozen=True)
+class Standardisation:
+    """The map from a raw descriptor to an exposure, fitted on the estimation universe.
+
+    Four numbers: the cap-weighted centre and the spread before winsorising, and
+    the re-centring and spread after it. Fitting them once and applying them to
+    any asset is what makes an exposure of one mean the same for a stock in the
+    universe and for one the account holds outside it.
+    """
+
+    centre: float
+    scale: float
+    shift: float
+    spread: float
+    limit: float
+
+    @classmethod
+    def fit(cls, values: np.ndarray, caps: np.ndarray, limit: float = 3.0) -> Standardisation:
+        weights = caps / caps.sum()
+        centre = float(weights @ values)
+        scale = float((values - centre).std())
+        if scale == 0.0 or not math.isfinite(scale):
+            return cls(centre, 0.0, 0.0, 0.0, limit)
+        scores = np.clip((values - centre) / scale, -limit, limit)
+        shift = float(weights @ scores)
+        spread = float((scores - shift).std())
+        return cls(centre, scale, shift, spread, limit)
+
+    def apply(self, values: np.ndarray) -> np.ndarray:
+        if self.scale == 0.0:
+            return np.zeros_like(values, dtype=float)
+        scores = np.clip((values - self.centre) / self.scale, -self.limit, self.limit) - self.shift
+        return scores / self.spread if self.spread > 0 else scores
 
 
 def ewma_weights(length: int, half_life: float) -> np.ndarray:
@@ -182,13 +209,11 @@ def standardise_against(
 ) -> np.ndarray:
     """Exposures for assets outside the estimation universe, on the universe's own scale.
 
-    A stock the account holds but the regression does not use is measured with
-    the estimation universe's cap-weighted mean and standard deviation, so an
-    exposure of one means the same thing for every asset in the report.
+    A stock the account holds but the regression does not use is put through
+    exactly the transform the universe's own stocks went through - the same
+    centre, scale, winsorisation, re-centring and spread - so an exposure of one
+    means the same thing for every asset in the report. (Until the Day 5 revisit
+    it skipped the last two steps, and a stock outside the universe with the same
+    raw descriptor as one inside got a different exposure.)
     """
-    weights = reference_caps / reference_caps.sum()
-    centre = float(weights @ reference)
-    scale = float((reference - centre).std())
-    if scale == 0.0:
-        return np.zeros_like(values)
-    return np.clip((values - centre) / scale, -limit, limit)
+    return Standardisation.fit(reference, reference_caps, limit).apply(values)

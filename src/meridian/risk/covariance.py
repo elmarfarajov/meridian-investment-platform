@@ -190,7 +190,10 @@ def condition_number(covariance: np.ndarray) -> float:
 def minimum_variance_weights(covariance: np.ndarray) -> np.ndarray:
     """The fully invested minimum-variance portfolio, w = S^-1 1 / 1' S^-1 1 (pseudo-inverse if singular)."""
     ones = np.ones(covariance.shape[0])
-    raw = linalg.cho_solve(linalg.cho_factor(covariance), ones)
+    try:
+        raw = linalg.cho_solve(linalg.cho_factor(covariance), ones)
+    except linalg.LinAlgError:  # singular or indefinite: the minimum-norm solution, as the docstring promises
+        raw = np.linalg.pinv(covariance, hermitian=True) @ ones
     return raw / float(ones @ raw)
 
 

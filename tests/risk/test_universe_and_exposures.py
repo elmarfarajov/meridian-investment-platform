@@ -92,7 +92,8 @@ def test_standardise_centres_on_the_cap_weighted_market():
     assert float(scores.std()) == pytest.approx(1.0) and np.abs(scores).max() < 4.0
     assert np.all(standardise(np.ones(10), np.ones(10)) == 0.0)
     outside = standardise_against(np.array([values.mean() + 10 * values.std()]), values, caps)
-    assert outside[0] == 3.0
+    # clipped at three deviations, then re-centred and rescaled exactly as the universe's own extremes are
+    assert outside[0] == pytest.approx(scores.max())
 
 
 def test_historical_beta_recovers_a_known_slope_and_shrinks_the_uncertain():

@@ -51,9 +51,16 @@ def parametric(sigma: float, confidence: float = 0.99, mean: float = 0.0) -> Ris
 
 
 def cornish_fisher(sigma: float, skewness: float, excess_kurtosis: float, confidence: float = 0.99) -> RiskEstimate:
-    """The Cornish-Fisher expansion of the quantile; ES by averaging the expanded quantiles in the tail."""
+    """The Cornish-Fisher expansion of the quantile; ES by averaging the expanded quantiles in the tail.
 
-    def expanded(z: float) -> float:
+    The expansion is a polynomial in the normal quantile, and for large enough
+    skewness or kurtosis it stops being increasing: a more extreme probability
+    then maps to a *smaller* loss, and the "quantile" is no quantile at all
+    (Maillard, 2012). The function checks the expansion is increasing across the
+    tail it uses and refuses to answer where it is not.
+    """
+
+    def expanded(z: np.ndarray) -> np.ndarray:
         return (
             z
             + (z**2 - 1) * skewness / 6
@@ -62,9 +69,16 @@ def cornish_fisher(sigma: float, skewness: float, excess_kurtosis: float, confid
         )
 
     z = float(stats.norm.ppf(1 - confidence))
-    var = -expanded(z) * sigma
     tail = (1 - confidence) * (np.arange(200) + 0.5) / 200  # midpoints of the tail's probability slices
-    es = -float(np.mean([expanded(float(stats.norm.ppf(p))) for p in tail])) * sigma
+    grid = stats.norm.ppf(np.concatenate([tail, [1 - confidence]]))
+    values = expanded(grid)
+    if np.any(np.diff(values) <= 0):
+        raise ValidationError(
+            f"skewness {skewness:.2f} and excess kurtosis {excess_kurtosis:.2f} are outside the domain where the "
+            "Cornish-Fisher expansion is monotone; its quantile is not a quantile"
+        )
+    var = -float(expanded(np.array(z))) * sigma
+    es = -float(np.mean(values[:-1])) * sigma
     return RiskEstimate("Cornish-Fisher", confidence, var, max(es, var))
 
 
@@ -96,6 +110,12 @@ def monte_carlo(
     divided by a common chi-squared scale, rescaled so the covariance is the
     model's: in a crash every factor is hit at once, which independent t draws
     would miss.
+
+    Specific returns are drawn independently for every asset held, each a
+    Student-t scaled to its own specific variance, and summed with the weights.
+    The sum of independent fat-tailed shocks is less fat-tailed than any one of
+    them - diversification thins the specific tail - so a single t draw for the
+    whole portfolio's specific risk would overstate it.
     """
     rng = np.random.default_rng(seed)
     size = factor_covariance.shape[0]
@@ -105,8 +125,12 @@ def monte_carlo(
     factor_draws = (rng.standard_normal((draws, size)) @ chol.T) * (mixing * scale)[:, None]
     portfolio_exposure = exposures.T @ weights
     systematic = factor_draws @ portfolio_exposure
-    specific_sigma = float(np.sqrt(np.sum(weights**2 * specific_variance)))
-    idiosyncratic = rng.standard_t(dof, draws) * scale * specific_sigma
+    held = np.flatnonzero(weights)
+    loadings = weights[held] * np.sqrt(specific_variance[held]) * scale
+    idiosyncratic = np.zeros(draws)
+    for start in range(0, len(held), 64):  # in blocks, so a large book does not build a draws x N matrix at once
+        block = loadings[start : start + 64]
+        idiosyncratic += rng.standard_t(dof, (draws, len(block))) @ block
     simulated = systematic + idiosyncratic
     estimate = historical(simulated, confidence)
     return RiskEstimate("Monte Carlo (factor model, t)", confidence, estimate.var, estimate.es), simulated
