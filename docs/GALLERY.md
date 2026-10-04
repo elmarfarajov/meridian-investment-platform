@@ -26,7 +26,8 @@ working day driven over HTTP, from the source's import graph and from the releas
 validation and rates figures come from QuantLib, from 36 years of the US Treasury's published
 par curve and the Federal Reserve's GSW curve, packaged with the code, and from illustrative
 SOFR quotes built on the Treasury curve. The real-FX figures come from 27 years of the ECB's
-euro reference rates and the Federal Reserve's noon rates, packaged with the code.
+euro reference rates and the Federal Reserve's noon rates, packaged with the code. The
+published-example figures run the IRS's and HMRC's own worked examples through the engine.
 
 ---
 ### Calendars
@@ -299,6 +300,14 @@ euro reference rates and the Federal Reserve's noon rates, packaged with the cod
 
 ![A correction is a replay](images/restatement.png)
 
+**Property-testing the book** - The wash-sale loss that went nowhere, and every random book after the fix.
+
+![Property-testing the book](images/book-invariants.png)
+
+**Accrued interest on the Treasury convention** - The demonstration Treasury moved from 30/360 to actual/actual ICMA.
+
+![Accrued interest on the Treasury convention](images/treasury-day-count.png)
+
 ### Tax
 
 **Every tax lot the account has held** - Lots from acquisition to disposal, with holding periods, tacking and wash sale adjustments.
@@ -324,6 +333,22 @@ euro reference rates and the Federal Reserve's noon rates, packaged with the cod
 **The long-term horizon** - Open lots by days held against unrealised gain, and each short-term lot's road to long-term.
 
 ![The long-term horizon](images/unrealised-horizon.png)
+
+**The tax authorities' own examples, reproduced** - Every figure in the IRS's and HMRC's worked examples against the engine; one HMRC slip.
+
+![The tax authorities' own examples, reproduced](images/published-examples.png)
+
+**Where each disallowed dollar goes** - Publication 550's wash sale examples on a timeline: the window, the replacements, the basis.
+
+![Where each disallowed dollar goes](images/wash-sale-timelines.png)
+
+**Which shares a UK disposal is matched with** - Same day, 30 days, the pool, later purchases: HMRC's examples, rule by rule.
+
+![Which shares a UK disposal is matched with](images/uk-share-matching.png)
+
+**The section 104 pool** - One holding, one average cost, through two rights issues.
+
+![The section 104 pool](images/section-104-pool.png)
 
 ### Reconciliation
 
