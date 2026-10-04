@@ -29,7 +29,7 @@ SOFR quotes built on the Treasury curve. The real-FX figures come from 27 years 
 euro reference rates and the Federal Reserve's noon rates, packaged with the code. The
 published-example figures run the IRS's and HMRC's own worked examples through the engine. The century
 figures come from Kenneth French's data library: twelve US industry portfolios and the Fama-French factors
-since July 1926, packaged with the code.
+since July 1926, packaged with the code, and their daily returns since 1 July 1926 for the risk figures.
 
 ---
 ### Calendars
@@ -133,6 +133,10 @@ since July 1926, packaged with the code.
 **Every measure against empyrical** - Thirty measures on two datasets: agreeing to 1e-10, or differing by a convention that accounts for every digit.
 
 ![Every measure against empyrical](images/empyrical-reconciliation.png)
+
+**Day 5 against its references** - The Basel traffic-light table reproduced, and arch, pandas, scikit-learn and PyPortfolioOpt.
+
+![Day 5 against its references](images/risk-references.png)
 
 ### Cashflows
 
@@ -521,6 +525,34 @@ since July 1926, packaged with the code.
 **The risk report** - The page the risk committee reads: risk by source, contributions, stress tests and the VaR backtest.
 
 ![The risk report](images/risk-report.png)
+
+**Ninety-seven years of 99% VaR** - Four forecasters scored year by year in Basel's traffic-light zones.
+
+![Ninety-seven years of 99% VaR](images/var-century-zones.png)
+
+**Four crises, four forecasters** - Daily returns against each method's VaR through 1955, 1987, 2008 and 2020.
+
+![Four crises, four forecasters](images/var-crises.png)
+
+**The worst surprises in a century** - Losses in units of that morning's VaR forecast.
+
+![The worst surprises in a century](images/var-surprises.png)
+
+**Is the risk forecast the right size?** - The bias statistic of the RiskMetrics forecast for the market and twelve industries, by decade.
+
+![Is the risk forecast the right size?](images/bias-by-decade.png)
+
+**GARCH against EWMA on a century of returns** - QLIKE by decade, and the GARCH parameters refitted every year.
+
+![GARCH against EWMA on a century of returns](images/garch-vs-ewma.png)
+
+**Twelve industries, four covariance estimators** - Minimum-variance portfolios since 1927: risk promised against risk delivered.
+
+![Twelve industries, four covariance estimators](images/industry-minimum-variance.png)
+
+**A second reading of Day 5** - Three faults, each figure before and after the fix.
+
+![A second reading of Day 5](images/risk-review.png)
 
 ### Compliance
 

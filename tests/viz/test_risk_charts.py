@@ -70,4 +70,5 @@ def test_chart_data_agrees_with_the_model():
 
 def test_the_risk_group_is_in_the_gallery():
     names = {item.filename for item in gallery_items() if item.group == "risk"}
-    assert len(names) == 16 and "risk-report.png" in names
+    # sixteen from Day 5, seven more from its revisit (the eighth, the references, is under validation)
+    assert len(names) == 23 and {"risk-report.png", "var-century-zones.png", "bias-by-decade.png"} <= names
