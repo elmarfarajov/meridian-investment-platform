@@ -190,8 +190,8 @@ def brinson_fachler_day(
     a manager's sleeves - rather than as holdings. The weights on each side must
     sum to one; the effects then sum exactly to the active return.
     """
-    for side, segments in (("portfolio", portfolio), ("benchmark", benchmark)):
-        total = sum(weight for weight, _ in segments.values())
+    for side, given in (("portfolio", portfolio), ("benchmark", benchmark)):
+        total = sum(weight for weight, _ in given.values())
         if abs(total - 1.0) > 1e-9:
             raise ValidationError(f"{day}: the {side} weights sum to {total:.6f}, not 1")
     rate_p = sum(weight * value for weight, value in portfolio.values())
