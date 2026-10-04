@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.2.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.2.0)
+[![Release](https://img.shields.io/badge/release-v1.3.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.3.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
 [![Tests](https://img.shields.io/badge/tests-1308-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
@@ -47,7 +47,7 @@ Prometheus and Grafana: the same stack CI builds and smoke-tests on every pull r
 
 ---
 
-## Validated against QuantLib and 36 years of real rates
+## Validated against QuantLib, real markets and the tax authorities
 
 After the nine days, each module is being revisited in order and held to a stricter
 standard. Day 1 went first. Its rates engine had been tested against examples written by
@@ -129,6 +129,34 @@ only when they price the same one. The full account is in
 [market data on real FX](docs/notes/market-data-on-real-fx.md).
 
 ![Two central banks, one exchange rate](docs/images/ecb-vs-fed.png)
+
+**Day 3 revisited: the book of record against the tax authorities.** Day 3's tax tests
+were written from the rules by the same hand as the code. They are now joined by the
+authorities' own worked examples, run exactly as published: 12 cases from IRS
+Publication 550 and HMRC's CG51560, CG51590 and HS284.
+
+- **All 42 published figures agree**: the IRS's to the cent and HMRC's to the pound.
+  One HMRC figure does not follow from HMRC's own arithmetic (£4,236 where
+  6,160 − 1,925 = £4,235). It is recorded as an erratum, and the engine is not bent to
+  match it.
+- **UK matching now follows the statute.** Two sales on one day are one disposal
+  (s105). Rights taken up join the pool and are never matched under the 30-day rule
+  (s127). A disposal the pool cannot cover is matched with later purchases.
+- **Property tests found two engine bugs.** Hypothesis writes random histories and
+  checks the trial balance, the sub-ledger tie, quantities and that a wash sale defers
+  a loss without destroying it. Under HIFO, shares sold together could replace each
+  other, and the disallowed loss vanished. An intraday round trip was refused. Both
+  are fixed.
+- **The demonstration Treasury accrues actual/actual (ICMA)**, as Treasuries do.
+
+![The tax authorities' own examples, reproduced](docs/images/published-examples.png)
+
+![The wash sale rule on the IRS's own examples](docs/images/wash-sale-timelines.png)
+
+The full account is in
+[the book against the tax authorities](docs/notes/the-book-against-the-tax-authorities.md).
+
+![Property-testing the book](docs/images/book-invariants.png)
 
 ---
 
@@ -221,7 +249,7 @@ meridian compliance check
 
 meridian compliance pretrade US-MSFT 100000
 # Blocked: single issuer 10.29% -> 12.28% against a 12% hard limit. The
-# largest purchase the hard limits allow is 85,978 dollars.
+# largest purchase the hard limits allow is 85,976 dollars.
 
 meridian compliance replay
 # The book's 43 historical orders through the pre-trade check it never had:
@@ -269,7 +297,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and fifty-eight are in the
+Every module ships a visual, not only numbers. All one hundred and sixty-four are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -650,6 +678,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Fixed income mathematics](docs/notes/fixed-income-mathematics.md) | Discounting, bootstrapping, clean and dirty price, duration, convexity, key rate durations, and the numerical method behind them |
 | [The rates engine, validated](docs/notes/the-rates-engine-validated.md) | QuantLib as a reconciliation, calendars that know their history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, Nelson-Siegel-Svensson against the Fed, gilts ex-dividend |
 | [Market data on real FX](docs/notes/market-data-on-real-fx.md) | The pence trap, the quality engine on 27 years of ECB fixings, currency regimes and lifecycles, the events register, the ECB against the Fed, fixing times |
+| [The book against the tax authorities](docs/notes/the-book-against-the-tax-authorities.md) | The IRS's and HMRC's worked examples reproduced, an HMRC erratum, UK matching per the statute, the book property-tested, the Treasury day count |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
 | [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
@@ -694,7 +723,8 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 9 | Platform: a FastAPI service with JWT, roles and entitlements, a hash-chained audit log, idempotent writes, four-eyes orders, Prometheus and Grafana, Docker Compose; release v1.0.0 | ✅ Done |
 | 1+ | Day 1 revisited: reconciled against QuantLib, calendars with history, curves from dated instruments, monotone convex, 36 years of the Treasury curve, NSS against the Fed, gilts; release v1.1.0 | ✅ Done |
 | 2+ | Day 2 revisited: the pence trap and three more faults; the quality engine on 27 years of real FX from the ECB and the Fed, currency regimes and lifecycles, an events register, fixing times in the golden copy; release v1.2.0 | ✅ Done |
-| 3+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
+| 3+ | Day 3 revisited: the IRS's and HMRC's worked examples reproduced (one HMRC erratum), UK matching per s105 and s127, the book property-tested (two bugs fixed), the Treasury on actual/actual; release v1.3.0 | ✅ Done |
+| 4+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
 
 ---
 

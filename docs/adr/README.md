@@ -61,3 +61,7 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0053](0053-currency-regimes-and-lifecycles-are-reference-data.md) | Currency regimes and lifecycles are reference data, and statistics stand aside under management | Accepted |
 | [0054](0054-findings-on-documented-events-are-explained-not-suppressed.md) | Findings on documented market events are explained, not suppressed | Accepted |
 | [0055](0055-a-golden-copy-compares-sources-only-at-the-same-moment.md) | A golden copy compares sources only at the same moment | Accepted |
+| [0056](0056-published-examples-are-the-acceptance-test-for-tax-rules.md) | The tax authorities' published examples are the acceptance test for tax rules | Accepted |
+| [0057](0057-uk-matching-follows-s105-and-s127.md) | UK matching treats one day as one transaction, and rights as part of the holding | Accepted |
+| [0058](0058-the-book-is-property-tested.md) | The book of record is property-tested | Accepted |
+| [0059](0059-treasuries-accrue-actual-actual.md) | The demonstration Treasury accrues actual/actual (ICMA) | Accepted |

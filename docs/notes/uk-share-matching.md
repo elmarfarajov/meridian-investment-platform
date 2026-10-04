@@ -18,7 +18,15 @@ A UK disposal of shares is matched, in this order (TCGA 1992 ss. 104-106A):
 3. **The section 104 pool** - every other share, at the pool's average cost.
    Acquisitions join the pool; disposals take cost out of it pro rata.
 
-Same-day matching is applied to every disposal before any 30-day matching.
+4. **Later acquisitions** - if the pool cannot cover a disposal, shares acquired after
+   it, earliest first (HS284).
+
+Same-day matching is applied to every disposal before any 30-day matching. Everything
+disposed of on one day is one disposal, and everything acquired on one day one
+acquisition (s105(1)); the result is split back to each trade pro rata. Rights taken
+up are not an acquisition at all (s127): they join the pool at their cost and are never
+matched by the first two rules. The rules are checked against HMRC's own examples in
+[the book against the tax authorities](the-book-against-the-tax-authorities.md).
 
 ## 2. Two rules against the same trick
 

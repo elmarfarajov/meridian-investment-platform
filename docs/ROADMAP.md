@@ -389,7 +389,37 @@ release, like the days themselves.
 
 **Notes:** [market data on real FX](notes/market-data-on-real-fx.md).
 
-### Days 3 to 9, revisited - next
+### Day 3, revisited - the book against the tax authorities ✅
+
+**Issue #24, release v1.3.0.**
+
+- **The authorities' own worked examples, reproduced:** 12 cases and 42 figures from
+  IRS Publication 550 and HMRC CG51560, CG51590 and HS284. The IRS figures agree to
+  the cent and HMRC's to the pound. One HMRC figure is an arithmetic slip, recorded as
+  an erratum.
+- **UK matching brought in line with the statute:**
+  - one day is one transaction (s105);
+  - rights taken up join the pool (s127);
+  - a shortfall is matched with later purchases.
+- **The book property-tested:** Hypothesis writes random histories and checks the
+  trial balance, the sub-ledger tie, the quantities and the conservation of
+  disallowed losses. Two bugs were found and fixed:
+  - shares sold together replaced each other;
+  - an intraday round trip was refused.
+- **The demonstration Treasury accrues actual/actual (ICMA)**, as Treasuries do.
+
+**Charts:** six:
+
+- every published figure against the engine;
+- the wash sale timelines;
+- the UK identification rules;
+- the section 104 pool;
+- the property-tested book;
+- the Treasury day count.
+
+**Notes:** [the book against the tax authorities](notes/the-book-against-the-tax-authorities.md).
+
+### Days 4 to 9, revisited - next
 
 ---
 
