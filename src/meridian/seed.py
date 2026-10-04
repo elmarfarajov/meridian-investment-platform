@@ -14,6 +14,7 @@ from datetime import date
 from decimal import Decimal
 
 from .core.currency import CHF, EUR, GBP, USD
+from .core.daycount import DayCountConvention
 from .core.enums import AccountType
 from .core.identifiers import CUSIP, ISIN, SEDOL, Ticker
 from .domain.instruments import Bond, CashInstrument, Equity, Fund, Instrument, SecurityIdentifiers
@@ -143,6 +144,7 @@ def demo_instruments() -> tuple[Instrument, ...]:
             issue_date=date(2022, 5, 16),
             maturity=date(2032, 5, 15),
             face_value=Decimal(1000),
+            day_count=DayCountConvention.ACT_ACT_ICMA,  # Treasuries accrue actual/actual
             issuer_id="US-TREASURY",
         ),
         Equity(

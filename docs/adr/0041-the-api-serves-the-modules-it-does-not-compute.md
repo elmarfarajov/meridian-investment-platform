@@ -27,7 +27,7 @@ in the books.
 ## Consequences
 
 - The API's valuation equals the book's NAV, and its pre-trade answer for a $100,000
-  Microsoft purchase is the Day 6 answer: blocked, $85,978 allowed. The tests assert
+  Microsoft purchase is the Day 6 answer: blocked, $85,976 allowed. The tests assert
   both.
 - The first call builds the modules (tens of seconds). Later calls take tens of
   milliseconds. A production deployment would warm the modules at start-up or serve

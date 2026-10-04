@@ -327,8 +327,8 @@ def test_a_bond_purchase_pays_accrued_interest_which_the_next_coupon_recovers(en
     accrued = next(
         p.amount for p in purchase_entry.postings if p.account_code == Accounts.ACCRUED_INTEREST_PURCHASED.code
     )
-    # 78 days of 30/360 from 15 November to 3 February (settlement) on 250,000 face
-    assert accrued == Decimal("1557.29")
+    # ACT/ACT ICMA: 80 of the 181 days from 15 November to 3 February (settlement) on 250,000 face
+    assert accrued == Decimal("1588.40")
     assert book.ledger.balance(Accounts.INVESTMENTS) == Decimal("241050.00")
     coupon = Decimal("3593.75")
     assert book.settled_cash("USD", D(2026, 5, 29)) == Decimal(300000) - Decimal("241050") - accrued + coupon

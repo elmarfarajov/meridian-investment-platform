@@ -165,8 +165,9 @@ The demonstration Treasury carried a 30/360 day count. That was a second error: 
 Treasuries accrue ACT/ACT. The fix moved its prices by at most 1.7 cents per 100.
 It also moved the largest Microsoft purchase the Day 6 hard limits allow from
 $85,976 to $85,978, and the documentation says so. Moving the Treasury to ACT/ACT
-changes the whole demonstration book, so it is deferred to the Day 3 revisit and
-recorded there.
+changes the whole demonstration book, so it was deferred to the Day 3 revisit, which
+made the change ([the book against the tax authorities](the-book-against-the-tax-authorities.md)):
+the limit is $85,976 again.
 
 One break is explained rather than fixed. 30/360 is not additive. QuantLib times
 the first coupon as (last coupon to next coupon) minus (last coupon to
