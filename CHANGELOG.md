@@ -4,6 +4,54 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-05
+
+Day 5 revisited: risk against independent references and a century of daily returns. A
+second reading found six faults; the Basel Committee's table, `arch`, pandas,
+scikit-learn, PyPortfolioOpt and 97 years of daily VaR backtests check what is left.
+
+### Added
+
+- **Reconciliation against references** (`devtools/risk_reference.py`), 41 checks:
+  - the Basel Committee's 1996 traffic-light table, to the printed digit;
+  - `garch_filter` against `arch`'s conditional volatilities and forecast, to 0;
+  - `EwmaState` against pandas;
+  - Ledoit-Wolf against scikit-learn and PyPortfolioOpt. PyPortfolioOpt feeds Ledoit
+    and Wolf's `covCor.m` the T - 1 sample; given the T sample the original uses, it
+    agrees exactly.
+- **A century of daily US returns** (`marketdata/french.py`): the 12 industry
+  portfolios and the factors, daily from 1 July 1926.
+- **Daily VaR forecasters for a single series** (`risk/backtest.py`): normal with
+  RiskMetrics volatility, historical and filtered historical simulation, and GARCH-t.
+- **`services/century_risk.py`:**
+  - VaR backtested since 1929, with Basel's zone year by year;
+  - bias statistics by decade;
+  - QLIKE losses (`risk.validation.qlike`);
+  - minimum-variance trials on the twelve industries.
+- **Eight charts** (one hundred and eighty in the gallery), a methodology note, and
+  ADRs 0064 to 0067.
+
+### Fixed
+
+- **Monte Carlo VaR** drew one Student-t for the whole book's specific risk; each
+  holding now draws its own. The account's Monte Carlo VaR is 1.92%, not 1.99%.
+- **The Basel traffic light** was a 250-day lookup. The zones are now the Committee's
+  binomial rule for any window, and the callers pass the window they scored.
+- **`minimum_variance_weights`** promised a pseudo-inverse for a singular matrix and
+  raised an error instead.
+- **`RollingForecaster`** ignored its own half-lives in the description and in the
+  z-scores.
+- **Cornish-Fisher** answered outside the domain where its expansion is monotone; it
+  now refuses.
+- **`standardise_against`** skipped the re-centring and rescaling after winsorising.
+  An off-universe stock now gets the exposure of a universe stock with the same
+  descriptor, and the account's volatility forecast is 12.24%, not 12.22%.
+
+### Changed
+
+- **GARCH is filtered by one function**, `garch_filter`, in every forecaster.
+- PyPortfolioOpt is a development dependency.
+
 ## [1.4.0] - 2026-10-05
 
 Day 4 revisited: performance against independent references and a century of real
@@ -756,6 +804,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[1.5.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.5.0
 [1.4.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.4.0
 [1.3.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.3.0
 [1.2.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.2.0

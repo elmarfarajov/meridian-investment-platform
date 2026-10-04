@@ -90,16 +90,18 @@ dollars:
 
 | Method | VaR | ES |
 | --- | ---: | ---: |
-| Parametric (normal) | 1.79% | 2.05% |
-| Cornish-Fisher (skew and kurtosis) | 1.83% | 2.20% |
+| Parametric (normal) | 1.79% | 2.06% |
+| Cornish-Fisher (skew and kurtosis) | 1.83% | 2.21% |
 | Historical simulation (today's holdings) | 1.66% | 1.97% |
-| Monte Carlo from the factor model, Student-t | 1.99% | 2.60% |
+| Monte Carlo from the factor model, Student-t | 1.92% | 2.55% |
 
 Expected shortfall is the measure Basel's Fundamental Review of the Trading Book
 adopted, because it says how bad the bad days are and diversification never increases
 it. The Monte Carlo draws factor returns from a *multivariate* Student-t, so in a crash
 every factor is hit at once, which independent draws would miss. That is why its
-shortfall is the largest.
+shortfall is the largest. Specific returns, by contrast, are drawn independently for each
+holding: until the Day 5 revisit they were one draw for the whole book, which kept a
+single stock's fat tail and put the Monte Carlo VaR at 1.99%.
 
 ![VaR four ways](../images/var-methods.png)
 
@@ -113,7 +115,8 @@ cluster.
 - **Christoffersen's independence test:** is an exception more likely the day after an
   exception? Clustering means the model reacts too slowly.
 - **The Basel traffic light:** up to four exceptions of a 99% VaR in 250 days is green,
-  five to nine yellow (with a rising capital multiplier), ten or more red.
+  five to nine yellow (with a rising capital multiplier), ten or more red. The zones are the
+  Committee's binomial rule, so a window of another length gets its own thresholds.
 
 Over 530 days there was **one** exception against 5.3 expected. Christoffersen passes
 (p = 0.95) and the traffic light is green throughout. Kupiec rejects (p = 0.02), and it

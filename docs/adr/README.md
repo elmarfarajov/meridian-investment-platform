@@ -69,3 +69,7 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0061](0061-the-linking-method-is-a-recorded-choice.md) | The linking method is a recorded choice among four exact methods | Accepted |
 | [0062](0062-a-century-of-french-data-is-packaged.md) | A century of US equity returns from Kenneth French's library is packaged | Accepted |
 | [0063](0063-return-series-carry-origin-and-frequency.md) | Return series carry their origin and frequency; ratios use annual rates | Accepted |
+| [0064](0064-basel-zones-follow-the-committees-binomial-rule.md) | Basel zones follow the Committee's binomial rule, for any window | Accepted |
+| [0065](0065-garch-is-filtered-by-one-function-checked-against-arch.md) | GARCH is filtered by one function, checked against arch to the last bit | Accepted |
+| [0066](0066-a-century-of-daily-returns-validates-the-forecasters.md) | A century of daily returns validates the market-risk forecasters | Accepted |
+| [0067](0067-one-standardisation-for-every-asset.md) | One fitted standardisation for every asset, in the universe or not | Accepted |

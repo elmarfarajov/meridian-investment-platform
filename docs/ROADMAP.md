@@ -453,7 +453,41 @@ release, like the days themselves.
 
 **Notes:** [performance against the references](notes/performance-against-the-references.md).
 
-### Days 5 to 9, revisited - next
+### Day 5, revisited - risk against the references ✅
+
+**Issue #28, release v1.5.0.**
+
+- **Six faults found in a second reading:**
+  - Monte Carlo specific risk drawn once for the book;
+  - Basel's zones hard-coded for 250 days;
+  - a pseudo-inverse promised but not used;
+  - the forecaster's half-lives ignored;
+  - Cornish-Fisher outside its domain;
+  - exposures outside the universe skipping two steps.
+- **Reconciled against references:**
+  - the Basel Committee's 1996 table to the printed digit;
+  - `arch`'s GARCH filter to 0;
+  - pandas, scikit-learn and PyPortfolioOpt. PyPortfolioOpt's T - 1 sample is
+    explained and recombined.
+- **A century of daily VaR** on the US market since 1929, four forecasters in Basel's
+  zones year by year. Filtered historical simulation has no red year in 97.
+- **Bias statistics by decade, GARCH against EWMA on QLIKE, and covariance estimators
+  on twelve industries.**
+
+**Charts:** eight:
+
+- the references;
+- the century of zones;
+- four crises;
+- the worst surprises;
+- bias by decade;
+- GARCH against EWMA;
+- minimum variance on twelve industries;
+- the review fixes.
+
+**Notes:** [risk against the references](notes/risk-against-the-references.md).
+
+### Days 6 to 9, revisited - next
 
 ---
 

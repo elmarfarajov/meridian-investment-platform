@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.4.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.4.0)
+[![Release](https://img.shields.io/badge/release-v1.5.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.5.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
 [![Tests](https://img.shields.io/badge/tests-1378-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
@@ -189,6 +189,39 @@ The full account is in
 
 ![Four linking methods, one total](docs/images/linking-methods.png)
 
+**Day 5 revisited: risk against the references, and a century of daily VaR.** A second
+reading found six faults, among them:
+
+- Monte Carlo specific risk drawn once for the whole book;
+- Basel's zones hard-coded for 250 days;
+- exposures outside the estimation universe skipping two steps of their
+  standardisation.
+
+The checks are now independent:
+
+- the Basel Committee's 1996 table is reproduced to the printed digit;
+- the GARCH filter agrees with `arch` to the last bit;
+- Ledoit-Wolf agrees with scikit-learn and with PyPortfolioOpt. PyPortfolioOpt feeds
+  Ledoit and Wolf's own code a T - 1 sample; given theirs, it agrees exactly.
+
+On **every trading day since 1929**, four one-day 99% VaR forecasters were scored as a
+regulator would score them:
+
+- the normal model is exceeded twice as often as it promises;
+- historical simulation has ten red years;
+- filtered historical simulation has none in 97;
+- the worst surprise of the century was not 1987 but the day after Eisenhower's
+  heart attack.
+
+![Ninety-seven years of 99% VaR](docs/images/var-century-zones.png)
+
+![The worst surprises in a century](docs/images/var-surprises.png)
+
+The full account is in
+[risk against the references](docs/notes/risk-against-the-references.md).
+
+![Is the risk forecast the right size?](docs/images/bias-by-decade.png)
+
 ---
 
 ## What it does today
@@ -328,7 +361,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and seventy-two are in the
+Every module ships a visual, not only numbers. All one hundred and eighty are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -711,6 +744,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Market data on real FX](docs/notes/market-data-on-real-fx.md) | The pence trap, the quality engine on 27 years of ECB fixings, currency regimes and lifecycles, the events register, the ECB against the Fed, fixing times |
 | [The book against the tax authorities](docs/notes/the-book-against-the-tax-authorities.md) | The IRS's and HMRC's worked examples reproduced, an HMRC erratum, UK matching per the statute, the book property-tested, the Treasury day count |
 | [Performance against the references](docs/notes/performance-against-the-references.md) | Six faults, every measure against empyrical, Microsoft's XIRR, four linking methods, a century of Kenneth French's data |
+| [Risk against the references](docs/notes/risk-against-the-references.md) | Six faults, the Basel table, GARCH against arch, Ledoit-Wolf against PyPortfolioOpt, a century of daily VaR, bias by decade |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
 | [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
@@ -757,7 +791,8 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 2+ | Day 2 revisited: the pence trap and three more faults; the quality engine on 27 years of real FX from the ECB and the Fed, currency regimes and lifecycles, an events register, fixing times in the golden copy; release v1.2.0 | ✅ Done |
 | 3+ | Day 3 revisited: the IRS's and HMRC's worked examples reproduced (one HMRC erratum), UK matching per s105 and s127, the book property-tested (two bugs fixed), the Treasury on actual/actual; release v1.3.0 | ✅ Done |
 | 4+ | Day 4 revisited: six faults fixed, every measure reconciled against empyrical, Microsoft's XIRR examples, four linking methods, a century of Kenneth French's industry data; release v1.4.0 | ✅ Done |
-| 5+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
+| 5+ | Day 5 revisited: six faults fixed, the Basel table reproduced, GARCH against arch, Ledoit-Wolf against PyPortfolioOpt, a century of daily VaR backtests in Basel's zones; release v1.5.0 | ✅ Done |
+| 6+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
 
 ---
 

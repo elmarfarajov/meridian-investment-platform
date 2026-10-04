@@ -32,7 +32,7 @@ services:
 
   migrate:
     build: .
-    image: meridian-platform:1.4.0
+    image: meridian-platform:1.5.0
     command: ["alembic", "upgrade", "head"]
     environment: *meridian-environment
     depends_on:
@@ -40,7 +40,7 @@ services:
         condition: service_healthy
 
   api:
-    image: meridian-platform:1.4.0
+    image: meridian-platform:1.5.0
     environment: *meridian-environment
     ports:
       - "8000:8000"
