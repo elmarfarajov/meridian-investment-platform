@@ -65,3 +65,7 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0057](0057-uk-matching-follows-s105-and-s127.md) | UK matching treats one day as one transaction, and rights as part of the holding | Accepted |
 | [0058](0058-the-book-is-property-tested.md) | The book of record is property-tested | Accepted |
 | [0059](0059-treasuries-accrue-actual-actual.md) | The demonstration Treasury accrues actual/actual (ICMA) | Accepted |
+| [0060](0060-performance-statistics-are-reconciled-against-empyrical.md) | Performance statistics are reconciled against empyrical, and every convention is recombined | Accepted |
+| [0061](0061-the-linking-method-is-a-recorded-choice.md) | The linking method is a recorded choice among four exact methods | Accepted |
+| [0062](0062-a-century-of-french-data-is-packaged.md) | A century of US equity returns from Kenneth French's library is packaged | Accepted |
+| [0063](0063-return-series-carry-origin-and-frequency.md) | Return series carry their origin and frequency; ratios use annual rates | Accepted |

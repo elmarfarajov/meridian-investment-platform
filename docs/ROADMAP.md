@@ -419,7 +419,41 @@ release, like the days themselves.
 
 **Notes:** [the book against the tax authorities](notes/the-book-against-the-tax-authorities.md).
 
-### Days 4 to 9, revisited - next
+### Day 4, revisited - performance against the references ✅
+
+**Issue #26, release v1.4.0.**
+
+- **Six faults found in a second reading:**
+  - a trailing year three days too long;
+  - short-period ratios mixing units;
+  - relative measures annualised over the wrong span;
+  - XIRR on 365.25-day years;
+  - capture ratios of totals;
+  - Modified Dietz flows outside the period.
+- **Reconciled against empyrical and scipy:**
+  - 22 of 30 measures agree to 1e-10;
+  - 8 differ by four conventions, each recombined exactly;
+  - Microsoft's XIRR and XNPV examples reproduced.
+- **Four linking methods:** Cariño, Menchero, GRAP and Frongello, all exact.
+- **A century of real returns** from Kenneth French's library:
+  - the market rebuilt from twelve industries to 11 bp a month;
+  - equal weight attributed against cap weight by decade;
+  - drawdowns and Sharpe ratios since 1926.
+
+**Charts:** eight:
+
+- every measure against empyrical;
+- the market rebuilt;
+- a century of industry weights;
+- decade attribution;
+- the four linking methods;
+- a century of drawdowns;
+- the rolling Sharpe ratio;
+- the review fixes.
+
+**Notes:** [performance against the references](notes/performance-against-the-references.md).
+
+### Days 5 to 9, revisited - next
 
 ---
 
