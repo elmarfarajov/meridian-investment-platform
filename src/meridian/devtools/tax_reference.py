@@ -20,15 +20,16 @@ as such rather than matched (``KNOWN_ERRATA``).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from ..accounting.book import Book
 from ..accounting.builders import cash_transaction, purchase, rights_take_up, sale
 from ..accounting.engine import AccountingEngine
 from ..accounting.sources import FixedFx
-from ..accounting.uk_matching import MatchRule, UkMatchingResult, match_disposals
+from ..accounting.uk_matching import MatchRule, UkDisposal, UkMatchingResult, match_disposals
 from ..core.currency import get_currency
 from ..core.enums import TransactionType
 from ..domain import Portfolio
@@ -79,8 +80,130 @@ KNOWN_ERRATA: dict[tuple[str, str], str] = {
 }
 
 
+#: A published history: (buy or sell, transaction id, trade date, quantity, total amount).
+Row = tuple[str, str, date, int, str]
+
+IRS_EXAMPLE_1 = "Publication 550, Wash Sales, Example 1"
+IRS_BEFORE = "Publication 550, More or less stock bought than sold, Example 1"
+IRS_ORDER = "Publication 550, More or less stock bought than sold, Example 2"
+IRS_SAME_DAY = "Publication 550, Loss and gain on same day"
+
+#: The IRS examples, as published (Publication 550 gives prices per share; these are the totals).
+IRS_HISTORIES: dict[str, list[Row]] = {
+    IRS_EXAMPLE_1: [
+        ("buy", "B1", date(2025, 1, 6), 100, "1000"),
+        ("sell", "S1", date(2025, 3, 10), 100, "750"),
+        ("buy", "B2", date(2025, 3, 25), 100, "800"),
+    ],
+    IRS_BEFORE: [
+        ("buy", "SEP", date(2024, 9, 20), 100, "5000"),
+        ("buy", "D13", date(2024, 12, 13), 50, "2750"),
+        ("buy", "D20", date(2024, 12, 20), 25, "1125"),
+        ("sell", "S", date(2025, 1, 3), 100, "4000"),
+    ],
+    IRS_ORDER: [
+        ("buy", "SEP", date(2024, 9, 16), 100, "2000"),
+        ("sell", "S", date(2025, 1, 29), 100, "1000"),
+        ("buy", "F3", date(2025, 2, 3), 50, "500"),
+        ("buy", "F4", date(2025, 2, 4), 50, "500"),
+        ("buy", "F5", date(2025, 2, 5), 50, "500"),
+        ("buy", "F6", date(2025, 2, 6), 50, "500"),
+    ],
+    IRS_SAME_DAY: [
+        ("buy", "B1", date(2019, 3, 1), 100, "15800"),
+        ("buy", "B2", date(2019, 6, 3), 100, "10000"),
+        ("buy", "B3", date(2019, 9, 3), 100, "9500"),
+        ("sell", "S", date(2024, 12, 27), 300, "37500"),
+        ("buy", "J10", date(2025, 1, 10), 250, "31250"),
+    ],
+}
+
+#: The HMRC examples, as published, with the transactions that are rights taken up.
+HMRC_HISTORIES: dict[str, tuple[list[Row], tuple[str, ...]]] = {
+    "CG51590 Example 1": (
+        [
+            ("buy", "B1", date(2006, 4, 15), 1000, "1300"),
+            ("buy", "B2", date(2006, 8, 4), 1000, "1450"),
+            ("buy", "B3", date(2007, 1, 19), 500, "950"),
+            ("sell", "S1", date(2010, 3, 16), 2000, "6850"),
+            ("buy", "B4", date(2010, 4, 7), 2000, "6790"),
+            ("sell", "S2", date(2010, 12, 10), 2200, "7700"),
+        ],
+        (),
+    ),
+    "CG51590 Example 2": (
+        [
+            ("buy", "B1", date(2008, 8, 17), 10000, "2500"),
+            ("buy", "B2", date(2009, 4, 1), 10000, "2600"),
+            ("buy", "R1", date(2009, 10, 8), 4000, "1060"),
+            ("sell", "S1", date(2012, 12, 10), 7500, "3000"),
+        ],
+        ("R1",),
+    ),
+    "CG51590 Example 3": (
+        [
+            # 31 March 1982 market value replaces the 1979 cost: TCGA 1992 s35 rebasing, entered as the cost
+            ("buy", "B1", date(1979, 5, 27), 7500, "21000"),
+            ("buy", "B2", date(1988, 2, 6), 4000, "16500"),
+            ("buy", "B3", date(1993, 7, 28), 4000, "17000"),
+            ("buy", "B4", date(2005, 3, 31), 6000, "29000"),
+            ("sell", "S1", date(2013, 6, 13), 16500, "114675"),
+        ],
+        (),
+    ),
+    "CG51590 Example 4": (
+        [
+            ("buy", "B1", date(1997, 9, 24), 15000, "6750"),
+            ("buy", "R1", date(2001, 1, 30), 9000, "3600"),
+            ("buy", "B2", date(2004, 6, 14), 12000, "13800"),
+            ("buy", "R2", date(2005, 11, 26), 9000, "9450"),
+            ("sell", "S1", date(2010, 2, 23), 20000, "39000"),
+        ],
+        ("R1", "R2"),
+    ),
+    "HS284 Example 2": (
+        [
+            ("buy", "B1", date(2015, 1, 5), 9500, "9500"),
+            ("sell", "S1", date(2024, 8, 30), 4000, "6000"),
+            ("buy", "B2", date(2024, 9, 11), 500, "850"),
+        ],
+        (),
+    ),
+}
+
+
+def _identification(holding: int, sold_on: date, sold: int, bought_on: date, bought: int) -> list[Row]:
+    """CG51560 states only the shares; the amounts are immaterial to which rule matches them."""
+    return [
+        ("buy", "B1", date(2005, 1, 4), holding, str(holding)),
+        ("sell", "S1", sold_on, sold, str(sold * 2)),
+        ("buy", "B2", bought_on, bought, str(bought * 2)),
+    ]
+
+
+#: CG51560: (title, history, shares the 30-day rule should match)
+IDENTIFICATION_EXAMPLES: dict[str, tuple[str, list[Row], int]] = {
+    "CG51560 Example 1": (
+        "Miss A: sold and bought back 30 days later",
+        _identification(1000, date(2011, 7, 1), 1000, date(2011, 7, 31), 1000),
+        1000,
+    ),
+    "CG51560 Example 2": (
+        "Mr B: 500 of 1,700 bought back within 30 days",
+        _identification(2500, date(2012, 3, 27), 1700, date(2012, 3, 30), 500),
+        500,
+    ),
+    "CG51560 Example 3": (
+        "Mrs C: bought back on the thirty-first day",
+        _identification(10000, date(2009, 2, 28), 2000, date(2009, 3, 31), 3000),
+        0,
+    ),
+}
+
+
 # ---------------------------------------------------------------------------- the United States
-def _us_book(rows: Sequence[tuple[str, str, date, int, str]]):  # type: ignore[no-untyped-def]
+def irs_book(source: str) -> Book:
+    """One IRS example run through the accounting engine, wash sale rule and all."""
     instruments = {item.instrument_id: item for item in demo_instruments()}
     engine = AccountingEngine(
         Portfolio(portfolio_id="IRS", name="Publication 550", base_currency=get_currency("USD")),
@@ -88,17 +211,32 @@ def _us_book(rows: Sequence[tuple[str, str, date, int, str]]):  # type: ignore[n
         FixedFx({"EUR": "1.10", "GBP": "1.25", "CHF": "1.12"}),
     )
     transactions: list[Transaction] = [
-        cash_transaction(transaction_id="CASH", portfolio_id="IRS", kind=TransactionType.DEPOSIT,
-                         day=date(2019, 1, 2), amount="1000000", currency="USD")
-    ]  # fmt: skip
-    for kind, transaction_id, day, quantity, total in rows:
+        cash_transaction(
+            transaction_id="CASH",
+            portfolio_id="IRS",
+            kind=TransactionType.DEPOSIT,
+            day=date(2019, 1, 2),
+            amount="1000000",
+            currency="USD",
+        )
+    ]
+    for kind, transaction_id, day, quantity, total in IRS_HISTORIES[source]:
         maker = purchase if kind == "buy" else sale
-        transactions.append(maker(transaction_id=transaction_id, portfolio_id="IRS", instrument_id=US_STOCK, day=day,
-                                  quantity=quantity, price=str(D(total) / quantity), currency="USD"))  # fmt: skip
+        transactions.append(
+            maker(
+                transaction_id=transaction_id,
+                portfolio_id="IRS",
+                instrument_id=US_STOCK,
+                day=day,
+                quantity=quantity,
+                price=str(D(total) / quantity),
+                currency="USD",
+            )
+        )
     return engine.run(transactions)
 
 
-def _lot_basis(book, lot_id: str) -> Decimal:  # type: ignore[no-untyped-def]
+def lot_basis(book: Book, lot_id: str) -> Decimal:
     return Decimal(next(lot.tax_basis for lot in book.open_lots[US_STOCK] if lot.lot_id == lot_id))
 
 
@@ -106,47 +244,36 @@ def irs_cases() -> list[Case]:
     cent = D("0.005")
     cases = []
 
-    book = _us_book([("buy", "B1", date(2025, 1, 6), 100, "1000"), ("sell", "S1", date(2025, 3, 10), 100, "750"),
-                     ("buy", "B2", date(2025, 3, 25), 100, "800")])  # fmt: skip
+    book = irs_book(IRS_EXAMPLE_1)
     (realised,) = book.realised
-    cases.append(Case("IRS", "Publication 550, Wash Sales, Example 1", "The disallowed loss joins the new basis", [
+    cases.append(Case("IRS", IRS_EXAMPLE_1, "The disallowed loss joins the new basis", [
         Figure("loss on the sale", D(-250), realised.tax_gain_before_wash, cent),
         Figure("loss disallowed", D(250), realised.disallowed_loss, cent),
-        Figure("basis of the new shares", D(1050), _lot_basis(book, "B2"), cent),
+        Figure("basis of the new shares", D(1050), lot_basis(book, "B2"), cent),
     ]))  # fmt: skip
 
-    book = _us_book([("buy", "SEP", date(2024, 9, 20), 100, "5000"), ("buy", "D13", date(2024, 12, 13), 50, "2750"),
-                     ("buy", "D20", date(2024, 12, 20), 25, "1125"),
-                     ("sell", "S", date(2025, 1, 3), 100, "4000")])  # fmt: skip
+    book = irs_book(IRS_BEFORE)
     (realised,) = book.realised
-    cases.append(Case("IRS", "Publication 550, More or less stock bought than sold, Example 1",
-                      "Replacements bought in the 30 days before the sale", [
+    cases.append(Case("IRS", IRS_BEFORE, "Replacements bought in the 30 days before the sale", [
         Figure("loss on the sale", D(-1000), realised.tax_gain_before_wash, cent),
         Figure("loss disallowed (75 shares)", D(750), realised.disallowed_loss, cent),
         Figure("loss deductible (25 shares)", D(-250), realised.reportable_gain, cent),
-        Figure("basis of the 50 shares of 13 December", D(3250), _lot_basis(book, "D13"), cent),
-        Figure("basis of the 25 shares of 20 December", D(1375), _lot_basis(book, "D20"), cent),
+        Figure("basis of the 50 shares of 13 December", D(3250), lot_basis(book, "D13"), cent),
+        Figure("basis of the 25 shares of 20 December", D(1375), lot_basis(book, "D20"), cent),
     ]))  # fmt: skip
 
-    book = _us_book([("buy", "SEP", date(2024, 9, 16), 100, "2000"), ("sell", "S", date(2025, 1, 29), 100, "1000"),
-                     ("buy", "F3", date(2025, 2, 3), 50, "500"), ("buy", "F4", date(2025, 2, 4), 50, "500"),
-                     ("buy", "F5", date(2025, 2, 5), 50, "500"),
-                     ("buy", "F6", date(2025, 2, 6), 50, "500")])  # fmt: skip
+    book = irs_book(IRS_ORDER)
     (realised,) = book.realised
-    cases.append(Case("IRS", "Publication 550, More or less stock bought than sold, Example 2",
-                      "Replacements matched in the order bought", [
+    cases.append(Case("IRS", IRS_ORDER, "Replacements matched in the order bought", [
         Figure("loss disallowed", D(1000), realised.disallowed_loss, cent),
-        Figure("added to the shares of 3 February", D(500), _lot_basis(book, "F3") - D(500), cent),
-        Figure("added to the shares of 4 February", D(500), _lot_basis(book, "F4") - D(500), cent),
-        Figure("added to the shares of 5 February", D(0), _lot_basis(book, "F5") - D(500), cent),
+        Figure("added to the shares of 3 February", D(500), lot_basis(book, "F3") - D(500), cent),
+        Figure("added to the shares of 4 February", D(500), lot_basis(book, "F4") - D(500), cent),
+        Figure("added to the shares of 5 February", D(0), lot_basis(book, "F5") - D(500), cent),
     ]))  # fmt: skip
 
-    book = _us_book([("buy", "B1", date(2019, 3, 1), 100, "15800"), ("buy", "B2", date(2019, 6, 3), 100, "10000"),
-                     ("buy", "B3", date(2019, 9, 3), 100, "9500"), ("sell", "S", date(2024, 12, 27), 300, "37500"),
-                     ("buy", "J10", date(2025, 1, 10), 250, "31250")])  # fmt: skip
+    book = irs_book(IRS_SAME_DAY)
     by_lot = {realised.lot_id: realised for realised in book.realised}
-    cases.append(Case("IRS", "Publication 550, Loss and gain on same day",
-                      "A wash-sale loss cannot reduce gains on other blocks", [
+    cases.append(Case("IRS", IRS_SAME_DAY, "A wash-sale loss cannot reduce gains on other blocks", [
         Figure("loss disallowed on the first block", D(3300), by_lot["B1"].disallowed_loss, cent),
         Figure("gain on the second block, unreduced", D(2500), by_lot["B2"].reportable_gain, cent),
         Figure("gain on the third block, unreduced", D(3000), by_lot["B3"].reportable_gain, cent),
@@ -155,7 +282,7 @@ def irs_cases() -> list[Case]:
 
 
 # ---------------------------------------------------------------------------- the United Kingdom
-def _uk_match(rows: Sequence[tuple[str, str, date, int, str]], *, rights: Sequence[str] = ()) -> UkMatchingResult:
+def _uk_match(rows: Sequence[Row], rights: Sequence[str] = ()) -> UkMatchingResult:
     instruments = {item.instrument_id: item for item in demo_instruments()}
     transactions = []
     for kind, transaction_id, day, quantity, total in rows:
@@ -171,7 +298,15 @@ def _uk_match(rows: Sequence[tuple[str, str, date, int, str]], *, rights: Sequen
     return match_disposals(transactions, instruments, FixedFx({}))
 
 
-def _disposal(result: UkMatchingResult, disposal_id: str):  # type: ignore[no-untyped-def]
+def hmrc_matching(source: str) -> UkMatchingResult:
+    """One HMRC example run through the share identification rules."""
+    if source in IDENTIFICATION_EXAMPLES:
+        return _uk_match(IDENTIFICATION_EXAMPLES[source][1])
+    rows, rights = HMRC_HISTORIES[source]
+    return _uk_match(rows, rights)
+
+
+def _disposal(result: UkMatchingResult, disposal_id: str) -> UkDisposal:
     return next(item for item in result.disposals if item.disposal_id == disposal_id)
 
 
@@ -185,11 +320,7 @@ def hmrc_cases() -> list[Case]:
     exact = D("0.005")
     cases = []
 
-    result = _uk_match([
-        ("buy", "B1", date(2006, 4, 15), 1000, "1300"), ("buy", "B2", date(2006, 8, 4), 1000, "1450"),
-        ("buy", "B3", date(2007, 1, 19), 500, "950"), ("sell", "S1", date(2010, 3, 16), 2000, "6850"),
-        ("buy", "B4", date(2010, 4, 7), 2000, "6790"), ("sell", "S2", date(2010, 12, 10), 2200, "7700"),
-    ])  # fmt: skip
+    result = hmrc_matching("CG51590 Example 1")
     first, second = _disposal(result, "S1"), _disposal(result, "S2")
     quantity, cost = _pool_after(result)
     cases.append(Case("HMRC", "CG51590 Example 1", "Ms Davy: a bed and breakfast, then a part disposal", [
@@ -200,10 +331,7 @@ def hmrc_cases() -> list[Case]:
         Figure("pool cost left", D(444), cost, pound),
     ]))  # fmt: skip
 
-    result = _uk_match([
-        ("buy", "B1", date(2008, 8, 17), 10000, "2500"), ("buy", "B2", date(2009, 4, 1), 10000, "2600"),
-        ("buy", "R1", date(2009, 10, 8), 4000, "1060"), ("sell", "S1", date(2012, 12, 10), 7500, "3000"),
-    ], rights=("R1",))  # fmt: skip
+    result = hmrc_matching("CG51590 Example 2")
     disposal = _disposal(result, "S1")
     quantity, cost = _pool_after(result)
     cases.append(Case("HMRC", "CG51590 Example 2", "Mr Browne: a rights issue taken up joins the pool", [
@@ -213,12 +341,7 @@ def hmrc_cases() -> list[Case]:
         Figure("pool cost after the disposal", D(4236), cost, pound),
     ]))  # fmt: skip
 
-    result = _uk_match([
-        # 31 March 1982 market value replaces the 1979 cost: TCGA 1992 s35 rebasing, entered as the cost
-        ("buy", "B1", date(1979, 5, 27), 7500, "21000"), ("buy", "B2", date(1988, 2, 6), 4000, "16500"),
-        ("buy", "B3", date(1993, 7, 28), 4000, "17000"), ("buy", "B4", date(2005, 3, 31), 6000, "29000"),
-        ("sell", "S1", date(2013, 6, 13), 16500, "114675"),
-    ])  # fmt: skip
+    result = hmrc_matching("CG51590 Example 3")
     disposal = _disposal(result, "S1")
     quantity, cost = _pool_after(result)
     cases.append(Case("HMRC", "CG51590 Example 3", "Mrs Mountain: a holding rebased to 31 March 1982", [
@@ -228,11 +351,7 @@ def hmrc_cases() -> list[Case]:
         Figure("pool cost left", D(19419), cost, pound),
     ]))  # fmt: skip
 
-    result = _uk_match([
-        ("buy", "B1", date(1997, 9, 24), 15000, "6750"), ("buy", "R1", date(2001, 1, 30), 9000, "3600"),
-        ("buy", "B2", date(2004, 6, 14), 12000, "13800"), ("buy", "R2", date(2005, 11, 26), 9000, "9450"),
-        ("sell", "S1", date(2010, 2, 23), 20000, "39000"),
-    ], rights=("R1", "R2"))  # fmt: skip
+    result = hmrc_matching("CG51590 Example 4")
     disposal = _disposal(result, "S1")
     quantity, cost = _pool_after(result)
     cases.append(Case("HMRC", "CG51590 Example 4", "The Peninsula Trust: two rights issues", [
@@ -242,11 +361,7 @@ def hmrc_cases() -> list[Case]:
         Figure("pool cost left", D(18666), cost, pound),
     ]))  # fmt: skip
 
-    result = _uk_match([
-        ("buy", "B1", date(2015, 1, 5), 9500, "9500"), ("sell", "S1", date(2024, 8, 30), 4000, "6000"),
-        ("buy", "B2", date(2024, 9, 11), 500, "850"),
-    ])  # fmt: skip
-    disposal = _disposal(result, "S1")
+    disposal = _disposal(hmrc_matching("HS284 Example 2"), "S1")
     by_rule = disposal.quantity_by_rule()
     bed = [match for match in disposal.matches if match.rule is MatchRule.BED_AND_BREAKFAST]
     proceeds_share = disposal.proceeds * D(500) / D(4000)
@@ -258,29 +373,16 @@ def hmrc_cases() -> list[Case]:
                proceeds_share - sum((match.cost for match in bed), D(0)), pound),
     ]))  # fmt: skip
 
-    cases.append(_identification_case("CG51560 Example 1", "Miss A: sold and bought back 30 days later", 1000,
-                                      date(2011, 7, 1), 1000, date(2011, 7, 31), 1000, 1000))  # fmt: skip
-    cases.append(_identification_case("CG51560 Example 2", "Mr B: 500 of 1,700 bought back within 30 days", 2500,
-                                      date(2012, 3, 27), 1700, date(2012, 3, 30), 500, 500))  # fmt: skip
-    cases.append(_identification_case("CG51560 Example 3", "Mrs C: bought back on the thirty-first day", 10000,
-                                      date(2009, 2, 28), 2000, date(2009, 3, 31), 3000, 0))  # fmt: skip
+    for source, (title, rows, expected_30_day) in IDENTIFICATION_EXAMPLES.items():
+        sold = next(quantity for kind, _, _, quantity, _ in rows if kind == "sell")
+        by_rule = _disposal(hmrc_matching(source), "S1").quantity_by_rule()
+        cases.append(Case("HMRC", source, title, [
+            Figure("shares matched under the 30-day rule", D(expected_30_day),
+                   by_rule.get(MatchRule.BED_AND_BREAKFAST, D(0)), exact),
+            Figure("shares matched with the pool", D(sold - expected_30_day),
+                   by_rule.get(MatchRule.SECTION_104, D(0)), exact),
+        ]))  # fmt: skip
     return cases
-
-
-def _identification_case(source: str, title: str, holding: int, sold_on: date, sold: int, bought_on: date,
-                         bought: int, expected_30_day: int) -> Case:  # fmt: skip
-    result = _uk_match([
-        ("buy", "B1", date(2005, 1, 4), holding, str(holding)), ("sell", "S1", sold_on, sold, str(sold * 2)),
-        ("buy", "B2", bought_on, bought, str(bought * 2)),
-    ])  # fmt: skip
-    by_rule = _disposal(result, "S1").quantity_by_rule()
-    exact = D("0.005")
-    return Case("HMRC", source, title, [
-        Figure("shares matched under the 30-day rule", D(expected_30_day),
-               by_rule.get(MatchRule.BED_AND_BREAKFAST, D(0)), exact),
-        Figure("shares matched with the pool", D(sold - expected_30_day),
-               by_rule.get(MatchRule.SECTION_104, D(0)), exact),
-    ])  # fmt: skip
 
 
 def all_cases() -> list[Case]:
@@ -289,6 +391,3 @@ def all_cases() -> list[Case]:
 
 def errata(case: Case, figure: Figure) -> str | None:
     return KNOWN_ERRATA.get((case.source, figure.label))
-
-
-CaseBuilder = Callable[[], list[Case]]
