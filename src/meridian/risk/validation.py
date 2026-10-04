@@ -200,6 +200,24 @@ def traffic_light(exceptions: int, observations: int = BASEL_OBSERVATIONS, cover
     return TrafficLight(exceptions, "yellow", 3.0 + plus, probability, observations)
 
 
+def qlike(returns: np.ndarray, volatility: np.ndarray) -> float:
+    """The QLIKE loss of variance forecasts against squared returns: mean of r2/h - ln(r2/h) - 1.
+
+    A squared daily return is a noisy measure of that day's variance. Patton
+    (2011) shows QLIKE, like squared error, ranks forecasts correctly however
+    noisy the proxy - and, unlike squared error, it is not dominated by a few
+    crash days. Lower is better; zero only for a perfect forecast of a perfect
+    proxy. Days with a zero return are skipped, where the logarithm is undefined.
+    """
+    squared = np.asarray(returns, dtype=float) ** 2
+    forecast = np.asarray(volatility, dtype=float) ** 2
+    valid = np.isfinite(squared) & np.isfinite(forecast) & (squared > 0) & (forecast > 0)
+    if not valid.any():
+        raise ValidationError("QLIKE needs at least one day with a return and a forecast")
+    ratio = squared[valid] / forecast[valid]
+    return float(np.mean(ratio - np.log(ratio) - 1.0))
+
+
 def exceptions(returns: np.ndarray, var: np.ndarray) -> np.ndarray:
     """1 where the loss exceeded the VaR (VaR given as a positive loss), else 0."""
     return (-np.asarray(returns) > np.asarray(var)).astype(int)
