@@ -78,4 +78,5 @@ def test_holding_series_and_the_legend():
 
 def test_the_performance_group_is_in_the_gallery():
     names = {item.filename for item in gallery_items() if item.group == "performance"}
-    assert len(names) == 15 and "factsheet.png" in names
+    # fifteen from Day 4, seven more from its revisit (the eighth, the reconciliation, is under validation)
+    assert len(names) == 22 and {"factsheet.png", "market-rebuilt.png", "linking-methods.png"} <= names
