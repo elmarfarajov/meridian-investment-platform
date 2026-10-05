@@ -26,7 +26,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from .engine import ComplianceReport, RuleResult
+from .engine import ComplianceReport, RuleResult, group_breaches, utilisation
 
 PASSIVE_GRACE_DAYS = 30
 
@@ -46,6 +46,11 @@ class Breach:
     days: int = 0  # evaluation days in breach
     resolution: str = "open"  # open | resolved by trading | resolved by the market
     contributors: tuple[str, ...] = ()
+    group: str = ""  # the issuer, sector or currency over the limit; empty for a rule that is one number
+
+    @property
+    def label(self) -> str:
+        return f"{self.rule_name}: {self.group}" if self.group else self.rule_name
 
     @property
     def deadline(self) -> date:
@@ -104,16 +109,16 @@ def build_register(
     """
     groups_of = groups_of or {}
     breaches: list[Breach] = []
-    open_now: dict[str, Breach] = {}
+    open_now: dict[tuple[str, str], Breach] = {}
     counter = 0
 
     trade_days = sorted(traded)
     previous: date | None = None
 
-    def touched(day: date, result: RuleResult) -> bool:
-        """Whether anything traded since the previous check is part of the result."""
-        # a "max weight by" rule is broken by its heaviest group alone; other rules by what they add up
-        labels = {result.group} if result.group else set(_contributor_keys(result, 50))
+    def touched(day: date, result: RuleResult, group: str) -> bool:
+        """Whether anything traded since the previous check is part of this group's breach."""
+        # a group's breach is made of that group; a rule that is one number, of what it adds up
+        labels = {group} if group else set(_contributor_keys(result, 50))
         for trade_day in trade_days:
             if trade_day > day or (previous is not None and trade_day <= previous):
                 continue
@@ -124,9 +129,19 @@ def build_register(
 
     for report in reports:
         for result in report.results:
+            if result.status == "not evaluable":
+                continue  # an open breach stays open on a day it cannot be measured
             rule_id = result.rule.rule_id
-            current = open_now.get(rule_id)
-            if result.is_breach:
+            broken = group_breaches(result)
+            values = dict(result.contributors)
+            for key in [key for key in open_now if key[0] == rule_id and key[1] not in broken]:
+                closing = open_now.pop(key)
+                closing.closed = report.day
+                closing.resolution = (
+                    "resolved by trading" if touched(report.day, result, key[1]) else "resolved by the market"
+                )
+            for group in sorted(broken):
+                current = open_now.get((rule_id, group))
                 if current is None:
                     counter += 1
                     current = Breach(
@@ -134,21 +149,19 @@ def build_register(
                         rule_id=rule_id,
                         rule_name=result.rule.name,
                         severity=result.rule.severity,
-                        kind="active" if touched(report.day, result) else "passive",
+                        kind="active" if touched(report.day, result, group) else "passive",
                         opened=report.day,
-                        contributors=_contributor_keys(result),
+                        contributors=(group,) if group else _contributor_keys(result),
+                        group=group,
                     )
-                    open_now[rule_id] = current
+                    open_now[(rule_id, group)] = current
                     breaches.append(current)
                 current.days += 1
-                utilisation = result.utilisation or 0.0
-                if utilisation >= current.peak_utilisation:
-                    current.peak_utilisation = utilisation
-                    current.peak_value = result.value or 0.0
+                value = values.get(group, result.value or 0.0) if group else (result.value or 0.0)
+                level = utilisation(result.rule, value)
+                if level >= current.peak_utilisation:
+                    current.peak_utilisation = level
+                    current.peak_value = value
                     current.peak_day = report.day
-            elif current is not None and result.status != "not evaluable":
-                current.closed = report.day
-                current.resolution = "resolved by trading" if touched(report.day, result) else "resolved by the market"
-                del open_now[rule_id]
         previous = report.day
     return breaches

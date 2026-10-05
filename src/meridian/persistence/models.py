@@ -501,6 +501,7 @@ class ComplianceBreachRow(TimestampMixin, Base):
     breach_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     portfolio_id: Mapped[str] = mapped_column(ForeignKey("portfolios.portfolio_id"), index=True)
     rule_id: Mapped[str] = mapped_column(String(64))
+    group_label: Mapped[str] = mapped_column(String(128), server_default="")  # the issuer, sector... that broke it
     severity: Mapped[str] = mapped_column(String(8))
     kind: Mapped[str] = mapped_column(String(8))  # active | passive
     opened: Mapped[date] = mapped_column(Date)

@@ -129,3 +129,28 @@ def test_a_second_issuer_crossing_the_limit_is_a_new_breach():
     )
     assert decision.decision == "blocked"
     assert {change.rule_id: change.effect for change in decision.reasons}["issuer"] == "new breach"
+
+
+def test_the_register_keeps_one_breach_per_issuer_and_judges_each_on_its_own():
+    from datetime import timedelta
+
+    from meridian.compliance.engine import check
+    from meridian.compliance.monitor import build_register
+
+    day0 = date(2026, 9, 14)
+    days = [day0 + timedelta(days=offset) for offset in range(3)]
+    # day 1: ISSUER0 rises over 10% with no trade (passive); day 2: S1 is bought over 10% (active)
+    # five stocks of five different issuers (the universe's issuer is the index modulo six)
+    books = [
+        _book(S0=0.09, S1=0.08, S2=0.09, S4=0.09, S5=0.09, cash=0.56),
+        _book(S0=0.11, S1=0.08, S2=0.09, S4=0.09, S5=0.09, cash=0.54),
+        _book(S0=0.11, S1=0.105, S2=0.09, S4=0.09, S5=0.09, cash=0.515),
+    ]
+    reports = [check(MANDATE, Snapshot(day, 1e6, snapshot.holdings)) for day, snapshot in zip(days, books, strict=True)]
+    groups = {key: {str(attributes["issuer"])} for key, attributes in UNIVERSE.items()}
+    register = [b for b in build_register(reports, {days[2]: {"S1"}}, groups) if b.rule_id == "issuer"]
+    by_group = {breach.group: breach for breach in register}
+    assert set(by_group) == {"ISSUER0", "ISSUER1"}  # two issuers, two breaches
+    assert by_group["ISSUER0"].kind == "passive" and by_group["ISSUER0"].opened == days[1]
+    assert by_group["ISSUER1"].kind == "active" and by_group["ISSUER1"].opened == days[2]
+    assert by_group["ISSUER1"].label == "Single issuer: ISSUER1"

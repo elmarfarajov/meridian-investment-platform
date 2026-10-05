@@ -92,11 +92,17 @@ remedy "as a priority objective … taking due account of the interests of unith
 A breach past its deadline is **overdue**, and the compliance run refuses to store an
 overdue hard breach quietly.
 
-The register holds **37 breaches**:
-- **9 active** (3 of hard limits) and **28 passive** (8 of hard limits);
-- **23 were resolved by the market**, and **14 by trading**.
+The register holds **44 breaches**:
+- **9 active** (3 of hard limits) and **35 passive** (8 of hard limits);
+- **29 were resolved by the market**, and **15 by trading**.
 
-Passive breaches were mostly short: the median lasted 4.5 trading days, while the median
+A breach is recorded per rule *and group*: one record for each issuer, sector or currency
+past the limit. Until the Day 6 revisit there was one record per rule, and the register
+held 37. The seven it missed were all in the look-through issuer limit, where Apple was
+over 16% while Microsoft was too; the old register saw only the heavier of the two. See
+[compliance that cannot be talked past](compliance-that-cannot-be-talked-past.md).
+
+Passive breaches were mostly short: the median lasted 4 trading days, while the median
 active breach lasted 31, about six weeks. An active breach is a position someone chose
 and held; a passive one is often undone by the next day's prices.
 
