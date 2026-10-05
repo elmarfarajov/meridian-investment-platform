@@ -563,7 +563,7 @@ def plot_unrealised_horizon(
         value = float(lot.quantity) * price * scales.get(lot.instrument_id, 1.0) * rates.get(lot.currency.code, 1.0)
         gain = value - float(lot.tax_basis)
         days = lot.holding_days(as_of)
-        term = Term.LONG if days > LONG_TERM_HOLDING_DAYS else Term.SHORT
+        term = Term.LONG if lot.is_long_term(as_of) else Term.SHORT
         axis.scatter([days], [gain], s=max(value / 2500, 12), color=TERM_COLOURS[term], alpha=0.7, edgecolor="white")
         if abs(gain) > 40_000:
             axis.annotate(lot.instrument_id, (days, gain), xytext=(6, 4), textcoords="offset points", fontsize=7)
