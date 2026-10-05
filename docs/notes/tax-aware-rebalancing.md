@@ -243,24 +243,29 @@ measured on the value the account would have **if liquidated at the end**, with 
 remaining gain taxed. That is the honest comparison, since deferral that ends in a tax
 bill is worth less than it looks on a statement.
 
-Results over 16 paths of 36 months:
+Results over 16 paths of 36 months, as recomputed in the
+[Day 7 revisit](the-tax-code-as-the-irs-writes-it.md). The revisit:
 
-| Manager | Pre-tax | After tax | Tax alpha (liquidated) | Tax alpha (as held) | Tracking error | Turnover a year |
-| --- | --- | --- | --- | --- | --- | --- |
-| buy and hold | 6.17% | 4.69% | +0.14% | +0.84% | 0.83% | 0% |
-| tax-blind | 6.15% | 4.55% | — | — | 0.08% | 91% |
-| tax-aware | 6.26% | 5.10% | **+0.55%** | +1.51% | 0.58% | 44% |
-| tax-aware, harvesting | 6.04% | 5.04% | **+0.49%** | +1.48% | 1.23% | 152% |
+- counts the holding period by the calendar;
+- nets the carryover as Schedule D does;
+- makes the pre-tax return time-weighted;
+- adds tax saved: the tax drag avoided, apart from tracking luck.
+
+| Manager | Pre-tax | After tax | Tax alpha (liquidated) | Tax saved | Tax alpha (as held) | Tracking error | Turnover a year |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| buy and hold | 6.17% | 4.69% | +0.22% | +0.35% | +0.85% | 0.83% | 0% |
+| tax-blind | 6.29% | 4.47% | — | — | — | 0.08% | 91% |
+| tax-aware | 6.26% | 5.02% | **+0.55%** | +0.58% | +1.52% | 0.58% | 44% |
+| tax-aware, harvesting | 6.11% | 5.01% | **+0.54%** | +0.73% | +1.47% | 1.21% | 161% |
 
 What the table shows:
 - **Most of the value is in not realising gains:** choosing lots and deferring. The
   tax-aware manager earns half a percent a year after liquidation, with less tracking
   error than buy and hold, and trades half as much as the tax-blind manager.
-- **Harvesting pays for itself, just.** It saves the most tax: 2.5% of the starting
-  value credited back over three years, against 1.9% without harvesting. But it spends
-  that saving on turnover and tracking error. On liquidation value, with outside gains
-  of 2% a year, the two tax-aware managers are within one standard error of each other
-  (about 0.1%).
+- **Harvesting saves the most tax**: 0.73% a year of drag avoided, against 0.58%
+  without harvesting. But it spends that saving on turnover and tracking error, 0.15%
+  a year before tax. On liquidation value, with outside gains of 2% a year, the two
+  tax-aware managers are within one standard error of each other (about 0.1%).
 - Harvesting earns more when the client has more gains elsewhere to offset, over longer
   horizons, and when the account is never liquidated (a step-up in basis at death, or
   a gift to charity). The "as held" column is the upper bound for that case.

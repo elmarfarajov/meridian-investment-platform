@@ -514,7 +514,37 @@ release, like the days themselves.
 
 **Notes:** [compliance that cannot be talked past](notes/compliance-that-cannot-be-talked-past.md).
 
-### Days 7 to 9, revisited - next
+### Day 7, revisited - the tax code as the IRS writes it ✅
+
+**Issue #32, release v1.7.0.**
+
+- **The holding period by the calendar.** Long-term means a sale after the one-year
+  anniversary, as Publication 550's leap-year example shows, not after 365 days. Fixed
+  in Day 3's book of record and Day 7's optimiser alike.
+- **The carryover as Schedule D computes it:**
+  - short-term losses go first into the $3,000 deduction;
+  - the deduction is worth the ordinary rate;
+  - a net loss keeps the character of the larger side.
+
+  The optimiser's ledger is property-tested against Day 3's.
+- **A lot is never its own wash-sale replacement.**
+- **The rebalance against a second solver.** Clarabel and SCS agree to half a basis
+  point of NAV.
+- **Tax-loss harvesting on a century of real returns.** Harvesting paid the least tax in
+  every decade since 1931, with tax saved and tracking luck reported apart.
+
+**Charts:** six:
+
+- the tax drag by decade;
+- the tax saved;
+- the Depression account;
+- the holding period;
+- the carryover;
+- the two solvers.
+
+**Notes:** [the tax code as the IRS writes it](notes/the-tax-code-as-the-irs-writes-it.md).
+
+### Days 8 and 9, revisited - next
 
 ---
 

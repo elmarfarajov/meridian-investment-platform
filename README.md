@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.6.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.6.0)
+[![Release](https://img.shields.io/badge/release-v1.7.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.7.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
 [![Tests](https://img.shields.io/badge/tests-1420-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
@@ -245,6 +245,31 @@ at 34.9%. The market has never been so concentrated.
 The full account is in
 [compliance that cannot be talked past](docs/notes/compliance-that-cannot-be-talked-past.md).
 
+**Day 7 revisited: the tax code as the IRS writes it.** The optimiser's tax arithmetic
+was held to Publication 550 and to Day 3's separately written ledger, and four faults
+came out:
+
+- **"More than one year" was counted as 365 days.** Across a 29 February that is a day
+  short, so the IRS's own example (bought 5 February 2024, sold 5 February 2025) was
+  called long-term. The fault was in Day 3 as well as Day 7, and touched 22% of
+  purchase dates.
+- **The $3,000 deduction used long-term losses as readily as short-term ones**, and
+  was valued with the 3.8% net investment income tax, which a loss never saves.
+- **A long-term loss larger than a short-term gain was carried as short-term.**
+- **A lot bought in the last 30 days was its own wash-sale replacement.**
+
+![The capital loss carryover, as Schedule D computes it](docs/images/carryover-schedule-d.png)
+
+The four managers then ran through **a century of the real US market**, decade by
+decade since 1931, under today's tax code. Harvesting paid the least tax in every
+decade: 15 bp a year at the median, 47 bp in the 1930s. Its trades' tracking luck was
+often as large as the saving, and the results now report the two apart.
+
+![Harvesting saved tax in every decade](docs/images/century-tax-saved.png)
+
+The full account is in
+[the tax code as the IRS writes it](docs/notes/the-tax-code-as-the-irs-writes-it.md).
+
 ---
 
 ## What it does today
@@ -384,7 +409,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and eighty-six are in the
+Every module ships a visual, not only numbers. All one hundred and ninety-two are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -769,6 +794,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Performance against the references](docs/notes/performance-against-the-references.md) | Six faults, every measure against empyrical, Microsoft's XIRR, four linking methods, a century of Kenneth French's data |
 | [Risk against the references](docs/notes/risk-against-the-references.md) | Six faults, the Basel table, GARCH against arch, Ledoit-Wolf against PyPortfolioOpt, a century of daily VaR, bias by decade |
 | [Compliance that cannot be talked past](docs/notes/compliance-that-cannot-be-talked-past.md) | The pre-trade guarantee property-tested, breaches per group, the UCITS screen per the Directive, a century of a sector limit |
+| [The tax code as the IRS writes it](docs/notes/the-tax-code-as-the-irs-writes-it.md) | The holding period by the calendar, the carryover as Schedule D computes it, wash sales, two solvers, tax-loss harvesting on a century of real returns |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
 | [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
@@ -817,7 +843,8 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 4+ | Day 4 revisited: six faults fixed, every measure reconciled against empyrical, Microsoft's XIRR examples, four linking methods, a century of Kenneth French's industry data; release v1.4.0 | ✅ Done |
 | 5+ | Day 5 revisited: six faults fixed, the Basel table reproduced, GARCH against arch, Ledoit-Wolf against PyPortfolioOpt, a century of daily VaR backtests in Basel's zones; release v1.5.0 | ✅ Done |
 | 6+ | Day 6 revisited: the pre-trade check property-tested (302 unsafe orders of 3,000, now none), breaches per group, the UCITS screen as the Directive writes it, a century of a sector limit; release v1.6.0 | ✅ Done |
-| 7+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
+| 7+ | Day 7 revisited: the holding period by the calendar (Day 3 too), the carryover as Schedule D computes it, wash sales, the rebalance against a second solver, tax-loss harvesting on a century of real returns; release v1.7.0 | ✅ Done |
+| 8+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
 
 ---
 

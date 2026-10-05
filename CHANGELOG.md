@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-10-06
+
+Day 7 revisited: the tax code as the IRS writes it. The optimiser's tax arithmetic was
+held to Publication 550, to Day 3's separately written ledger and to a second solver.
+Four faults came out, one of them in Day 3 as well. The four managers then ran through
+a century of the real US market.
+
+### Added
+
+- **A property test of the optimiser's tax ledger against Day 3's** on random
+  four-year histories: the tax each year and both carryovers.
+- **`Market.from_history`** and **`TaxAlphaBacktest.run_market`**: the backtest on a
+  market that happened.
+- **Tax-loss harvesting on a century of real returns** (`services/century_tax_alpha.py`):
+  - the four managers through each decade since 1931 on Kenneth French's twelve
+    industries;
+  - the index reweights to the market's real weights every month;
+  - the risk model is the 60 months before each decade.
+
+  Harvesting paid the least tax in every decade, 3 to 47 bp a year.
+- **`tax_drag` and `tax_saved`**: tax alpha as after-tax active return less pre-tax
+  active return, so the tax saved is reported apart from tracking luck.
+- **The rebalance against a second solver**: Clarabel (interior point) and SCS
+  (first-order) agree to half a basis point of NAV.
+- **Six charts** (one hundred and ninety-two in the gallery), a methodology note and
+  ADRs 0072 to 0076.
+
+### Fixed
+
+- **"More than one year" was counted as 365 days** in Day 3's book of record and in
+  Day 7's optimiser. Across a 29 February a year is 366 days, so Publication 550's
+  example (bought 5 February 2024, sold 5 February 2025: short-term) came out
+  long-term. One calendar rule, `domain.positions.long_term_from`, now serves both.
+- **The $3,000 capital loss deduction took long-term losses as readily as short-term
+  ones.** Publication 550 uses short-term losses first.
+- **The deduction was valued with the 3.8% net investment income tax**, which applies
+  only to a positive net. It saves the ordinary rate, $1,110 on $3,000 rather than
+  $1,224.
+- **A long-term loss larger than a short-term gain was carried forward as short-term.**
+  The remainder keeps the character of the larger side.
+- **A lot bought in the last 30 days was treated as its own wash-sale replacement**, so
+  its loss was always disallowed.
+- **The backtest's pre-tax return added the tax back to the final value**, which left
+  out what the tax would have earned. It is now time-weighted, with tax an outflow.
+
 ## [1.6.0] - 2026-10-05
 
 Day 6 revisited: compliance that cannot be talked past. A property test of the
