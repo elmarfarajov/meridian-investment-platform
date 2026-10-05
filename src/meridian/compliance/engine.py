@@ -217,6 +217,43 @@ def within(rule: Rule, value: float) -> bool:
     return True
 
 
+def excess(rule: Rule, value: float) -> float:
+    """How far outside its bound a value is, in the measure's own units; zero when within.
+
+    Utilisation is a ratio and fails exactly where compliance is strictest: a limit
+    of zero ("no holdings") or a value of zero (no cash against a cash floor) make
+    it infinite both before and after a trade, so a trade that makes the breach
+    worse looks unchanged. The excess has no such blind spot.
+    """
+    if within(rule, value):
+        return 0.0
+    bound = rule.bound
+    distances = [EPSILON]  # a strict bound broken exactly at its limit is still broken
+    if bound.upper is not None:
+        distances.append(value - float(bound.upper))
+    if bound.lower is not None:
+        distances.append(float(bound.lower) - value)
+    return max(distances)
+
+
+def group_breaches(result: RuleResult) -> dict[str, float]:
+    """Each group outside the limit, with its excess: one entry per issuer, sector... for a "max weight by" rule.
+
+    A "max weight by issuer <= 10%" rule is broken by every issuer above 10%, not
+    only by the heaviest one; the rule's value - the heaviest group - hides a
+    second issuer crossing the line while the first is still over it. Every other
+    measure is one number, keyed by the empty string.
+    """
+    if result.value is None:
+        return {}
+    rule = result.rule
+    per_group = isinstance(rule.measure, MaxGroupWeight) and rule.bound.lower is None
+    if per_group:
+        return {label: amount for label, value in result.contributors if (amount := excess(rule, value)) > 0}
+    amount = excess(rule, result.value)
+    return {"": amount} if amount > 0 else {}
+
+
 def warned(rule: Rule, value: float) -> bool:
     if rule.warn_at is None:
         return False
