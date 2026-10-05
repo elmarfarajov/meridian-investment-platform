@@ -41,6 +41,7 @@ DAYS = {
     "v1.4.0": "Performance revisited",
     "v1.5.0": "Risk revisited",
     "v1.6.0": "Compliance revisited",
+    "v1.7.0": "Optimisation revisited",
 }
 
 
