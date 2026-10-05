@@ -33,9 +33,10 @@ cannot say which breaches were somebody's fault.
 
 ## Consequences
 
-- Replaying the book gives 37 breaches: 9 active and 28 passive. 23 were resolved by the
-  market and 14 by trading. The median passive breach lasted 4.5 trading days, the
-  median active one 31.
+- Replaying the book gives 44 breaches: 9 active and 35 passive. 29 were resolved by the
+  market and 15 by trading. The median passive breach lasted 4 trading days, the median
+  active one 31. (37 before ADR 0068 recorded a breach per group: the seven more are a
+  second issuer over the look-through limit at the same time as the first.)
 - A client deposit that lands as cash is correctly passive. The mandate's cash ceiling
   broke without a trade, and was cured by investing the cash.
 - The classification is by what traded, not by intent. A trade that happens to touch a

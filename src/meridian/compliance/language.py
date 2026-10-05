@@ -33,6 +33,7 @@ FIELDS: tuple[str, ...] = (
     "sector",
     "industry",
     "issuer",
+    "issuer_type",
     "country",
     "currency",
     "rating",
@@ -42,7 +43,16 @@ FIELDS: tuple[str, ...] = (
 )
 #: Portfolio-level measures supplied by the risk model and the benchmark.
 METRICS: tuple[str, ...] = ("tracking_error", "volatility", "var_99", "beta", "active_share")
-GROUPABLE: tuple[str, ...] = ("sector", "industry", "issuer", "country", "currency", "instrument", "asset_class")
+GROUPABLE: tuple[str, ...] = (
+    "sector",
+    "industry",
+    "issuer",
+    "issuer_type",
+    "country",
+    "currency",
+    "instrument",
+    "asset_class",
+)
 
 Literal = str | Decimal
 

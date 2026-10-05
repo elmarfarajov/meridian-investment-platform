@@ -125,6 +125,7 @@ class ComplianceRepository:
                 "breach_id": breach.breach_id,
                 "portfolio_id": portfolio_id,
                 "rule_id": breach.rule_id,
+                "group_label": breach.group,
                 "severity": breach.severity,
                 "kind": breach.kind,
                 "opened": breach.opened,

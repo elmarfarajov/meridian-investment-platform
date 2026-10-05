@@ -138,6 +138,10 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 
 ![Day 5 against its references](images/risk-references.png)
 
+**Orders the pre-trade check let through** - Random portfolios and orders under Day 6's rule and the revisited one.
+
+![Orders the pre-trade check let through](images/pretrade-guarantee.png)
+
 ### Cashflows
 
 **Payment schedule** - Accrual periods, the stub, and the payments moved by the business-day rule.
@@ -603,6 +607,26 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 **The compliance report** - The page the compliance committee reads: utilisation, breaches and today's orders.
 
 ![The compliance report](images/compliance-report.png)
+
+**One breach per issuer** - The account's look-through issuer breaches, with those Day 6's register missed.
+
+![One breach per issuer](images/register-per-issuer.png)
+
+**A 40% industry limit since 1926** - The US market's largest industry every month, against the limit and its warning.
+
+![A 40% industry limit since 1926](images/century-sector-limit.png)
+
+**The most concentrated market in a century** - The effective number of industries and the two largest together since 1926.
+
+![The most concentrated market in a century](images/market-concentration.png)
+
+**What a 35% industry cap would have cost** - A monthly capped index against the market since 1926.
+
+![What a 35% industry cap would have cost](images/capped-index.png)
+
+**A second reading of Day 6** - The figures the faults changed, before and after.
+
+![A second reading of Day 6](images/compliance-review.png)
 
 ### Optimisation
 

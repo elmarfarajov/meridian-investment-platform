@@ -77,4 +77,5 @@ def test_the_pretrade_reason_is_the_rule_that_decided():
 
 def test_the_compliance_group_is_in_the_gallery():
     names = {item.filename for item in gallery_items() if item.group == "compliance"}
-    assert len(names) == 12 and "compliance-report.png" in names
+    # twelve from Day 6, five more from its revisit (the sixth, the pre-trade guarantee, is under validation)
+    assert len(names) == 17 and {"compliance-report.png", "century-sector-limit.png"} <= names

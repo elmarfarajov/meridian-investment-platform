@@ -47,7 +47,7 @@ def test_pretrade_blocks_and_allows():
 
 
 def test_register_replay_and_ucits():
-    assert "37 breaches" in invoke("breaches")
+    assert "44 breaches" in invoke("breaches")  # 37 before breaches were recorded per issuer (Day 6 revisit)
     assert "no breaches" in invoke("breaches", "--open")
     assert "historical orders" in invoke("replay")
     assert "breach" in invoke("ucits")

@@ -40,6 +40,7 @@ DAYS = {
     "v1.3.0": "Accounting revisited",
     "v1.4.0": "Performance revisited",
     "v1.5.0": "Risk revisited",
+    "v1.6.0": "Compliance revisited",
 }
 
 

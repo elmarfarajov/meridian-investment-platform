@@ -4,6 +4,42 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-10-05
+
+Day 6 revisited: compliance that cannot be talked past. A property test of the
+pre-trade check found that it let unsafe orders through; the rules then ran on a century
+of the real market.
+
+### Added
+
+- **A property test of the pre-trade check** (`tests/compliance/test_pretrade_properties.py`).
+  For any portfolio and order, an order let through must make no hard limit worse for
+  any issuer or sector, against an oracle written independently of the engine.
+- **`engine.excess` and `engine.group_breaches`**: a breach measured past its limit in
+  the measure's own units, one per group.
+- **`issuer_type`** in the mandate language: government, corporate, fund or cash.
+- **A century of a sector limit** (`services/century_compliance.py`): the engine and the
+  register on Kenneth French's twelve industries since 1926, held as an index fund under
+  a 40% single-industry limit, and a capped index at 35%.
+- **Six charts** (one hundred and eighty-six in the gallery), a methodology note,
+  ADRs 0068 to 0071, and migration 0010.
+
+### Fixed
+
+- **Adding to an excluded stock already held was allowed**, and so was spending cash
+  below its floor. With a limit or a value of zero, utilisation is infinite before and
+  after, so a bigger breach looked unchanged. Breaches are now measured by their excess.
+- **A second issuer crossing its limit was allowed** while the first was still over it,
+  because the rule's value is its heaviest issuer. Every group is now judged on its
+  own. On 3,000 random orders, Day 6's rule let 302 unsafe orders through; none get
+  through now.
+- **The breach register kept one breach per rule.** It now keeps one per rule and
+  group, judged on its own trades. The account's register holds 44 breaches, not 37;
+  the seven it missed are Apple over the look-through issuer limit while Microsoft was.
+- **The UCITS screen cited article 52(4) for the government limit**; the right article
+  is 52(3). It also applied the issuer rules to shares only. Version 2 covers bonds and
+  sets state issues apart, as the Directive does.
+
 ## [1.5.0] - 2026-10-05
 
 Day 5 revisited: risk against independent references and a century of daily returns. A
@@ -804,6 +840,7 @@ The foundation: the vocabulary every later module is written in.
   3.12, and integration tests against PostgreSQL 16; architecture decision records
   0001-0005.
 
+[1.6.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.6.0
 [1.5.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.5.0
 [1.4.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.4.0
 [1.3.0]: https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.3.0

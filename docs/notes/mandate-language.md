@@ -46,7 +46,7 @@ Every rule has five parts:
 
 Filters combine comparisons (`=`, `!=`, `<`, `<=`, `>`, `>=`) and memberships
 (`in (…)`, `not in (…)`) with `and` and `or`; `and` binds tighter, and parentheses
-group. Fields are `asset_class`, `sector`, `industry`, `issuer`, `country`,
+group. Fields are `asset_class`, `sector`, `industry`, `issuer`, `issuer_type`, `country`,
 `currency`, `rating`, `instrument`, `days_to_liquidate` and `weight`.
 
 **Ratings compare by credit quality**, not alphabetically: `rating < "A-"` means worse
@@ -136,5 +136,12 @@ The UCITS Directive's diversification rules are four lines in the same language
 Run as a what-if, they say the account would not qualify as a UCITS fund.
 Microsoft is at 10.3%, and the seven issuers above 5% add up to 53.5%. That is by
 design: it is a concentrated account, not a retail fund.
+
+Version 2 of the screen (the Day 6 revisit) follows the Directive's text more closely.
+Article 52 limits all "transferable securities" of one body, bonds as well as shares,
+so the issuer rules now cover corporate bonds. State issues are apart: their 35% limit is
+article 52(3), not 52(4) as version 1 cited (52(4) is covered bonds), and by 52(5) they
+do not count towards the 40%. A new attribute, `issuer_type`, tells state from corporate.
+On this account, with no corporate bonds, the answers are unchanged.
 
 ![UCITS screen](../images/ucits-screen.png)

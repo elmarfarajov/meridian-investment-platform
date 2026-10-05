@@ -52,6 +52,8 @@ BOND_LIQUIDITY_DAYS = 1.0  # a Treasury trades in size the same day
 
 #: Credit ratings by issuer (the security master holds none for the Treasury).
 RATINGS = {"US-TREASURY": "AA+"}
+#: Issuers that are states, for the UCITS rules that treat state issues apart (article 52(3)).
+GOVERNMENT_ISSUERS = frozenset({"US-TREASURY"})
 
 #: Industry labels of the benchmark's companion stocks (synthetic, as the stocks are).
 COMPANION_INDUSTRIES = {
@@ -134,14 +136,16 @@ class DemoCompliance:
                 "sector": instrument.sector,
                 "industry": instrument.industry,
                 "issuer": instrument.issuer_id or instrument_id,
+                "issuer_type": "corporate",
             }
         if isinstance(instrument, Fund):
-            return base | {"asset_class": "fund", "issuer": instrument_id}
+            return base | {"asset_class": "fund", "issuer": instrument_id, "issuer_type": "fund"}
         if isinstance(instrument, Bond):
             issuer = instrument.issuer_id or instrument_id
             return base | {
                 "asset_class": "fixed income",
                 "issuer": issuer,
+                "issuer_type": "government" if issuer in GOVERNMENT_ISSUERS else "corporate",
                 "rating": instrument.rating or RATINGS.get(issuer),
                 "country": instrument.country or "US",
             }
@@ -197,6 +201,7 @@ class DemoCompliance:
                 "sector": sector,
                 "industry": industry,
                 "issuer": issuers.get(key, key),
+                "issuer_type": "corporate",
                 "country": getattr(book, "country", None) or REGION_COUNTRY.get(region),
                 "currency": currency,
             }
@@ -258,6 +263,7 @@ class DemoCompliance:
                             "asset_class": "cash",
                             "currency": line.currency,
                             "issuer": f"cash {line.currency}",
+                            "issuer_type": "cash",
                             "days_to_liquidate": 0.0,
                         },
                     )

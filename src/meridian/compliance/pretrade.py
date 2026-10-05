@@ -32,7 +32,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 
 from ..core.exceptions import ValidationError
-from .engine import EPSILON, ComplianceReport, RuleResult, check
+from .engine import EPSILON, ComplianceReport, RuleResult, check, group_breaches
 from .language import Mandate
 from .snapshot import Attribute, Snapshot
 
@@ -132,18 +132,20 @@ class BasketDecision:
 
 
 def _effect(before: RuleResult, after: RuleResult) -> str:
-    if after.status == "breach":
-        if before.status != "breach":
-            return "new breach"
-        assert before.utilisation is not None and after.utilisation is not None
-        if after.utilisation > before.utilisation + 1e-12:
-            return "worse breach"
-        if after.utilisation < before.utilisation - 1e-12:
-            return "reduces breach"
-        return "unchanged"
-    if before.status == "breach":
+    """What the order does to one rule, judged group by group on the excess past the limit.
+
+    A breach in a group that was within its limit is new, even if another group of
+    the same rule was already in breach; a group further past its limit is worse.
+    Only when no group is new or worse can the order reduce a breach.
+    """
+    was, now = group_breaches(before), group_breaches(after)
+    if any(group not in was for group in now):
+        return "new breach"
+    if any(now[group] > was[group] + 1e-12 for group in now):
+        return "worse breach"
+    if any(now.get(group, 0.0) < amount - 1e-12 for group, amount in was.items()):
         return "reduces breach"
-    if after.status == "warning" and before.status != "warning":
+    if after.status == "warning" and before.status not in ("warning", "breach"):
         return "new warning"
     return "unchanged"
 

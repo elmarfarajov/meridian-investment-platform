@@ -73,3 +73,7 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0065](0065-garch-is-filtered-by-one-function-checked-against-arch.md) | GARCH is filtered by one function, checked against arch to the last bit | Accepted |
 | [0066](0066-a-century-of-daily-returns-validates-the-forecasters.md) | A century of daily returns validates the market-risk forecasters | Accepted |
 | [0067](0067-one-standardisation-for-every-asset.md) | One fitted standardisation for every asset, in the universe or not | Accepted |
+| [0068](0068-a-breach-is-measured-by-its-excess-group-by-group.md) | A breach is measured by its excess past the limit, group by group | Accepted |
+| [0069](0069-the-breach-register-is-kept-per-rule-and-group.md) | The breach register is kept per rule and group | Accepted |
+| [0070](0070-the-ucits-screen-follows-the-directives-text.md) | The UCITS screen follows the Directive's text, with issuer types | Accepted |
+| [0071](0071-limits-are-tried-on-a-century-of-the-market.md) | Limits are tried on a century of the market | Accepted |
