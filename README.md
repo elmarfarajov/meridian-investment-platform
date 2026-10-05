@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.5.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.5.0)
+[![Release](https://img.shields.io/badge/release-v1.6.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.6.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
 [![Tests](https://img.shields.io/badge/tests-1405-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
@@ -222,6 +222,29 @@ The full account is in
 
 ![Is the risk forecast the right size?](docs/images/bias-by-decade.png)
 
+**Day 6 revisited: compliance that cannot be talked past.** Hypothesis now writes
+portfolios and orders, and an independent oracle checks the pre-trade check's one duty:
+an order it lets through makes no hard limit worse, for any issuer or sector. On 3,000
+random orders Day 6 let **302** unsafe ones through, by two routes:
+
+- utilisation is infinite before and after when a limit or a value is zero, so adding
+  to an excluded stock, or spending the last cash, looked unchanged;
+- a second issuer crossing a limit was hidden behind the first.
+
+Breaches are now measured by their excess, group by group, and none slips through. The
+breach register keeps one breach per issuer, and finds seven it had missed.
+
+![Orders the pre-trade check let through](docs/images/pretrade-guarantee.png)
+
+On **a century of the market**, held as an index fund under a 40% single-industry
+limit, the first breach came in August 2025. Even the technology bubble of 2000 stayed
+at 34.9%. The market has never been so concentrated.
+
+![A 40% industry limit since 1926](docs/images/century-sector-limit.png)
+
+The full account is in
+[compliance that cannot be talked past](docs/notes/compliance-that-cannot-be-talked-past.md).
+
 ---
 
 ## What it does today
@@ -361,7 +384,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and eighty are in the
+Every module ships a visual, not only numbers. All one hundred and eighty-six are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -745,6 +768,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [The book against the tax authorities](docs/notes/the-book-against-the-tax-authorities.md) | The IRS's and HMRC's worked examples reproduced, an HMRC erratum, UK matching per the statute, the book property-tested, the Treasury day count |
 | [Performance against the references](docs/notes/performance-against-the-references.md) | Six faults, every measure against empyrical, Microsoft's XIRR, four linking methods, a century of Kenneth French's data |
 | [Risk against the references](docs/notes/risk-against-the-references.md) | Six faults, the Basel table, GARCH against arch, Ledoit-Wolf against PyPortfolioOpt, a century of daily VaR, bias by decade |
+| [Compliance that cannot be talked past](docs/notes/compliance-that-cannot-be-talked-past.md) | The pre-trade guarantee property-tested, breaches per group, the UCITS screen per the Directive, a century of a sector limit |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
 | [Market data quality](docs/notes/market-data-quality.md) | The rules, the robust statistics behind them, and how recall and precision are measured |
 | [Corporate actions](docs/notes/corporate-actions.md) | Adjusting a history and adjusting a holding: factors, cost basis, holding periods and merger boot |
@@ -792,7 +816,8 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 3+ | Day 3 revisited: the IRS's and HMRC's worked examples reproduced (one HMRC erratum), UK matching per s105 and s127, the book property-tested (two bugs fixed), the Treasury on actual/actual; release v1.3.0 | ✅ Done |
 | 4+ | Day 4 revisited: six faults fixed, every measure reconciled against empyrical, Microsoft's XIRR examples, four linking methods, a century of Kenneth French's industry data; release v1.4.0 | ✅ Done |
 | 5+ | Day 5 revisited: six faults fixed, the Basel table reproduced, GARCH against arch, Ledoit-Wolf against PyPortfolioOpt, a century of daily VaR backtests in Basel's zones; release v1.5.0 | ✅ Done |
-| 6+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
+| 6+ | Day 6 revisited: the pre-trade check property-tested (302 unsafe orders of 3,000, now none), breaches per group, the UCITS screen as the Directive writes it, a century of a sector limit; release v1.6.0 | ✅ Done |
+| 7+ ... 9+ | Each later day revisited in turn, to the same standard | Next |
 
 ---
 

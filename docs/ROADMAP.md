@@ -487,7 +487,34 @@ release, like the days themselves.
 
 **Notes:** [risk against the references](notes/risk-against-the-references.md).
 
-### Days 6 to 9, revisited - next
+### Day 6, revisited - compliance that cannot be talked past ✅
+
+**Issue #30, release v1.6.0.**
+
+- **The pre-trade check property-tested.** An order let through must make no hard
+  limit worse for any group. Day 6's rule let 302 of 3,000 random unsafe orders
+  through; the revisited one lets none through.
+- **Breaches measured by their excess, group by group**, never by an infinite
+  utilisation.
+- **The breach register kept per rule and group.** It records 44 breaches, not 37;
+  migration 0010 stores the group.
+- **The UCITS screen as the Directive writes it.** Article 52(3), not 52(4); bonds as
+  well as shares; a new `issuer_type`.
+- **A century of a 40% sector limit** on the US market: first broken in August 2025.
+  A 35% capped index cost about 0.5%, all since 2021.
+
+**Charts:** six:
+
+- the pre-trade guarantee;
+- one breach per issuer;
+- the century of the sector limit;
+- the market's concentration;
+- the capped index;
+- the review.
+
+**Notes:** [compliance that cannot be talked past](notes/compliance-that-cannot-be-talked-past.md).
+
+### Days 7 to 9, revisited - next
 
 ---
 
