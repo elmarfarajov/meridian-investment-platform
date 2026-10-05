@@ -8,7 +8,7 @@
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
 [![Release](https://img.shields.io/badge/release-v1.6.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.6.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
-[![Tests](https://img.shields.io/badge/tests-1405-2E7D5B)](tests)
+[![Tests](https://img.shields.io/badge/tests-1420-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
 [![OpenAPI](https://img.shields.io/badge/OpenAPI-3.1-6A4C93)](docs/notes/the-web-platform.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4A5C75)](LICENSE)
