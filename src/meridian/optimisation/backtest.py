@@ -160,6 +160,31 @@ class Market:
         days = [month_end(config.start, month) for month in range(config.months + 1)]
         return cls(risk.keys, days, prices, targets, index_returns, np.sqrt(daily_variance))
 
+    @classmethod
+    def from_history(
+        cls,
+        keys: Sequence[str],
+        days: Sequence[date],
+        returns: np.ndarray,
+        targets: np.ndarray,
+        daily_volatility: np.ndarray,
+    ) -> Market:
+        """A market that happened: monthly returns and the index's weights at each month end.
+
+        ``returns`` is months x n, the return over the month ending on ``days[t + 1]``;
+        ``targets`` is (months + 1) x n. The index earns its weights at the start of
+        each month, so its return is ``targets[t] @ returns[t]``.
+        """
+        months = len(days) - 1
+        if returns.shape != (months, len(keys)) or targets.shape != (months + 1, len(keys)):
+            raise ValidationError("returns need one row per month and targets one per month end")
+        if np.any(returns <= -1):
+            raise ValidationError("a return of -100% or worse leaves no price")
+        prices = 100.0 * np.vstack([np.ones(len(keys)), np.cumprod(1 + returns, axis=0)])
+        weights = targets / targets.sum(axis=1, keepdims=True)
+        index_returns = np.einsum("tn,tn->t", weights[:-1], returns)
+        return cls(tuple(keys), list(days), prices, weights, index_returns, np.asarray(daily_volatility, dtype=float))
+
 
 @dataclass
 class MonthRecord:
@@ -193,6 +218,11 @@ class StrategyPath:
     @property
     def tax_paid(self) -> float:
         return sum(record.tax_paid for record in self.records)
+
+    @property
+    def pre_tax_growth(self) -> float:
+        """Growth of one dollar before tax: the monthly returns linked, each year's tax an outflow, not a loss."""
+        return float(np.prod(1 + np.array(self.returns)))
 
     @property
     def harvested(self) -> float:
@@ -233,7 +263,15 @@ class TaxAlphaBacktest:
     # ------------------------------------------------------------------ one path
     def run(self, seed: int | None = None, progress: Callable[[str], None] | None = None) -> PathOutcome:
         config = self.config if seed is None else replace(self.config, seed=seed)
-        market = Market.simulate(self.risk, self.risk.benchmark, config)
+        return self.run_market(Market.simulate(self.risk, self.risk.benchmark, config), config, progress)
+
+    def run_market(
+        self, market: Market, config: SimulationConfig | None = None, progress: Callable[[str], None] | None = None
+    ) -> PathOutcome:
+        """The four managers through one given market: simulated, or history."""
+        config = replace(config or self.config, months=len(market.days) - 1, start=market.days[0])
+        if market.keys != self.risk.keys:
+            raise ValidationError("the market and the risk model must cover the same assets")
         strategies = {
             strategy.name: self._run_strategy(strategy, market, config, progress) for strategy in self.strategies
         }
@@ -467,13 +505,21 @@ class BacktestSummary:
         )
 
     def pre_tax_return(self, strategy: str) -> np.ndarray:
-        """Annual return before any tax, trading costs included: what the portfolio itself earned."""
-        return np.array(
-            [
-                annualised(path[strategy].final_nav + path[strategy].tax_paid, self.config.nav, self.config.months)
-                for path in self.paths
-            ]
-        )
+        """Annual return before any tax, trading costs included: what the portfolio itself earned.
+
+        Time-weighted: tax paid leaves the account as a withdrawal does. Adding the
+        tax back to the final value instead would leave out what that tax would
+        have earned had it stayed invested.
+        """
+        return np.array([annualised(path[strategy].pre_tax_growth, 1.0, self.config.months) for path in self.paths])
+
+    def tax_drag(self, strategy: str) -> np.ndarray:
+        """Pre-tax return less after-tax return on liquidation: what tax costs a year, one per path."""
+        return self.pre_tax_return(strategy) - self.after_tax_return(strategy)
+
+    def tax_saved(self, strategy: str, against: str = "tax-blind") -> np.ndarray:
+        """Tax alpha as after-tax active return less pre-tax active return: the drag avoided, luck in tracking apart."""
+        return self.tax_drag(against) - self.tax_drag(strategy)
 
     def tax_alpha(self, strategy: str, against: str = "tax-blind", *, liquidate: bool = True) -> np.ndarray:
         return self.after_tax_return(strategy, liquidate=liquidate) - self.after_tax_return(
@@ -504,6 +550,7 @@ class BacktestSummary:
                     "after_tax": float(np.mean(self.after_tax_return(strategy))),
                     "tax_alpha": float(np.mean(self.tax_alpha(strategy))),
                     "tax_alpha_held": float(np.mean(self.tax_alpha(strategy, liquidate=False))),
+                    "tax_saved": float(np.mean(self.tax_saved(strategy))),
                     "tracking_error": self.realised_tracking_error(strategy),
                     "harvested": float(np.mean(self.harvested(strategy))),
                     "turnover": float(
