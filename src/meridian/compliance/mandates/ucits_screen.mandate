@@ -1,17 +1,23 @@
 # UCITS eligibility screen: the diversification rules of the UCITS Directive
 # (2009/65/EC, articles 52 and 55), as a what-if on the account. Would the
 # account qualify as a UCITS fund as it stands?
+#
+# Article 52 limits "transferable securities and money market instruments" of one
+# body - shares and bonds alike. Securities issued or guaranteed by a state are
+# under 52(3) instead, and by 52(5) do not count towards the 40% of 52(2).
+# Version 1 cited 52(4) for the government limit (52(4) is covered bonds) and
+# applied the issuer limits to shares only.
 
-mandate "UCITS eligibility screen" version 1 effective 2024-04-04
+mandate "UCITS eligibility screen" version 2 effective 2024-04-04
 
-rule issuer_10 "No issuer above 10% (art. 52(2))" hard
-    max weight by issuer where asset_class = "equity" <= 10%
+rule issuer_10 "No issuer above 10% (art. 52(1), raised by 52(2))" hard
+    max weight by issuer where asset_class in ("equity", "fixed income") and issuer_type = "corporate" <= 10%
 
-rule five_ten_forty "Issuers above 5% together at most 40% (art. 52(2))" hard
-    sum weight by issuer above 5% where asset_class = "equity" <= 40%
+rule five_ten_forty "Issuers above 5% together at most 40% (art. 52(2); state issues excluded, 52(5))" hard
+    sum weight by issuer above 5% where asset_class in ("equity", "fixed income") and issuer_type = "corporate" <= 40%
 
-rule government_35 "Any one government issuer at most 35% (art. 52(4))" hard
-    max weight by issuer where asset_class = "fixed income" <= 35%
+rule government_35 "Any one state issuer at most 35% (art. 52(3))" hard
+    max weight by issuer where issuer_type = "government" <= 35%
 
-rule fund_20 "Any one fund at most 20% (art. 55(1))" hard
+rule fund_20 "Any one fund at most 20% (art. 55(1), where national law raises its 10%)" hard
     max weight by instrument where asset_class = "fund" <= 20%

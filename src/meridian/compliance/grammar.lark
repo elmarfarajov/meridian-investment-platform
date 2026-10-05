@@ -73,7 +73,7 @@ DATE: /\d{4}-\d{2}-\d{2}/
 INT: /\d+/
 
 // A field of a holding, or a portfolio-level metric; which is which is decided by the checker.
-FIELD: /(asset_class|sector|industry|issuer|country|currency|rating|instrument|days_to_liquidate|weight)\b/
+FIELD: /(asset_class|sector|industry|issuer_type|issuer|country|currency|rating|instrument|days_to_liquidate|weight)\b/
 METRIC: /(tracking_error|volatility|var_99|beta|active_share)\b/
 IDENT: /[a-z_][a-z0-9_]*/
 
