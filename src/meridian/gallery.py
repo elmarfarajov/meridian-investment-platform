@@ -32,6 +32,7 @@ from .fx_gallery import fx_reference_items
 from .marketdata.fx_history import FxHistory
 from .marketdata.golden import compare_to_reference
 from .optimisation_gallery import optimisation_items
+from .optimisation_revisited_gallery import optimisation_revisited_items
 from .performance_gallery import performance_items
 from .platform_gallery import platform_items
 from .quality.engine import QualityReport
@@ -298,6 +299,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *century_items(),
         *century_risk_items(),
         *compliance_revisited_items(),
+        *optimisation_revisited_items(),
     )
 
 

@@ -23,8 +23,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from ..core.exceptions import ValidationError
-
-LONG_TERM_DAYS = 365
+from ..domain.positions import is_long_term, long_term_from
 
 
 @dataclass(frozen=True)
@@ -39,10 +38,10 @@ class LotState:
     opened: date
 
     def is_long_term(self, as_of: date) -> bool:
-        return (as_of - self.holding_start).days > LONG_TERM_DAYS
+        return is_long_term(self.holding_start, as_of)
 
     def days_to_long_term(self, as_of: date) -> int:
-        return max(LONG_TERM_DAYS + 1 - (as_of - self.holding_start).days, 0)
+        return max((long_term_from(self.holding_start) - as_of).days, 0)
 
 
 @dataclass(frozen=True)

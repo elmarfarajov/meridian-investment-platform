@@ -142,6 +142,10 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 
 ![Orders the pre-trade check let through](images/pretrade-guarantee.png)
 
+**Two unrelated algorithms, one rebalance** - The demo rebalances solved by Clarabel and by SCS, weight by weight.
+
+![Two unrelated algorithms, one rebalance](images/solver-agreement.png)
+
 ### Cashflows
 
 **Payment schedule** - Accrual periods, the stub, and the payments moved by the business-day rule.
@@ -363,6 +367,14 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 **The section 104 pool** - One holding, one average cost, through two rights issues.
 
 ![The section 104 pool](images/section-104-pool.png)
+
+**Long-term means after the anniversary** - IRS Publication 550's leap-year example, and how often a 365-day count was a day early.
+
+![Long-term means after the anniversary](images/holding-period-calendar.png)
+
+**The capital loss carryover, as Schedule D computes it** - Day 7's year-end netting against the revisited one, on two cases.
+
+![The capital loss carryover, as Schedule D computes it](images/carryover-schedule-d.png)
 
 ### Reconciliation
 
@@ -685,6 +697,18 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 **The rebalance proposal** - One page for the investment committee: numbers, orders, frontier and checks.
 
 ![The rebalance proposal](images/rebalance-proposal.png)
+
+**What tax cost an index account since 1931** - Four managers through each decade of real US returns: the index and each manager's tax drag.
+
+![What tax cost an index account since 1931](images/century-tax-drag.png)
+
+**Harvesting saved tax in every decade** - Tax alpha set apart from tracking luck, and the losses harvested, decade by decade.
+
+![Harvesting saved tax in every decade](images/century-tax-saved.png)
+
+**Harvesting through the Depression** - The 1930s month by month: the market, the losses harvested and carried, and each manager's result.
+
+![Harvesting through the Depression](images/depression-harvest.png)
 
 ### Execution
 

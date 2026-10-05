@@ -30,7 +30,7 @@ from enum import Enum
 from ..core.decimals import decimal_sum
 from ..core.enums import LotSelectionMethod
 from ..core.exceptions import ValidationError
-from ..domain.positions import LONG_TERM_HOLDING_DAYS, Position, TaxLot
+from ..domain.positions import Position, TaxLot, is_long_term
 
 
 class RealisationKind(str, Enum):
@@ -73,7 +73,7 @@ class RealisedLot:
 
     @property
     def term(self) -> Term:
-        return Term.LONG if self.holding_days > LONG_TERM_HOLDING_DAYS else Term.SHORT
+        return Term.LONG if is_long_term(self.holding_start, self.close_date) else Term.SHORT
 
     @property
     def is_long_term(self) -> bool:

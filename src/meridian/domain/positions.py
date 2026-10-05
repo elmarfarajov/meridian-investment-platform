@@ -21,7 +21,34 @@ from ..core.enums import LotSelectionMethod
 from ..core.exceptions import ValidationError
 from ..core.money import Money
 
+#: The nominal year, for charts drawn in days held. Whether a lot is long-term is
+#: decided by the calendar (:func:`long_term_from`), not by this count: across a
+#: 29 February a year is 366 days.
 LONG_TERM_HOLDING_DAYS = 365
+
+
+def one_year_after(day: date) -> date:
+    """The same date a year later; 29 February's anniversary is 28 February."""
+    try:
+        return day.replace(year=day.year + 1)
+    except ValueError:  # 29 February in a year that has none
+        return day.replace(year=day.year + 1, day=28)
+
+
+def long_term_from(holding_start: date) -> date:
+    """The first sale date that counts as long-term.
+
+    The holding period starts the day after acquisition and includes the day of
+    sale, and long-term means held *more than one year*: a sale after the
+    one-year anniversary. IRS Publication 550's example: bought 5 February 2024,
+    a sale on 5 February 2025 is short-term (366 days, across a leap day), a
+    sale on 6 February 2025 long-term.
+    """
+    return one_year_after(holding_start) + timedelta(days=1)
+
+
+def is_long_term(holding_start: date, sale_date: date) -> bool:
+    return sale_date >= long_term_from(holding_start)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -99,11 +126,11 @@ class TaxLot:
         return (as_of - self.holding_start).days
 
     def is_long_term(self, as_of: date) -> bool:
-        """US convention: more than one year qualifies for long-term treatment."""
-        return self.holding_days(as_of) > LONG_TERM_HOLDING_DAYS
+        """US convention: more than one year, by the calendar, qualifies for long-term treatment."""
+        return is_long_term(self.holding_start, as_of)
 
     def long_term_from(self) -> date:
-        return self.holding_start + timedelta(days=LONG_TERM_HOLDING_DAYS + 1)
+        return long_term_from(self.holding_start)
 
     def rescaled(self, factor: Numeric, cost_per_unit: Numeric) -> TaxLot:
         """The same lot after a share multiplier: quantity times ``factor``, per-unit tax adjustment divided by it."""

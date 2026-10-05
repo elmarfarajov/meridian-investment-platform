@@ -77,3 +77,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0069](0069-the-breach-register-is-kept-per-rule-and-group.md) | The breach register is kept per rule and group | Accepted |
 | [0070](0070-the-ucits-screen-follows-the-directives-text.md) | The UCITS screen follows the Directive's text, with issuer types | Accepted |
 | [0071](0071-limits-are-tried-on-a-century-of-the-market.md) | Limits are tried on a century of the market | Accepted |
+| [0072](0072-the-holding-period-is-counted-by-the-calendar.md) | The holding period is counted by the calendar | Accepted |
+| [0073](0073-capital-losses-are-netted-as-schedule-d-nets-them.md) | Capital losses are netted as Schedule D nets them | Accepted |
+| [0074](0074-a-lot-is-never-its-own-wash-sale-replacement.md) | A lot is never its own wash-sale replacement | Accepted |
+| [0075](0075-tax-alpha-is-measured-on-a-century-of-real-returns.md) | Tax alpha is measured on a century of real returns, tracking luck apart | Accepted |
+| [0076](0076-the-rebalance-is-checked-by-an-unrelated-algorithm.md) | The rebalance is checked by an unrelated algorithm | Accepted |
