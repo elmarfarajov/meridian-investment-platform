@@ -353,7 +353,7 @@ class TaxAlphaBacktest:
             gain = sale.gain * units / sale.units if sale.units > 0 else 0.0
             if gain < 0 and sale.wash_sale:
                 record.disallowed -= gain
-                self._defer_loss(remaining, lot.asset_id, -gain, day)
+                self._defer_loss(remaining, lot, -gain, day)
                 continue
             account.ledger.realise(day, gain, sale.long_term)
             if gain >= 0:
@@ -376,10 +376,14 @@ class TaxAlphaBacktest:
         record.cost = result.cost * nav
 
     @staticmethod
-    def _defer_loss(lots: dict[str, LotState], asset_id: str, loss: float, day: date) -> None:
-        """A disallowed loss joins the basis of the newest lot of the same stock bought within the window."""
+    def _defer_loss(lots: dict[str, LotState], sold: LotState, loss: float, day: date) -> None:
+        """A disallowed loss joins the basis of the newest other lot of the same stock bought within the window."""
         window = day - timedelta(days=WASH_SALE_DAYS)
-        candidates = [lot for lot in lots.values() if lot.asset_id == asset_id and lot.opened >= window]
+        candidates = [
+            lot
+            for lot in lots.values()
+            if lot.asset_id == sold.asset_id and lot.lot_id != sold.lot_id and lot.opened >= window
+        ]
         if not candidates:
             return
         newest = max(candidates, key=lambda lot: (lot.opened, lot.lot_id))

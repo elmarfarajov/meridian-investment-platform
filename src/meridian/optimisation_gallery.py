@@ -144,6 +144,8 @@ def lot_selection_chart() -> Figure:
 
 
 def lot_map_chart() -> Figure:
+    from .optimisation.taxes import has_replacement
+
     demo = _demo()
     rebalancer, result = demo.house, demo.proposal
     sold = rebalancer.sold_vector(result.sales)
@@ -160,7 +162,7 @@ def lot_map_chart() -> Figure:
                 float(sold[position] / rebalancer.lot_weights[position])
                 if rebalancer.lot_weights[position] > 0
                 else 0.0,
-                lot.asset_id in rebalancer.recent,
+                has_replacement(lot, rebalancer.recent),
             )
         )
     return plot_lot_map(rows, demo.as_of, wash_days=WASH_SALE_WINDOW)

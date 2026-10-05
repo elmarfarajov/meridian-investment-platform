@@ -70,7 +70,7 @@ from ..compliance.snapshot import Holding
 from ..core.exceptions import ValidationError
 from .assets import CostModel, LotState, TradableAsset
 from .constraints import active_share_rule, compile_mandate, excluded_assets, lookthrough_matrix
-from .taxes import lot_tax_rate, recently_bought
+from .taxes import has_replacement, lot_tax_rate, recently_bought
 
 ANNUAL = 252
 SOFT_PENALTY = 10.0  # per unit of a soft rule's excess, and never less than the price of risk (see _build)
@@ -320,7 +320,7 @@ class Rebalancer:
                     self.as_of,
                     rates=self.rates,
                     harvest=settings.harvest,
-                    wash_blocked=lot.asset_id in self.recent,
+                    wash_blocked=has_replacement(lot, self.recent),
                     loss_value=settings.loss_value,
                     loss_rate=settings.loss_rate,
                     unit_value=self.assets[self.asset_index[lot.asset_id]].unit_value,
@@ -385,7 +385,7 @@ class Rebalancer:
             asset = self.assets[self.asset_index[lot.asset_id]]
             units = float(sold[position]) * self.nav / asset.unit_value
             gain = units * (asset.price - lot.basis_per_unit)
-            wash = gain < 0 and lot.asset_id in self.recent
+            wash = gain < 0 and has_replacement(lot, self.recent)
             rate = lot_tax_rate(lot, asset.price, self.as_of, rates=self.rates, harvest=True, wash_blocked=wash)
             tax = rate * units * asset.price
             output.append(LotSale(lot, float(sold[position]), units, gain, tax, lot.is_long_term(self.as_of), wash))
