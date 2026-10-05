@@ -7,6 +7,7 @@ from datetime import date
 import numpy as np
 import pytest
 
+from meridian.accounting.tax import DEFAULT_RATES
 from meridian.core import ValidationError
 from meridian.optimisation.assets import CostModel, LotState, TradableAsset
 from meridian.optimisation.frontier import tax_frontier
@@ -15,6 +16,7 @@ from meridian.optimisation.rounding import round_trades
 from meridian.optimisation.taxes import (
     ORDINARY_OFFSET,
     TaxAccount,
+    has_replacement,
     long_rate,
     lot_tax_rate,
     recently_bought,
@@ -56,7 +58,15 @@ def test_accrued_interest_is_sold_but_not_taxed_as_a_gain():
 def test_recently_bought_finds_the_wash_sale_window():
     fresh = TradableAsset("N", 10.0, 10.0, (LotState("n", "N", 10.0, 10.0, date(2026, 9, 1), date(2026, 9, 1)),))
     stale = TradableAsset("O", 10.0, 10.0, (LotState("o", "O", 10.0, 10.0, date(2026, 7, 1), date(2026, 7, 1)),))
-    assert recently_bought([fresh, stale], DAY) == {"N"}
+    assert recently_bought([fresh, stale], DAY) == {"N": frozenset({"n"})}
+
+
+def test_the_shares_sold_are_never_their_own_replacement():
+    newest = LotState("n", "N", 10.0, 12.0, date(2026, 9, 1), date(2026, 9, 1))
+    older = LotState("m", "N", 10.0, 15.0, date(2026, 3, 1), date(2026, 3, 1))
+    recent = recently_bought([TradableAsset("N", 10.0, 20.0, (newest, older))], DAY)
+    assert not has_replacement(newest, recent)  # bought three weeks ago, sold at a loss: still a loss
+    assert has_replacement(older, recent)  # the newer purchase replaces it: a wash sale
 
 
 def test_assets_are_validated():
@@ -91,7 +101,8 @@ def test_the_year_nets_short_against_long_and_carries_the_rest():
     account.realise(date(2026, 2, 1), -20_000.0, long_term=False)
     account.realise(date(2026, 5, 1), 5_000.0, long_term=True)
     refund = account.close_year(2026)
-    assert refund == pytest.approx(-ORDINARY_OFFSET * short_rate())  # $3,000 against ordinary income
+    # $3,000 against ordinary income, at the ordinary rate: the 3.8% NIIT is charged only on a positive net
+    assert refund == pytest.approx(-ORDINARY_OFFSET * float(DEFAULT_RATES.short_term))
     assert account.carryforward == pytest.approx(20_000.0 - 5_000.0 - ORDINARY_OFFSET)
 
     account.realise(date(2027, 1, 10), 30_000.0, long_term=True)

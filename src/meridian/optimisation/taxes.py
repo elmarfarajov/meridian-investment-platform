@@ -14,7 +14,9 @@ tax-loss harvesting harvests.
 **The wash-sale rule.** A loss is disallowed if the same security is bought
 within 30 days before or after the sale. Two consequences for an optimiser:
 
-* a lot of a security **bought in the last 30 days** cannot harvest a loss today;
+* a lot cannot harvest a loss today if *another* lot of the security was
+  **bought in the last 30 days** - the shares being sold are never their own
+  replacement, so a lot bought last week and sold today at a loss is a loss;
 * a security whose loss lots are being sold **cannot be bought** in the same
   rebalance, nor for 30 days after. The optimiser handles the second as a
   constraint it discovers and imposes (:mod:`.rebalance`).
@@ -78,9 +80,21 @@ def lot_tax_rate(
     return (rate if loss_rate is None else loss_rate) * gain_share * loss_value
 
 
-def recently_bought(assets: Iterable[TradableAsset], as_of: date, days: int = WASH_SALE_DAYS) -> set[str]:
-    """Assets with a lot opened within the wash-sale window before ``as_of``."""
-    return {asset.asset_id for asset in assets for lot in asset.lots if 0 <= (as_of - lot.opened).days <= days}
+def recently_bought(
+    assets: Iterable[TradableAsset], as_of: date, days: int = WASH_SALE_DAYS
+) -> dict[str, frozenset[str]]:
+    """The lots opened within the wash-sale window before ``as_of``, by asset."""
+    recent: dict[str, frozenset[str]] = {}
+    for asset in assets:
+        lots = frozenset(lot.lot_id for lot in asset.lots if 0 <= (as_of - lot.opened).days <= days)
+        if lots:
+            recent[asset.asset_id] = lots
+    return recent
+
+
+def has_replacement(lot: LotState, recent: dict[str, frozenset[str]]) -> bool:
+    """Whether a loss on this lot is a wash sale: another lot of the asset was bought within the window."""
+    return bool(recent.get(lot.asset_id, frozenset()) - {lot.lot_id})
 
 
 @dataclass
@@ -118,20 +132,18 @@ class TaxAccount:
         carried_short, carried_long = self.carried
         short = year.short_gains - year.short_losses - carried_short
         long = year.long_gains - year.long_losses - carried_long
-        if short < 0 < long:
-            long, short = long + short, 0.0
-        elif long < 0 < short:
-            short, long = short + long, 0.0
+        if short * long < 0:  # net across: what is left keeps the character of the larger side
+            total = short + long
+            short, long = (total, 0.0) if (total >= 0) == (short > 0) else (0.0, total)
         tax = max(short, 0.0) * short_rate(self.rates) + max(long, 0.0) * long_rate(self.rates)
-        net = min(short, 0.0) + min(long, 0.0)
-        if net < 0:
-            used = min(-net, ORDINARY_OFFSET)
-            tax -= used * short_rate(self.rates)  # the $3,000 against ordinary income
-            remaining = -net - used
-            short_part = min(-min(short, 0.0), remaining)
-            self.carried = (short_part, remaining - short_part)
-        else:
-            self.carried = (0.0, 0.0)
+        short_loss, long_loss = -min(short, 0.0), -min(long, 0.0)
+        # A net loss offsets up to $3,000 of ordinary income, short-term losses used
+        # first (Publication 550). The deduction saves the ordinary rate; the net
+        # investment income tax applies only to a positive net, so it saves nothing.
+        from_short = min(short_loss, ORDINARY_OFFSET)
+        from_long = min(long_loss, ORDINARY_OFFSET - from_short)
+        tax -= (from_short + from_long) * float(self.rates.short_term)
+        self.carried = (short_loss - from_short, long_loss - from_long)
         self.paid[year_number] = tax
         return tax
 
