@@ -6,7 +6,7 @@ import threading
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..core.audit_chain import GENESIS, AuditRecord
@@ -140,8 +140,22 @@ class PlatformRepository:
         return list(self.session.scalars(statement.limit(limit)))
 
     def next_order_id(self) -> str:
+        """The next order number. Two writers can read the same one: the primary key refuses the second insert."""
         count = self.session.scalar(select(func.count()).select_from(OrderRequestRow)) or 0
         return f"ORD-{int(count) + 1:06d}"
+
+    def decide_order(self, order_id: str, status: str, decided_by: str, note: str | None) -> bool:
+        """Decide a pending order, if it is still pending; False if another decision got there first.
+
+        One conditional UPDATE: the database decides between two approvers, not
+        the order in which two requests happened to read the row.
+        """
+        result = self.session.execute(
+            update(OrderRequestRow)
+            .where(OrderRequestRow.order_id == order_id, OrderRequestRow.status == "pending approval")
+            .values(status=status, decided_by=decided_by, decision_note=note, updated_at=utcnow())
+        )
+        return int(result.rowcount or 0) == 1  # type: ignore[attr-defined]
 
     def add_order(self, row: OrderRequestRow) -> None:
         now = utcnow()

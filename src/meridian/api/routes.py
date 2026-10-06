@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import Callable
 from typing import Annotated, Any
 
@@ -13,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from prometheus_client import generate_latest
 from prometheus_client.exposition import CONTENT_TYPE_LATEST
+from sqlalchemy.exc import IntegrityError
 from starlette.concurrency import run_in_threadpool
 
 from .. import __version__
@@ -35,6 +37,7 @@ IdempotencyKey = Annotated[
     ),
 ]
 UNAUTHORISED = {"WWW-Authenticate": "Bearer"}
+ORDER_ATTEMPTS = 20
 
 
 # ---------------------------------------------------------------------------- who is asking
@@ -119,21 +122,34 @@ def replay(request: Request, caller: Principal, key: str | None, body: Any) -> J
         )
 
 
-def remember(request: Request, caller: Principal, key: str | None, body: Any, status: int, response: Any) -> None:
+def remember(
+    request: Request, caller: Principal, key: str | None, body: Any, status: int, response: Any
+) -> JSONResponse | None:
+    """Store a write's response under its key; if a request with the same key got there first, its response."""
     if key is None:
-        return
-    with platform_of(request).database.session() as session:
-        unit = UnitOfWork(session)
-        unit.platform.remember(
-            key,
-            caller.username,
-            request.method,
-            request.url.path,
-            fingerprint(body),
-            status,
-            json.dumps(jsonable(response)),
-        )
-        unit.commit()
+        return None
+    try:
+        with platform_of(request).database.session() as session:
+            unit = UnitOfWork(session)
+            _remember(unit, request, caller, key, body, status, response)
+            unit.commit()
+    except IntegrityError:
+        return replay(request, caller, key, body)  # the same request, at the same moment: one answer for both
+    return None
+
+
+def _remember(
+    unit: UnitOfWork, request: Request, caller: Principal, key: str, body: Any, status: int, response: Any
+) -> None:
+    unit.platform.remember(
+        key,
+        caller.username,
+        request.method,
+        request.url.path,
+        fingerprint(body),
+        status,
+        json.dumps(jsonable(response)),
+    )
 
 
 # ---------------------------------------------------------------------------- system
@@ -317,8 +333,8 @@ async def propose(
     if stored is not None:
         return stored
     result = await ask(request, "rebalance", portfolio_id)
-    await run_in_threadpool(remember, request, caller, key, body, 201, result)
-    return result
+    first = await run_in_threadpool(remember, request, caller, key, body, 201, result)
+    return result if first is None else first
 
 
 # ---------------------------------------------------------------------------- orders
@@ -367,27 +383,46 @@ async def create_order(
     platform = platform_of(request)
     needs_second = body.amount > platform.settings.four_eyes_threshold or check["decision"] == "override required"
 
-    def store() -> dict[str, Any]:
-        with platform.database.session() as session:
-            unit = UnitOfWork(session)
-            row = OrderRequestRow(
-                order_id=unit.platform.next_order_id(),
-                portfolio_id=body.portfolio_id,
-                instrument_id=body.instrument_id,
-                side=body.side,
-                amount=body.amount,
-                status="pending approval" if needs_second else "approved",
-                pretrade_decision=check["decision"],
-                pretrade_reasons="; ".join(f"{item['rule_id']}: {item['effect']}" for item in check["reasons"]),
-                created_by=caller.username,
-            )
-            unit.platform.add_order(row)
-            unit.commit()
-            return _order_out(row)
+    def store() -> dict[str, Any] | JSONResponse:
+        """The order and its idempotency record in one transaction, so a retry can never enter it twice.
+
+        Two requests can take the same order number, or the same key, at the same
+        moment; the database refuses the second insert. A taken key means the
+        same request got there first, and its answer is returned; a taken number
+        is tried again with the next one.
+        """
+        for attempt in range(ORDER_ATTEMPTS):
+            try:
+                with platform.database.session() as session:
+                    unit = UnitOfWork(session)
+                    row = OrderRequestRow(
+                        order_id=unit.platform.next_order_id(),
+                        portfolio_id=body.portfolio_id,
+                        instrument_id=body.instrument_id,
+                        side=body.side,
+                        amount=body.amount,
+                        status="pending approval" if needs_second else "approved",
+                        pretrade_decision=check["decision"],
+                        pretrade_reasons="; ".join(f"{item['rule_id']}: {item['effect']}" for item in check["reasons"]),
+                        created_by=caller.username,
+                    )
+                    unit.platform.add_order(row)
+                    result = _order_out(row)
+                    if key is not None:
+                        _remember(unit, request, caller, key, body, 201, result)
+                    unit.commit()
+                    return result
+            except IntegrityError:
+                first = replay(request, caller, key, body)
+                if first is not None:
+                    return first
+                time.sleep(0.002 * (attempt + 1))
+        raise HTTPException(503, "the order could not be numbered; try again with the same Idempotency-Key")
 
     result = await run_in_threadpool(store)
+    if isinstance(result, JSONResponse):
+        return result
     request.state.audit_detail = f"order {result['order_id']} {result['status']}"
-    await run_in_threadpool(remember, request, caller, key, body, 201, result)
     return result
 
 
@@ -430,10 +465,12 @@ def decide(
             raise HTTPException(403, "four eyes: the person who entered an order cannot decide it")
         if row.status != "pending approval":
             raise HTTPException(409, f"{order_id} is already {row.status}")
-        row.status = "approved" if body.approve else "rejected"
-        row.decided_by = caller.username
-        row.decision_note = body.note
+        status = "approved" if body.approve else "rejected"
+        if not unit.platform.decide_order(order_id, status, caller.username, body.note):
+            # another approver decided it between this request's read and its write
+            raise HTTPException(409, f"{order_id} was decided by someone else a moment ago")
         unit.commit()
+        session.refresh(row)
         request.state.audit_detail = f"order {order_id} {row.status}"
         return _order_out(row)
 
