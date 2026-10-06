@@ -106,3 +106,9 @@ def test_the_report_never_promises_to_carry_an_expired_order(demo):
     from meridian.reporting import client_pack
 
     assert "carried to the next session" not in inspect.getsource(client_pack)  # nothing carries expired blocks
+
+
+def test_a_report_writes_small_counts_in_words():
+    from meridian.reporting.client_pack import in_words
+
+    assert (in_words(0), in_words(2), in_words(9), in_words(26), in_words(1200)) == ("no", "two", "nine", "26", "1,200")

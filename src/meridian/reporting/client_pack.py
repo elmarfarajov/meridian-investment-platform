@@ -53,6 +53,13 @@ CONTENTS = (
     "Methodology and important information",
 )
 TOTAL_PAGES = len(CONTENTS) + 1
+SMALL_NUMBERS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+
+
+def in_words(count: int) -> str:
+    """A count as a client report writes it: in words up to nine, in figures above."""
+    return SMALL_NUMBERS[count] if 0 <= count < len(SMALL_NUMBERS) else f"{count:,}"
+
 
 NOTES = (
     (
@@ -210,7 +217,8 @@ class ClientPack:
             + f", with the account's active share at {proposal.active_share_after:.1%} against the mandate's "
             f"{self.limit('active_share'):.0%} floor.",
             f"The orders were traded on {self.execution.trade_date:%d %B} in {self.blocks_traded} blocks with "
-            f"{self.other_accounts} other accounts on the same model, at one average price. The account's share cost "
+            f"{in_words(self.other_accounts)} other accounts on the same model, at one average price. "
+            "The account's share cost "
             f"{shortfall / value * 1e4:+.1f} basis points against the decision prices, including the market's own "
             "move during the day.",
         ]
