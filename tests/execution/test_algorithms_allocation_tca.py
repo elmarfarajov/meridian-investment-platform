@@ -33,7 +33,8 @@ def test_every_algorithm_respects_its_plan_cap_and_invariants(name):
     assert result.parent.cumulative == pytest.approx(sum(record.quantity for record in result.records))
     assert sum(child.cumulative for child in result.children) == pytest.approx(result.parent.cumulative)
     for record in result.records:
-        assert record.quantity <= 0.25 * market.volumes[record.minute] + 1
+        # a quarter of all the minute's volume, ours included: q / (q + V) <= 25%
+        assert record.quantity / (record.quantity + market.volumes[record.minute]) <= 0.25 + 1e-9
     assert result.parent.status in (OrderStatus.FILLED, OrderStatus.EXPIRED)
     assert all(child.status in (OrderStatus.FILLED, OrderStatus.CANCELLED) for child in result.children)
     plan = schedule(AlgoParams(name), 20_000.0, market)
@@ -160,3 +161,17 @@ def test_a_partial_block_is_shared_pro_rata_in_whole_shares(filled):
     assert all(item.quantity == int(item.quantity) and item.quantity <= item.requested for item in allocations)
     rates = [item.fill_rate for item in allocations if item.quantity > 0]
     assert max(rates) - min(rates) < 0.02 + 2 / min(item.requested for item in allocations)
+
+
+def test_a_pov_order_is_its_target_share_of_all_the_volume_it_trades_in():
+    market = MarketDay.simulate(PROFILE, seed=5)
+    result = execute(parent(2_000_000.0), market, AlgoParams("pov", participation=0.10))
+    assert result.parent.status is OrderStatus.EXPIRED  # too big to finish: it traded every minute at its rate
+    assert result.participation == pytest.approx(0.10, abs=0.002)  # Day 8 traded 10% of the others' volume: 9.1%
+
+
+def test_the_arrival_price_is_the_price_before_the_order_can_trade():
+    market = MarketDay.simulate(PROFILE, seed=3)
+    cost = analyse(execute(parent(5_000.0), market, AlgoParams("twap", start=120)))
+    assert cost.arrival == pytest.approx(market.unimpacted[119])  # the end of minute 119, not of minute 120
+    assert market.arrival(0) == market.open_price
