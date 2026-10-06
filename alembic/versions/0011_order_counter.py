@@ -2,7 +2,7 @@
 
 Until the Day 9 revisit the next order number was the number of orders plus
 one. Two requests at the same moment counted the same orders and took the same
-number, and under four workers a quarter of simultaneous orders failed. The
+number, and on four processes nearly a fifth of simultaneous orders failed. The
 counter row is incremented by one ``UPDATE ... RETURNING`` inside the order's
 own transaction: the database hands out each number once, and an order rolled
 back gives its number back.
