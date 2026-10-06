@@ -142,11 +142,23 @@ def _pro_rata(requested: list[float], filled: float, minimum: float) -> list[flo
             break
         # too small to book: this account's share goes to the others
         eligible = [i for i in eligible if i not in small[:1]]
-    remainder = total - sum(floors.values())
+    shares = {i: float(min(floors[i], requested[i])) for i in eligible}
     order = sorted(eligible, key=lambda i: (-(exact[i] - floors[i]), -requested[i], i))
-    for i in order[: int(remainder)]:
-        floors[i] += 1
-    return [float(min(floors.get(i, 0), requested[i])) for i in range(len(requested))]
+    remainder = total - sum(shares.values())
+    for i in order:  # the odd shares, by largest remainder, to those it does not take past their request
+        if remainder < 1:
+            break
+        if shares[i] + 1 <= requested[i] + 1e-9:
+            shares[i] += 1
+            remainder -= 1
+    for i in order:  # what no whole share can place: a request in fractions, or a share given up by the minimum
+        if remainder <= 1e-9:
+            break
+        room = min(requested[i] - shares[i], remainder)
+        if room > 1e-9:
+            shares[i] += room
+            remainder -= room
+    return [shares.get(i, 0.0) for i in range(len(requested))]
 
 
 def check_allocations(block: Block, allocations: Sequence[Allocation]) -> None:

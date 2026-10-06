@@ -82,3 +82,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0074](0074-a-lot-is-never-its-own-wash-sale-replacement.md) | A lot is never its own wash-sale replacement | Accepted |
 | [0075](0075-tax-alpha-is-measured-on-a-century-of-real-returns.md) | Tax alpha is measured on a century of real returns, tracking luck apart | Accepted |
 | [0076](0076-the-rebalance-is-checked-by-an-unrelated-algorithm.md) | The rebalance is checked by an unrelated algorithm | Accepted |
+| [0077](0077-the-arrival-price-is-the-price-before-the-order-can-trade.md) | The arrival price is the price before the order can trade | Accepted |
+| [0078](0078-participation-is-a-share-of-all-the-volume.md) | Participation is a share of all the volume, the order's own included | Accepted |
+| [0079](0079-allocation-never-gives-an-account-more-than-it-asked.md) | Allocation places every share it can, and never past an account's request | Accepted |
+| [0080](0080-the-client-report-reads-its-figures-from-the-sources.md) | The client report reads its figures from their sources | Accepted |
+| [0081](0081-liquidation-cost-is-tested-on-a-century-of-real-prices.md) | Liquidation cost is tested on a century of real prices | Accepted |

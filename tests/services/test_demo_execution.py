@@ -29,8 +29,12 @@ def test_the_algorithm_wheel_routes_by_size(demo):
     assert choose_algorithm(0.3).name == "pov"
     for result, cost in zip(demo.executions, demo.costs, strict=True):
         assert result.params.name == choose_algorithm(cost.size_adv).name
-        expected = OrderStatus.FILLED if cost.size_adv < 0.10 else OrderStatus.EXPIRED
-        assert result.parent.status is expected
+        if cost.size_adv < 0.10:
+            assert result.parent.status is OrderStatus.FILLED
+        else:  # POV at 15% of all the volume can trade 15/85 of the rest of the market's day, and no more
+            day = float(result.market.volumes.sum())
+            finishes = cost.quantity <= 0.15 / 0.85 * day
+            assert result.parent.status is (OrderStatus.FILLED if finishes else OrderStatus.EXPIRED)
 
 
 def test_the_day_costs_what_the_desk_controls_plus_what_the_market_did(demo):
@@ -82,3 +86,29 @@ def test_the_client_report_is_a_nine_page_pdf(demo, tmp_path):
     assert b"Meridian Investment Platform" in content
     with pytest.raises(Exception, match="PDF"):
         pack.write(tmp_path / "report.png")
+
+
+def test_the_reports_figures_come_from_the_mandate_and_the_blocks_not_from_its_text(demo):
+    pack = ClientPack(demo)
+    # Day 8 wrote "the mandate's 6% soft limit", "30% floor", "two other accounts" and "26 block orders" into the text
+    assert pack.limit("tracking_error") == pytest.approx(0.06)
+    assert pack.limit("active_share") == pytest.approx(0.30)
+    accounts = {member.portfolio_id for block in demo.blocks for member in block.members}
+    assert pack.other_accounts == len(accounts) - 1
+    assert pack.blocks_traded == sum(
+        1 for block in demo.blocks if any(member.portfolio_id == pack.portfolio_id for member in block.members)
+    )
+
+
+def test_the_report_never_promises_to_carry_an_expired_order(demo):
+    import inspect
+
+    from meridian.reporting import client_pack
+
+    assert "carried to the next session" not in inspect.getsource(client_pack)  # nothing carries expired blocks
+
+
+def test_a_report_writes_small_counts_in_words():
+    from meridian.reporting.client_pack import in_words
+
+    assert (in_words(0), in_words(2), in_words(9), in_words(26), in_words(1200)) == ("no", "two", "nine", "26", "1,200")

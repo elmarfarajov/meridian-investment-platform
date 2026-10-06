@@ -8,8 +8,8 @@ schedule:
 * **VWAP** - in proportion to the volume the market is expected to trade in each
   minute, so the order's average price tracks the day's VWAP: the benchmark most
   institutions are judged against.
-* **POV** (percentage of volume) - a fixed share of whatever the market actually
-  trades, minute by minute; the order finishes when it finishes.
+* **POV** (percentage of volume) - a fixed share of whatever actually trades,
+  minute by minute; the order finishes when it finishes.
 * **IS** (implementation shortfall, arrival price) - the Almgren-Chriss
   trajectory: front-loaded, to trade impact against the risk of the price moving
   away from where it was when the order arrived. ``urgency`` is ``κT``: zero is
@@ -17,8 +17,13 @@ schedule:
 * **Close** - into the closing minutes, where the day's heaviest volume is: the
   benchmark for index funds, which are valued at the close.
 
+A participation rate is the order's share of *all* the volume traded, its own
+included - ``q / (q + V)`` for ``q`` shares against the market's ``V`` - the
+definition the pre-trade model and the transaction cost analysis use. So a 10%
+POV order trades ``V / 9`` shares against the market's ``V``, not ``V / 10``.
+
 Every algorithm respects a **participation cap** (no more than a quarter of any
-minute's volume by default) and an optional **limit price**; what cannot be
+minute's volume, ours included, by default) and an optional **limit price**; what cannot be
 done in time is left undone, and the parent order expires at the end of its
 window with the rest unfilled - the opportunity cost that transaction cost
 analysis charges it.
@@ -66,6 +71,13 @@ class AlgoParams:
             raise ValidationError("slices must be at least a minute and urgency not negative")
 
 
+def shares_at_rate(rate: float, market_volume: float) -> float:
+    """Shares that make ``rate`` of a minute's total volume when the rest of the market trades ``market_volume``."""
+    if rate >= 1.0:
+        return math.inf
+    return rate / (1.0 - rate) * market_volume
+
+
 def schedule(params: AlgoParams, shares: float, market: MarketDay | None = None) -> np.ndarray:
     """Cumulative share of the order planned to be done by the end of each minute of the session.
 
@@ -106,7 +118,7 @@ def is_problem(params: AlgoParams, shares: float, market: MarketDay) -> Executio
     """The Almgren-Chriss problem an order poses in a market: linear impact matched to the square-root law."""
     profile = market.profile
     horizon = params.end - params.start
-    price = market.open_price
+    price = market.arrival(params.start)
     sigma_minute = price * profile.daily_volatility / math.sqrt(SESSION_MINUTES)
     rate = shares / horizon
     bar_volume = profile.average_volume / SESSION_MINUTES
@@ -185,9 +197,9 @@ def execute(parent: Order, market: MarketDay, params: AlgoParams) -> ExecutionRe
         child_done = 0.0
         for minute in range(slice_start, slice_end):
             volume = float(market.volumes[minute])
-            cap = params.max_participation * volume
+            cap = shares_at_rate(params.max_participation, volume)
             # POV follows the volume that comes; the others catch up with their plan minute by minute
-            want = params.participation * volume if params.name == "pov" else plan[minute] - done
+            want = shares_at_rate(params.participation, volume) if params.name == "pov" else plan[minute] - done
             quantity = math.floor(min(want, cap, target - child_done, shares - done) + 1e-9)
             if quantity < 1:
                 continue

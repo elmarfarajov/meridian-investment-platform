@@ -28,6 +28,7 @@ from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
 from .execution_gallery import execution_items
+from .execution_revisited_gallery import execution_revisited_items
 from .fx_gallery import fx_reference_items
 from .marketdata.fx_history import FxHistory
 from .marketdata.golden import compare_to_reference
@@ -300,6 +301,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *century_risk_items(),
         *compliance_revisited_items(),
         *optimisation_revisited_items(),
+        *execution_revisited_items(),
     )
 
 

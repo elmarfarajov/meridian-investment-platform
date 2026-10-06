@@ -544,7 +544,35 @@ release, like the days themselves.
 
 **Notes:** [the tax code as the IRS writes it](notes/the-tax-code-as-the-irs-writes-it.md).
 
-### Days 8 and 9, revisited - next
+### Day 8, revisited - execution against the paper ✅
+
+**Issue #34, release v1.8.0.**
+
+- **Almgren and Chriss's own example reproduced**: κ = 0.607 a day against the paper's
+  "≈ 0.6". The closed form matches a conic solver's minimum on random problems.
+- **The arrival price** is the price before the order can trade, not a minute after.
+- **Participation is a share of all the volume**, the order's own included. POV and
+  the cap now trade at the rates they are set to.
+- **Allocation property-tested.** A block with fractional requests could not be
+  allocated; now every share is placed, and nobody gets more than they asked.
+- **The client report reads its figures from the mandate and the blocks**, and no
+  longer promises to carry unfilled shares.
+- **Liquidation on a century of real prices.** The model's 95% cost bound broke in
+  6.3% of weeks (7.4% for buyers). In the 1970s it broke in 10.9%, when daily returns
+  were autocorrelated; restating the variance for that brings it to 5.4%.
+
+**Charts:** six:
+
+- the paper's example;
+- the bound by decade;
+- the cost's tails;
+- POV at its rate;
+- allocation;
+- the review.
+
+**Notes:** [execution against the paper](notes/execution-against-the-paper.md).
+
+### Day 9, revisited - next
 
 ---
 
