@@ -139,6 +139,17 @@ class MarketDay:
         """The mid-price at a minute, with our permanent impact so far."""
         return float(self.unimpacted[minute] * (1.0 + self.shift[minute]))
 
+    def arrival(self, minute: int) -> float:
+        """The mid when an order reaches the desk at the start of ``minute``: the open, or the previous bar's close.
+
+        A bar's price is the price at its end, so the price an order released at
+        minute m arrives to is the one at the end of minute m - 1, before it can
+        trade; minute m's own move belongs to the trading.
+        """
+        if not 0 <= minute < self.minutes:
+            raise ValidationError(f"minute {minute} is outside the session")
+        return self.open_price if minute == 0 else self.mid(minute - 1)
+
     @property
     def close(self) -> float:
         return self.mid(self.minutes - 1)

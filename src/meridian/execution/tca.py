@@ -135,7 +135,7 @@ def analyse(
     if decision is None:
         decision = market.profile.previous_close
     sign = parent.side.sign
-    arrival = market.mid(result.params.start) if result.params.start > 0 else market.open_price
+    arrival = market.arrival(result.params.start)
     records = result.records
     filled = sum(record.quantity for record in records)
     quantity = parent.quantity
