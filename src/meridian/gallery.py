@@ -24,6 +24,7 @@ from .century_gallery import century_items
 from .century_risk_gallery import century_risk_items
 from .compliance_gallery import compliance_items
 from .compliance_revisited_gallery import compliance_revisited_items
+from .execution_revisited_gallery import execution_revisited_items
 from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
@@ -300,6 +301,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *century_risk_items(),
         *compliance_revisited_items(),
         *optimisation_revisited_items(),
+        *execution_revisited_items(),
     )
 
 
