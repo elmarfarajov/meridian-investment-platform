@@ -199,7 +199,7 @@ def review_chart() -> Figure:
             (DAY8["pov"], DAY8["close"]),
             (comparison["pov"], comparison["close"]),
             ".1f",
-            "Both trade at the rate they were set, of all the volume: a little more impact, and more of the order done.",
+            "Both trade at their set rate of all the volume: a little more impact, and more of the order done.",
         ),
     ]
     return plot_review(panels)

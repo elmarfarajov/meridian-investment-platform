@@ -24,11 +24,11 @@ from .century_gallery import century_items
 from .century_risk_gallery import century_risk_items
 from .compliance_gallery import compliance_items
 from .compliance_revisited_gallery import compliance_revisited_items
-from .execution_revisited_gallery import execution_revisited_items
 from .core.enums import Frequency
 from .core.money import Money
 from .core.schedules import StubConvention, generate_schedule
 from .execution_gallery import execution_items
+from .execution_revisited_gallery import execution_revisited_items
 from .fx_gallery import fx_reference_items
 from .marketdata.fx_history import FxHistory
 from .marketdata.golden import compare_to_reference
