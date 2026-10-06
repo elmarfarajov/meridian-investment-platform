@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..core.audit_chain import GENESIS, AuditRecord
 from .base import utcnow
-from .models import AuditLogRow, IdempotencyKeyRow, OrderRequestRow, PlatformUserRow
+from .models import AuditLogRow, CounterRow, IdempotencyKeyRow, OrderRequestRow, PlatformUserRow
 
 #: one writer at a time appends to the chain: read the head, seal, insert
 CHAIN_LOCK = threading.Lock()
@@ -140,9 +140,24 @@ class PlatformRepository:
         return list(self.session.scalars(statement.limit(limit)))
 
     def next_order_id(self) -> str:
-        """The next order number. Two writers can read the same one: the primary key refuses the second insert."""
-        count = self.session.scalar(select(func.count()).select_from(OrderRequestRow)) or 0
-        return f"ORD-{int(count) + 1:06d}"
+        """The next order number: one atomic increment of the counter, inside the order's own transaction.
+
+        The counter row stays locked until the order commits, so two orders never
+        share a number, and an order rolled back gives its number back. Counting
+        the orders instead (Day 9) handed two simultaneous orders the same number.
+        """
+        statement = (
+            update(CounterRow)
+            .where(CounterRow.name == "orders")
+            .values(value=CounterRow.value + 1)
+            .returning(CounterRow.value)
+        )
+        value = self.session.execute(statement).scalar_one_or_none()
+        if value is None:  # a database made without the migration's seed row: start from the orders on record
+            value = int(self.session.scalar(select(func.count()).select_from(OrderRequestRow)) or 0) + 1
+            self.session.add(CounterRow(name="orders", value=value))
+            self.session.flush()  # two first orders at once: the second insert fails, and is retried
+        return f"ORD-{int(value):06d}"
 
     def decide_order(self, order_id: str, status: str, decided_by: str, note: str | None) -> bool:
         """Decide a pending order, if it is still pending; False if another decision got there first.
