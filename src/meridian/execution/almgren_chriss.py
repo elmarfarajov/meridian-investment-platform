@@ -89,9 +89,22 @@ class ExecutionProblem:
         n = self.trades(risk_aversion)
         return 0.5 * self.gamma * self.shares**2 + self.epsilon * self.shares + self.eta_tilde / self.tau * float(n @ n)
 
-    def variance(self, risk_aversion: float) -> float:
+    def variance(self, risk_aversion: float, autocorrelation: float = 0.0) -> float:
+        """The variance of the cost: ``σ² τ Σ x_k²`` for a random walk.
+
+        ``autocorrelation`` is the correlation of one interval's price move with
+        the next. A position held through two intervals that move together is
+        riskier than the random walk says, by ``2 ρ σ² τ Σ x_k x_{k+1}``. Daily
+        index returns had a lag-one correlation near 0.3 in the 1970s, and the
+        random-walk variance understated the cost's spread accordingly. The
+        trajectory itself is still the random walk's optimum; only its risk is
+        restated.
+        """
+        if not -1.0 < autocorrelation < 1.0:
+            raise ValidationError("an autocorrelation must lie strictly between -1 and 1")
         x = self.holdings(risk_aversion)[1:]
-        return self.sigma**2 * self.tau * float(x @ x)
+        variance = float(x @ x) + 2.0 * autocorrelation * float(x[:-1] @ x[1:])
+        return self.sigma**2 * self.tau * max(variance, 0.0)
 
     def frontier(self, risk_aversions: np.ndarray) -> list[tuple[float, float, float]]:
         """(risk aversion, expected cost, standard deviation of cost) along the efficient frontier."""

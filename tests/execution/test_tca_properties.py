@@ -1,4 +1,4 @@
-"""The shortfall decomposition property-tested: any order, any algorithm, any start, either side, with or without a limit."""
+"""The shortfall decomposition property-tested: any order, algorithm, start and side, with or without a limit."""
 
 from __future__ import annotations
 
