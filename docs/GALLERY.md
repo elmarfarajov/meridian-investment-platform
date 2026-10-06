@@ -146,6 +146,14 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 
 ![Two unrelated algorithms, one rebalance](images/solver-agreement.png)
 
+**Almgren and Chriss's own example, reproduced** - The paper's Table 1: trajectories, the frontier, and a conic solver's minimum beside the closed form.
+
+![Almgren and Chriss's own example, reproduced](images/almgren-chriss-paper.png)
+
+**Allocation, property-tested** - Random blocks against the pro-rata rule, and the block Day 8 could not allocate.
+
+![Allocation, property-tested](images/allocation-properties.png)
+
 ### Cashflows
 
 **Payment schedule** - Accrual periods, the stub, and the payments moved by the business-day rule.
@@ -755,6 +763,22 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 **The trading blotter** - Every block of the day: algorithm, fill, slippage against arrival and shortfall.
 
 ![The trading blotter](images/trading-blotter.png)
+
+**Almgren-Chriss's 95% bound on a century of real prices** - How often a liquidation's cost broke the bound, decade by decade, and the autocorrelation behind it.
+
+![Almgren-Chriss's 95% bound on a century of real prices](images/century-liquidation-bound.png)
+
+**The cost of a liquidation is not normal** - The standardised cost of every week since 1927 against the normal and a random-walk control.
+
+![The cost of a liquidation is not normal](images/liquidation-cost-tails.png)
+
+**A POV order at its own rate** - Participation minute by minute, as Day 8 traded it and as it is traded now.
+
+![A POV order at its own rate](images/pov-participation.png)
+
+**A second reading of Day 8** - The figures the faults changed, before and after.
+
+![A second reading of Day 8](images/execution-review.png)
 
 ### Reporting
 
