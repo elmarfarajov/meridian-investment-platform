@@ -6,7 +6,7 @@
 [![Python 3.10 – 3.12](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-1B3A6B)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-1F8A80)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/badge/lint-ruff-6A4C93)](https://docs.astral.sh/ruff/)
-[![Release](https://img.shields.io/badge/release-v1.8.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.8.0)
+[![Release](https://img.shields.io/badge/release-v1.9.0-E07A29)](https://github.com/elmarfarajov/meridian-investment-platform/releases/tag/v1.9.0)
 [![Validated against QuantLib](https://img.shields.io/badge/validated-QuantLib-1F8A80)](docs/notes/the-rates-engine-validated.md)
 [![Tests](https://img.shields.io/badge/tests-1469-2E7D5B)](tests)
 [![Docker](https://img.shields.io/badge/docker-compose-4E86C7)](docker-compose.yml)
@@ -294,6 +294,31 @@ autocorrelation brings it to 5.4%.
 
 The full account is in [execution against the paper](docs/notes/execution-against-the-paper.md).
 
+**Day 9 revisited: the platform under concurrent requests.** Day 9's tests sent one
+request at a time. Sent together, three writes that checked and then wrote in separate
+steps broke:
+
+- **two orders took one number;**
+- **a retried order was entered twice;**
+- **two compliance officers were both told they had decided the same order**, one
+  "approved" and one "rejected".
+
+Each race is now forced in a unit test and decided by the database in one step.
+Deployed as four processes on one PostgreSQL, the Day 9 code failed 19% of simultaneous
+orders and decided a third of contested orders twice; the revisited code, none.
+
+![The promises Day 9 broke under load](docs/images/platform-under-load.png)
+
+An attacker's questions found two more faults:
+
+- **A failed sign-in for a name that does not exist came back in 7 ms**, against 206 ms
+  for a real one, which told which usernames were real.
+- **A deactivated account kept its rights until its token expired.**
+
+![What a failed sign-in told an attacker](docs/images/sign-in-timing.png)
+
+The full account is in [the platform under load](docs/notes/the-platform-under-load.md).
+
 ---
 
 ## What it does today
@@ -433,7 +458,7 @@ meridian platform verify-audit
 
 ## The charts
 
-Every module ships a visual, not only numbers. All one hundred and ninety-eight are in the
+Every module ships a visual, not only numbers. All two hundred and three are in the
 [gallery](docs/GALLERY.md) and are rebuilt from source with `meridian charts gallery`.
 
 **How much tracking error does a dollar of tax buy?** Every point on this frontier is a
@@ -818,6 +843,7 @@ ruff check src tests && ruff format --check src tests && mypy && pytest -q
 | [Performance against the references](docs/notes/performance-against-the-references.md) | Six faults, every measure against empyrical, Microsoft's XIRR, four linking methods, a century of Kenneth French's data |
 | [Risk against the references](docs/notes/risk-against-the-references.md) | Six faults, the Basel table, GARCH against arch, Ledoit-Wolf against PyPortfolioOpt, a century of daily VaR, bias by decade |
 | [Compliance that cannot be talked past](docs/notes/compliance-that-cannot-be-talked-past.md) | The pre-trade guarantee property-tested, breaches per group, the UCITS screen per the Directive, a century of a sector limit |
+| [The platform under load](docs/notes/the-platform-under-load.md) | Three races forced and fixed, four processes on one PostgreSQL, sign-in timing, rights read from the account on every request |
 | [Execution against the paper](docs/notes/execution-against-the-paper.md) | Almgren and Chriss's example reproduced, the arrival price, POV's rate, allocation property-tested, the client report's figures, liquidation on a century of real prices |
 | [The tax code as the IRS writes it](docs/notes/the-tax-code-as-the-irs-writes-it.md) | The holding period by the calendar, the carryover as Schedule D computes it, wash sales, two solvers, tax-loss harvesting on a century of real returns |
 | [Calendar conventions](docs/notes/calendar-conventions.md) | How each market's holidays are computed, the asymmetries that are easy to get wrong, and why calendars compose |
@@ -870,7 +896,7 @@ Built in daily increments; each day is an issue, a branch, a pull request and a 
 | 6+ | Day 6 revisited: the pre-trade check property-tested (302 unsafe orders of 3,000, now none), breaches per group, the UCITS screen as the Directive writes it, a century of a sector limit; release v1.6.0 | ✅ Done |
 | 7+ | Day 7 revisited: the holding period by the calendar (Day 3 too), the carryover as Schedule D computes it, wash sales, the rebalance against a second solver, tax-loss harvesting on a century of real returns; release v1.7.0 | ✅ Done |
 | 8+ | Day 8 revisited: Almgren and Chriss's example reproduced, the arrival price and POV's rate corrected, allocation property-tested, the client report's figures from their sources, a century of real liquidations against the model's 95% bound; release v1.8.0 | ✅ Done |
-| 9+ | Day 9 revisited, to the same standard | Next |
+| 9+ | Day 9 revisited: three check-then-write races forced and fixed (order numbers, idempotency, four eyes), the platform tested as four processes on one PostgreSQL, sign-in timing that no longer reveals usernames, rights read from the account on every request; release v1.9.0 | ✅ Done |
 
 ---
 
