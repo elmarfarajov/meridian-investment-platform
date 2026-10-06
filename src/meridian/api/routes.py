@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import secrets
 import time
 from collections.abc import Callable
+from functools import lru_cache
 from typing import Annotated, Any
 
 import jwt
@@ -23,7 +25,16 @@ from ..persistence import UnitOfWork
 from ..persistence.models import OrderRequestRow
 from . import schemas
 from .app import Platform, jsonable, platform_of, retry_after
-from .security import PERMISSIONS, Principal, issue_token, portfolios_from, read_token, roles_from, verify_password
+from .security import (
+    PERMISSIONS,
+    Principal,
+    hash_password,
+    issue_token,
+    portfolios_from,
+    read_token,
+    roles_from,
+    verify_password,
+)
 
 bearer = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 PortfolioId = Annotated[str, Path(pattern=r"^[A-Z0-9-]{2,64}$", examples=["PF-GLOBAL-EQ"])]
@@ -51,6 +62,13 @@ def principal(request: Request, token: Annotated[str | None, Depends(bearer)]) -
         raise HTTPException(401, "the token has expired", headers=UNAUTHORISED) from error
     except jwt.InvalidTokenError as error:
         raise HTTPException(401, "the token is not valid", headers=UNAUTHORISED) from error
+    # the token says who; the user record says what they may do now. A token outlives a change to the
+    # account - a leaver deactivated, a manager moved off the desk - and must not carry the old rights.
+    with platform.database.session() as session:
+        user = UnitOfWork(session).platform.user(caller.username)
+        if user is None or not user.active:
+            raise HTTPException(401, "the account is not active", headers=UNAUTHORISED)
+        caller = Principal(user.username, roles_from(user.roles), portfolios_from(user.portfolios), caller.token_id)
     request.state.principal = caller
     wait = platform.limiter.take(caller.username)
     if wait > 0:
@@ -191,12 +209,22 @@ def metrics(request: Request) -> Response:
 auth = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@lru_cache(maxsize=4)
+def decoy_hash(iterations: int) -> str:
+    """A hash no password matches, checked when there is no such account: every sign-in costs the same."""
+    return hash_password(secrets.token_urlsafe(32), iterations=iterations)
+
+
 @auth.post("/token", response_model=schemas.Token, summary="Exchange a username and password for a bearer token")
 def token(request: Request, form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> dict[str, Any]:
     platform = platform_of(request)
     with platform.database.session() as session:
         user = UnitOfWork(session).platform.user(form.username)
-        valid = user is not None and user.active and verify_password(form.password, user.password_hash)
+        # always one hash, whether or not the account exists or is active: the time a failure takes must
+        # not tell an attacker which usernames are real
+        stored = user.password_hash if user is not None else decoy_hash(platform.settings.password_iterations)
+        matches = verify_password(form.password, stored)
+        valid = user is not None and user.active and matches
         if not valid or user is None:
             # one message for an unknown user and a wrong password: the response does not reveal which
             request.state.audit_detail = f"failed login for {form.username[:64]}"
