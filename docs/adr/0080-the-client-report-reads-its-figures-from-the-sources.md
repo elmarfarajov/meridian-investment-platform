@@ -1,7 +1,7 @@
 # 80. The client report reads its figures from their sources
 
 - **Status:** Accepted
-- **Date:** 2026-10-07
+- **Date:** 2026-10-06
 
 ## Context
 

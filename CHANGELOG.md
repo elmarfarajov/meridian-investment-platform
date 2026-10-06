@@ -4,7 +4,48 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0] - 2026-10-07
+## [1.9.0] - 2026-10-06
+
+Day 9 revisited: the platform under concurrent requests and an attacker's questions.
+Day 9's tests sent one request at a time to one process. Sent together, and deployed as
+four processes on one PostgreSQL, three writes broke. An attacker's questions found two
+more faults.
+
+### Added
+
+- **The races forced in unit tests** (`tests/api/test_concurrency.py`). A barrier holds
+  each request at its read until the other has read too, so a check-then-write fault
+  fails every time.
+- **The platform tested as it is deployed** (`tests/api/test_workers_postgres.py`): four
+  API processes on a fresh PostgreSQL database, requests spread over them in turn and
+  sent at the same moment.
+- **Migration 0011**: `platform_counters`, the counter order numbers come from.
+- **Five charts** (two hundred and three in the gallery), a methodology note, ADRs 0082
+  to 0086, and the measurements kept with their method
+  (`docs/data/platform-under-load.json`).
+
+### Fixed
+
+- **Two orders entered at once took the same number**, and the second failed with a
+  500. On four processes, 61 of 320 simultaneous orders failed. Numbers now come from one
+  `UPDATE ... RETURNING` on a counter row, inside the order's transaction.
+- **A retried order sent at the same moment as the original was entered twice**, or
+  failed with a 500. The order and its idempotency record are now one transaction; a
+  key already taken returns the first answer.
+- **Two approvers deciding one order at once were both told they had decided it**, one
+  "approved" and one "rejected", and the last write stood: 13 of 40 contested orders
+  under load. A decision is now one conditional update on a pending order, and the
+  second approver gets 409.
+- **A failed sign-in revealed whether the username existed.** An unknown or deactivated
+  name failed in 7 ms, a real one in 206 ms, because only real accounts were hashed.
+  Every sign-in now computes one hash, against a decoy where there is no account.
+- **A deactivated, removed or demoted account kept its rights until its token expired**,
+  up to 30 minutes. Each request now reads the account, and refuses one that is gone or
+  inactive.
+- The web platform note claimed every sign-in costs an attacker the same; it did not,
+  and now does.
+
+## [1.8.0] - 2026-10-06
 
 Day 8 revisited: execution against the paper. The Almgren-Chriss engine reproduces the
 paper's own example; the desk around it had four faults. The paper's liquidation then

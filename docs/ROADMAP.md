@@ -572,7 +572,35 @@ release, like the days themselves.
 
 **Notes:** [execution against the paper](notes/execution-against-the-paper.md).
 
-### Day 9, revisited - next
+### Day 9, revisited - the platform under load ✅
+
+**Issue #36, release v1.9.0.**
+
+- **Three check-then-write races, forced and fixed:**
+  - order numbers now come from an atomic counter (migration 0011);
+  - an order and its idempotency key are one transaction;
+  - a four-eyes decision is one conditional update.
+- **The platform tested as it is deployed:** four processes on one PostgreSQL. The Day
+  9 code failed 61 of 320 simultaneous orders and decided 13 of 40 contested orders
+  twice; the revisited code, none.
+- **Sign-in timing:** every sign-in costs one hash. An unknown name took 7 ms against
+  206 ms for a real one.
+- **Rights read from the account on every request:** a deactivated, removed or demoted
+  account loses its rights at once, not when its token expires.
+
+**Charts:** five:
+
+- the promises under load;
+- the three races;
+- sign-in timing;
+- a deactivated account's token;
+- the review.
+
+**Notes:** [the platform under load](notes/the-platform-under-load.md).
+
+Every day of the build has now been revisited, each to the same standard: its own
+claims held to independent references, real data or real deployments, and every fault
+found kept as a test.
 
 ---
 

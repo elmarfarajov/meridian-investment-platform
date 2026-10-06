@@ -856,6 +856,26 @@ since July 1926, packaged with the code, and their daily returns since 1 July 19
 
 ![Nine days, one platform](images/nine-days.png)
 
+**The promises Day 9 broke under load** - Four API processes on one PostgreSQL: orders failed, retries failed, orders decided twice.
+
+![The promises Day 9 broke under load](images/platform-under-load.png)
+
+**Three checks that two requests passed together** - The interleavings behind each fault, and how the database now decides.
+
+![Three checks that two requests passed together](images/race-timelines.png)
+
+**What a failed sign-in told an attacker** - Failed sign-ins for a real, an unknown and a deactivated user, before and after.
+
+![What a failed sign-in told an attacker](images/sign-in-timing.png)
+
+**An account switched off is switched off at once** - A deactivated account's token, as Day 9 honoured it and as the platform does now.
+
+![An account switched off is switched off at once](images/stale-rights.png)
+
+**A second reading of Day 9** - The figures the faults changed, before and after.
+
+![A second reading of Day 9](images/platform-review.png)
+
 ### Platform
 
 **The data model** - Every table, column and foreign key, drawn from the live SQLAlchemy metadata.

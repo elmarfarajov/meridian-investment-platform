@@ -1,7 +1,7 @@
 # 77. The arrival price is the price before the order can trade
 
 - **Status:** Accepted
-- **Date:** 2026-10-07
+- **Date:** 2026-10-06
 
 ## Context
 

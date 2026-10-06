@@ -51,16 +51,18 @@ contract states who may call it.
 | Layer | What it does | On failure |
 | --- | --- | --- |
 | request id | taken from `X-Request-ID` or generated; returned, logged, audited | — |
-| authentication | an HMAC-SHA256 JWT: signature, issuer, expiry | 401, one message for every cause |
-| authorisation | the endpoint's permission against the caller's roles | 403 |
+| authentication | an HMAC-SHA256 JWT: signature, issuer, expiry; and the account must still exist and be active | 401, one message for every cause |
+| authorisation | the endpoint's permission against the caller's roles, read from the account on each request | 403 |
 | entitlement | a client's portfolios, from their own record | 404, as if absent |
 | rate limit | a token bucket per user | 429 with `Retry-After` |
 | idempotency | a write's `Idempotency-Key`: the stored response on a retry | 409 if the body differs |
 | audit and metrics | every request appended to the hash chain, counted in Prometheus | readiness fails if the chain breaks |
 
 **Passwords** are stored as salted PBKDF2-HMAC-SHA256 at 600,000 iterations (OWASP
-2023) and compared in constant time. Signing in costs about 750 ms. That is deliberate:
-every guess costs an attacker the same.
+2023) and compared in constant time. Signing in costs a few hundred milliseconds. That is
+deliberate: every guess costs an attacker the same. Since the
+[Day 9 revisit](the-platform-under-load.md) that holds for a username that does not exist
+too. Day 9 skipped the hash there, and the time told an attacker which names were real.
 
 **The service will not start unsafe.** In production it refuses to run with the
 development signing key, and it refuses any key shorter than 32 characters.
@@ -96,7 +98,9 @@ Day 6 engine runs on the portfolio the order would leave. Then:
 | above $250,000, or the mandate needs an override | **pending approval** |
 
 A pending order is decided by a second person with `orders:approve`. Deciding one's own
-order is refused (403) even for a user who holds both roles.
+order is refused (403) even for a user who holds both roles. The decision is one
+conditional update on a pending order. If two approvers act at once, one decides it and
+the other is told it was decided (409).
 
 ## 5. A tamper-evident audit trail
 
@@ -143,7 +147,10 @@ can create it twice. Writes therefore accept an `Idempotency-Key`:
   of the body;
 - a retry with the same key and body gets the stored response, marked
   `Idempotent-Replayed: true`, and nothing is done again;
-- the same key with a different body is refused with 409.
+- the same key with a different body is refused with 409;
+- the order and its key are stored in one transaction, so a retry that arrives at the
+  same moment as the original gets the original's answer. It never gets a second order,
+  and never a 500.
 
 ## 7. A working day, measured
 
@@ -193,7 +200,7 @@ a protected read, and a 401 without a token.
 
 | Missing | What a deployment would add |
 | --- | --- |
-| single sign-on | OpenID Connect against the firm's identity provider instead of local passwords; token revocation beyond expiry |
+| single sign-on | OpenID Connect against the firm's identity provider instead of local passwords (an account switched off locally is refused at once, but sessions are not listed or revoked one by one) |
 | TLS | terminated at a reverse proxy in front of the API |
 | a shared rate limit | Redis, so the limit holds across workers and containers |
 | external anchoring of the audit chain | the head hash published outside the database |

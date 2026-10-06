@@ -1,7 +1,7 @@
 # 81. Liquidation cost is tested on a century of real prices
 
 - **Status:** Accepted
-- **Date:** 2026-10-07
+- **Date:** 2026-10-06
 
 ## Context
 

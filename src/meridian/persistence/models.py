@@ -746,6 +746,15 @@ class IdempotencyKeyRow(TimestampMixin, Base):
     response_body: Mapped[str] = mapped_column(String(20000))
 
 
+class CounterRow(Base):
+    """A named counter the platform numbers things from, incremented atomically (order numbers)."""
+
+    __tablename__ = "platform_counters"
+
+    name: Mapped[str] = mapped_column(String(32), primary_key=True)
+    value: Mapped[int] = mapped_column(Integer)
+
+
 class OrderRequestRow(TimestampMixin, Base):
     """An order entered through the platform: its pre-trade decision and its four-eyes approval."""
 

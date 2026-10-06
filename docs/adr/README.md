@@ -87,3 +87,8 @@ immutable - a reversal gets a new record that supersedes the old one.
 | [0079](0079-allocation-never-gives-an-account-more-than-it-asked.md) | Allocation places every share it can, and never past an account's request | Accepted |
 | [0080](0080-the-client-report-reads-its-figures-from-the-sources.md) | The client report reads its figures from their sources | Accepted |
 | [0081](0081-liquidation-cost-is-tested-on-a-century-of-real-prices.md) | Liquidation cost is tested on a century of real prices | Accepted |
+| [0082](0082-order-numbers-come-from-an-atomic-counter.md) | Order numbers come from an atomic counter | Accepted |
+| [0083](0083-a-write-is-decided-by-the-database-in-one-step.md) | A write is decided by the database, in one step | Accepted |
+| [0084](0084-every-sign-in-costs-one-password-hash.md) | Every sign-in costs one password hash | Accepted |
+| [0085](0085-each-request-reads-the-account-as-it-is.md) | Each request reads the account as it is | Accepted |
+| [0086](0086-the-platform-is-tested-as-it-is-deployed.md) | The platform is tested as it is deployed | Accepted |

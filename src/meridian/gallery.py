@@ -36,6 +36,7 @@ from .optimisation_gallery import optimisation_items
 from .optimisation_revisited_gallery import optimisation_revisited_items
 from .performance_gallery import performance_items
 from .platform_gallery import platform_items
+from .platform_revisited_gallery import platform_revisited_items
 from .quality.engine import QualityReport
 from .rates_gallery import rates_engine_items
 from .refdata import build_security_master, demo_vendor_records
@@ -302,6 +303,7 @@ def gallery_items() -> tuple[GalleryItem, ...]:
         *compliance_revisited_items(),
         *optimisation_revisited_items(),
         *execution_revisited_items(),
+        *platform_revisited_items(),
     )
 
 
