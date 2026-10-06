@@ -125,6 +125,31 @@ class ClientPack:
     def _performance(self):  # type: ignore[no-untyped-def]
         return self.optimisation.risk.performance
 
+    def limit(self, rule_id: str) -> float:
+        """A one-sided limit of the account's mandate, as written in it: never re-keyed into the report's text."""
+        bound = self.optimisation.compliance.mandate.rule(rule_id).bound
+        value = bound.upper if bound.upper is not None else bound.lower
+        assert value is not None  # Rule guarantees a bound has a side
+        return float(value)
+
+    @property
+    def blocks_traded(self) -> int:
+        """The block orders the account's orders were worked in."""
+        return sum(
+            1 for block in self.execution.blocks if any(m.portfolio_id == self.portfolio_id for m in block.members)
+        )
+
+    @property
+    def other_accounts(self) -> int:
+        """The other accounts whose orders were in the same blocks."""
+        accounts = {
+            member.portfolio_id
+            for block in self.execution.blocks
+            if any(m.portfolio_id == self.portfolio_id for m in block.members)
+            for member in block.members
+        }
+        return len(accounts - {self.portfolio_id})
+
     # ------------------------------------------------------------------ the pages
     def cover(self) -> Figure:
         client, account, portfolio = self.names
@@ -177,16 +202,17 @@ class ClientPack:
         proposal = self.optimisation.proposal
         commentary = [
             f"The account returned {mine_ytd:+.2%} this year against {theirs_ytd:+.2%} for its policy benchmark. "
-            f"Its forecast tracking error was {proposal.tracking_error_before:.2%}, close to the mandate's 6% soft "
-            "limit.",
+            f"Its forecast tracking error was {proposal.tracking_error_before:.2%}, against the mandate's "
+            f"{self.limit('tracking_error'):.0%} soft limit.",
             f"We rebalanced towards the benchmark: the tracking error falls to {proposal.tracking_error_after:.2%}. "
-            f"Choosing which tax lots to sell and harvesting losses turned the rebalance's tax bill into a saving of "
-            f"{_money(-proposal.tax)}, while the account's active share stays at the mandate's 30% floor.",
-            f"The orders were traded on {self.execution.trade_date:%d %B} as blocks with two other accounts on the "
-            "same "
-            f"model, at one average price. The account's share cost {shortfall / value * 1e4:+.1f} basis points "
-            "against "
-            "the decision prices, including the market's own move during the day.",
+            f"Choosing which tax lots to sell and harvesting losses turned the rebalance's tax bill into "
+            + (f"a saving of {_money(-proposal.tax)}" if proposal.tax < 0 else f"{_money(proposal.tax)}")
+            + f", with the account's active share at {proposal.active_share_after:.1%} against the mandate's "
+            f"{self.limit('active_share'):.0%} floor.",
+            f"The orders were traded on {self.execution.trade_date:%d %B} in {self.blocks_traded} blocks with "
+            f"{self.other_accounts} other accounts on the same model, at one average price. The account's share cost "
+            f"{shortfall / value * 1e4:+.1f} basis points against the decision prices, including the market's own "
+            "move during the day.",
         ]
         growth = (
             [day for day, _ in growth_mine],
@@ -260,12 +286,13 @@ class ClientPack:
             if item.allocation.quantity < item.allocation.requested
         )
         tiles = [
-            ("Orders", f"{len(costs)}", "shares of 26 block orders"),
+            ("Orders", f"{len(costs)}", f"shares of {self.blocks_traded} block orders"),
             ("Traded value", _money(filled), f"of {_money(value)} requested"),
             ("Cost against decision", f"{shortfall / value * 1e4:+.1f} bp", _money(shortfall)),
         ]
         if unfilled > 0:
-            tiles.append(("Not yet traded", f"{unfilled:,.0f} shares", "large blocks, carried to the next session"))
+            # expired blocks are not carried over (Day 8): what was not done is reported as not done
+            tiles.append(("Not traded", f"{unfilled:,.0f} shares", "large blocks that expired at the close"))
         return plot_trading(tiles, rows, components, self.names[1], self.execution.trade_date, 8, TOTAL_PAGES)
 
     def notes(self) -> Figure:
