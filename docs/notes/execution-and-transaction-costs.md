@@ -76,11 +76,11 @@ is known.
 | --- | --- | --- | --- |
 | **TWAP** | even in time | predictable | blind to volume |
 | **VWAP** | the expected volume curve | tracks the benchmark institutions are judged on | ignores the price |
-| **POV** | a fixed share of realised volume | adapts to the day | finish time unknown; may not finish |
+| **POV** | a fixed share of all the volume traded, its own included | adapts to the day | finish time unknown; may not finish |
 | **IS** | the Almgren–Chriss trajectory | trades impact against the risk of the price moving | front-loads, pays more impact |
 | **Close** | the last ten minutes | the index-fund benchmark | cannot finish a large order |
 
-Every algorithm is capped at **25% of any minute's volume**. What is not done by the
+Every algorithm is capped at **25% of any minute's volume**, its own included: a participation rate is always the order's share of all the volume traded, `q / (q + V)`. What is not done by the
 end of the window expires and is charged opportunity cost.
 
 **Almgren–Chriss.** Linear temporary impact `η`, permanent impact `γ` and price
@@ -150,16 +150,20 @@ components add up to the shortfall computed directly from its fills.
 | --- | --- |
 | delay | −2.6 |
 | spread | +2.5 |
-| temporary impact | +5.2 |
+| temporary impact | +5.3 |
 | permanent impact | +0.2 |
-| timing | −12.1 |
-| opportunity | −3.1 |
+| timing | −12.3 |
+| opportunity | −2.2 |
 | fees | +2.0 |
-| **shortfall** | **−7.9** |
+| **shortfall** | **−7.1** |
 
 The shortfall splits into two parts:
-- **the costs the desk controls** (spread, impact, fees): **+9.8 bp**;
-- **the market's own move** (delay, timing, opportunity): **−17.7 bp**.
+- **the costs the desk controls** (spread, impact, fees): **+10.0 bp**;
+- **the market's own move** (delay, timing, opportunity): **−17.1 bp**.
+
+(Figures as recomputed in the [Day 8 revisit](execution-against-the-paper.md), with the
+arrival price taken before trading and participation measured as a share of all the
+volume. Day 8 printed −7.9 bp.)
 
 The market moved in the account's favour on this day. On another day it will not. That
 is why a desk is judged on the first number, and why a single day's shortfall says
@@ -169,8 +173,8 @@ little about the desk.
 
 | | TWAP | VWAP | POV | IS | Close |
 | --- | --- | --- | --- | --- | --- |
-| controllable cost, bp | 10.6 | 10.4 | 21.9 | 10.8 | 21.3 |
-| share of value traded | 98.4% | 98.4% | 96.3% | 98.4% | 94.1% |
+| controllable cost, bp | 11.0 | 10.9 | 23.0 | 11.2 | 21.9 |
+| share of value traded | 99.0% | 99.1% | 96.5% | 99.1% | 94.7% |
 
 POV and Close pay twice as much. Both concentrate their trading: POV into the minutes
 before it finishes, Close into its last ten minutes. Close also leaves the most undone.
@@ -188,8 +192,8 @@ origin two ways:
 
 | Fitted from | Coefficient | 95% interval | R² |
 | --- | --- | --- | --- |
-| impact measured by the simulator (steady-rate orders) | 0.355 | 0.353 – 0.357 | 1.00 |
-| what a desk observes: execution cost against arrival, less the spread | 0.175 | −0.04 – 0.39 | 0.01 |
+| impact measured by the simulator (steady-rate orders) | 0.355 | 0.354 – 0.356 | 1.00 |
+| what a desk observes: execution cost against arrival, less the spread | 0.190 | −0.02 – 0.40 | 0.01 |
 | **the truth** | **0.350** | | |
 
 Measured directly, the coefficient is recovered to within 1.5%. From the prices a desk
@@ -198,7 +202,7 @@ that includes zero. This is why brokers estimate impact models from millions of
 orders, and why a small desk should borrow its broker's model rather than fit its own.
 
 The **pre-trade estimate** (commission, half the spread, square-root impact at an even
-pace, half the permanent impact) averages 16.4 bp against 18.5 bp realised, with a
+pace, half the permanent impact) averages 16.4 bp against 18.8 bp realised, with a
 correlation of 0.88. It is slightly low, because front-loaded and POV schedules pay
 more impact than an even pace.
 

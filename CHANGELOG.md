@@ -4,6 +4,50 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-10-07
+
+Day 8 revisited: execution against the paper. The Almgren-Chriss engine reproduces the
+paper's own example; the desk around it had four faults. The paper's liquidation then
+ran through a century of real prices, which broke the model's 95% bound more often than
+it promises.
+
+### Added
+
+- **Almgren and Chriss (2000), Table 1, as a test.** κ = 0.607 a day and κT = 3.04,
+  against the paper's "≈ 0.6" and "≈ 3". The closed-form trajectory is also held to a
+  conic solver's direct minimisation on random problems.
+- **Property tests** of block allocation and of the shortfall decomposition (any
+  order, algorithm, start, side and limit).
+- **Liquidation on a century of real prices** (`services/century_execution.py`):
+  - the paper's example over every week since 1927, on the market and its twelve
+    industries;
+  - the volatility forecast the evening before;
+  - Day 5's Kupiec test, and a random-walk control.
+
+  The 95% bound broke in 6.3% of 67,769 weeks for sellers and 7.4% for buyers; in
+  10.9% of the 1970s for the market.
+- **`ExecutionProblem.variance(..., autocorrelation)`**: the cost's variance when price
+  moves follow each other. Restated with the year before's autocorrelation, the bound
+  breaks in 5.4% of weeks.
+- **Six charts** (one hundred and ninety-eight in the gallery), a methodology note and
+  ADRs 0077 to 0081.
+
+### Fixed
+
+- **The arrival price was taken a minute late** for an order released after the open:
+  the price at the end of its first minute, after it could already have traded.
+  `MarketDay.arrival` gives the price at the start of the minute for every order.
+- **POV traded at the wrong rate.** A 10% POV order traded a tenth of everyone else's
+  volume, 9.1% of the total by the platform's own measure. The participation cap had
+  the same fault. Rates are now shares of all the volume, the order's own included.
+  The demo day costs −7.1 bp, not −7.9 bp, because more of the large blocks is done.
+- **A block with fractional requests could not be allocated.** The odd share went past
+  an account's request and was lost. Odd shares now go only where there is room.
+- **The client report typed figures into its text**: the mandate's limits, the number
+  of accounts and of blocks. It also told the client that unfilled shares were carried
+  to the next session, which nothing does. Its figures are now read from the mandate
+  and the blocks, and an expired block is reported as expired.
+
 ## [1.7.0] - 2026-10-06
 
 Day 7 revisited: the tax code as the IRS writes it. The optimiser's tax arithmetic was
