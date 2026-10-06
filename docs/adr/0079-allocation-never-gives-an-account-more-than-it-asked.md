@@ -1,7 +1,7 @@
 # 79. Allocation places every share it can, and never past an account's request
 
 - **Status:** Accepted
-- **Date:** 2026-10-07
+- **Date:** 2026-10-06
 
 ## Context
 

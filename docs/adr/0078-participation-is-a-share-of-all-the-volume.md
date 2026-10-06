@@ -1,7 +1,7 @@
 # 78. Participation is a share of all the volume, the order's own included
 
 - **Status:** Accepted
-- **Date:** 2026-10-07
+- **Date:** 2026-10-06
 
 ## Context
 
